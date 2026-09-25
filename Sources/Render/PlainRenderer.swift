@@ -23,39 +23,55 @@ public struct PlainRenderer: Sendable {
 
     public init() {}
 
-    /// Returns slide file names in order (slide-01.png, …) written into `outputDirectory`.
+    public struct Outcome: Sendable {
+        /// Slide file names written, in slide order (slide-01.png, …).
+        public var names: [String] = []
+        /// One message per slide that failed; other slides still render.
+        public var failures: [String] = []
+    }
+
     public func render(plan: CarouselPlan, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
-                       features: [AssetID: PhotoFeatures], sourceFolder: URL, outputDirectory: URL) throws -> [String] {
+                       features: [AssetID: PhotoFeatures], sourceFolder: URL, outputDirectory: URL) throws -> Outcome {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-        let width = aspect.exportWidth, height = aspect.exportHeight
-        var names: [String] = []
+        var outcome = Outcome()
         for (i, slide) in plan.slides.enumerated() {
-            guard let element = slide.photos.first, let record = photos[element.assetID] else {
-                throw RenderError.missingPhoto(slide.photos.first?.assetID ?? AssetID(rawValue: "?"))
-            }
-            let source = sourceFolder.appending(path: record.sourceRelativePaths[0])
-            let image = try decode(source, maxPixel: 2 * max(width, height))
-            let space = CGColorSpace(name: CGColorSpace.sRGB)!
-            guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                                      space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
-                throw RenderError.encodeFailed("context")
-            }
-            ctx.interpolationQuality = .high
-            let canvas = CGRect(x: 0, y: 0, width: width, height: height)
-            if slide.primitive == .hero {
-                ctx.setFillColor(Self.paper); ctx.fill(canvas)
-                ctx.draw(image, in: Self.fit(image, into: canvas.insetBy(dx: Double(width) * 0.06, dy: Double(height) * 0.06)))
-            } else {
-                let crop = Self.coverCrop(imageWidth: image.width, imageHeight: image.height,
-                                          targetAspect: Double(width) / Double(height), features: features[record.assetID])
-                guard let cropped = image.cropping(to: crop) else { throw RenderError.decodeFailed(source.lastPathComponent) }
-                ctx.draw(cropped, in: canvas)
-            }
             let name = String(format: "slide-%02d.png", i + 1)
-            try writePNG(ctx.makeImage()!, to: outputDirectory.appending(path: name))
-            names.append(name)
+            do {
+                try renderSlide(slide, aspect: aspect, photos: photos, features: features, sourceFolder: sourceFolder,
+                                to: outputDirectory.appending(path: name))
+                outcome.names.append(name)
+            } catch {
+                outcome.failures.append("slide \(i + 1): \(error)")
+            }
         }
-        return names
+        return outcome
+    }
+
+    func renderSlide(_ slide: SlidePlan, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
+                     features: [AssetID: PhotoFeatures], sourceFolder: URL, to url: URL) throws {
+        let width = aspect.exportWidth, height = aspect.exportHeight
+        guard let element = slide.photos.first, let record = photos[element.assetID] else {
+            throw RenderError.missingPhoto(slide.photos.first?.assetID ?? AssetID(rawValue: "?"))
+        }
+        let source = sourceFolder.appending(path: record.sourceRelativePaths[0])
+        let image = try decode(source, maxPixel: 2 * max(width, height))
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+            throw RenderError.encodeFailed("context")
+        }
+        ctx.interpolationQuality = .high
+        let canvas = CGRect(x: 0, y: 0, width: width, height: height)
+        if slide.primitive == .hero {
+            ctx.setFillColor(Self.paper); ctx.fill(canvas)
+            ctx.draw(image, in: Self.fit(image, into: canvas.insetBy(dx: Double(width) * 0.06, dy: Double(height) * 0.06)))
+        } else {
+            let crop = Self.coverCrop(imageWidth: image.width, imageHeight: image.height,
+                                      targetAspect: Double(width) / Double(height), features: features[record.assetID])
+            guard let cropped = image.cropping(to: crop) else { throw RenderError.decodeFailed(source.lastPathComponent) }
+            ctx.draw(cropped, in: canvas)
+        }
+        try writePNG(ctx.makeImage()!, to: url)
     }
 
     /// Cover crop (top-left pixel coordinates) centred on faces, else the largest salient region, else the centre.

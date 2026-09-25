@@ -49,3 +49,22 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
   - All three concepts valid; Designed and Wildcard are distinct (different cover, primitive mix, density, decoration).
 - Plain Dump slides render face-safe. Hero slides use a paper background.
 - To watch: the triage prompt's emotional scoring against conventional-aesthetic bias, which needs your own picks to evaluate.
+
+### M2+M3 review fixes (all 11 findings)
+- Old runs reopen: tolerant decoding for manifest and photo metadata.
+- A flagged face is never the cover: spine cover checked, first unflagged photo moved to the front, fallback spine included.
+- Local outlier face-quality flags (≤0.05 on 1–2-face photos) are shown to the planner.
+- Repair/retry keeps the best result: spine validity first, then the number of valid concepts, then issue count.
+- A failed first planner call is still retried.
+- Failed calls record billed usage, retries and latency, and are written to `llm/`.
+- `.env` with Windows line endings is read.
+- `--slides` is enforced.
+- An invalid spine makes Designed and Wildcard unavailable.
+- One bad photo only loses its own slide; rerender stages into a temp folder and swaps.
+- The report shows the post-junk representative.
+- Undated photos share one time bin.
+- Rulings:
+  - Face-quality flag threshold is 0.05 on 1–2-face photos, not 0.15. Real data has a median of 0.14, so 0.15 flagged a third of the shortlist. Cost if wrong: a borderline blink could still become the cover, but model triage still flags blinks.
+  - Diversity passes with 3+ structural differences and a different cover, regardless of photo overlap. Cost if wrong: concepts could share most photos, but structure still differs.
+  - The API timeout drops from 240 s to 180 s.
+- Deferred minor: task cancellation is not propagated during retry backoff.

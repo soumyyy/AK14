@@ -136,11 +136,12 @@ struct RunPipeline: Sendable {
             if let plain = output.plans.first(where: { $0.conceptType == .plainDump }) {
                 log("Rendering your options…")
                 do {
-                    let names = try PlainRenderer().render(plan: plain, aspect: aspect,
-                                                           photos: Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) }),
-                                                           features: features, sourceFolder: folder,
-                                                           outputDirectory: store.url("slides/plainDump"))
-                    plainSlides = names.map { "slides/plainDump/\($0)" }
+                    let outcome = try PlainRenderer().render(plan: plain, aspect: aspect,
+                                                             photos: Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) }),
+                                                             features: features, sourceFolder: folder,
+                                                             outputDirectory: store.url("slides/plainDump"))
+                    plainSlides = outcome.names.map { "slides/plainDump/\($0)" }
+                    warnings += outcome.failures.map { "plain render: \($0)" }
                 } catch {
                     warnings.append("plain render failed: \(error)")
                 }
@@ -225,7 +226,8 @@ struct RunPipeline: Sendable {
                                                 junk: junk[c.assetID], eventStart: start),
                           capturedAt: photoByID[c.assetID]?.metadata.capturedAt,
                           triageJPEG: triageThumbs[c.assetID].flatMap { try? Data(contentsOf: $0) },
-                          planningJPEG: planningThumbs[c.assetID].flatMap { try? Data(contentsOf: $0) })
+                          planningJPEG: planningThumbs[c.assetID].flatMap { try? Data(contentsOf: $0) },
+                          localFlags: Self.localSafetyFlags(features[c.assetID]))
         }
 
         let shortlist = reduction.shortlist, config = reduction.config
@@ -264,6 +266,14 @@ struct RunPipeline: Sendable {
         r.funnel.planningPool = output.pool.count
         r.funnel.selected = output.spine?.orderedAssetIDs.count ?? 0
         return r
+    }
+
+    /// Outlier-low face-capture quality on a close-up (1–2 faces) counts as a social-safety flag for covers.
+    /// Capture quality is relative and runs low for small faces (median ≈0.14 on real group-heavy events),
+    /// so only clear outliers are flagged.
+    static func localSafetyFlags(_ f: PhotoFeatures?) -> [String] {
+        guard let faces = f?.faces, (1...2).contains(faces.count) else { return [] }
+        return faces.contains { ($0.captureQuality ?? 1) <= 0.05 } ? ["lowFaceQuality"] : []
     }
 
     /// One line of local facts for the model. Times are relative to the event start (no absolute location).

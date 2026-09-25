@@ -5,11 +5,12 @@ import Render
 
 enum RerenderCommand {
     enum Failure: Error, CustomStringConvertible {
-        case noPlan, changed(String)
+        case noPlan, changed(String), render([String])
         var description: String {
             switch self {
             case .noPlan: "run has no Plain Dump plan to render"
             case .changed(let p): "source photo changed since the run: \(p)"
+            case .render(let f): "rerender failed; previous slides kept: \(f.joined(separator: "; "))"
             }
         }
     }
@@ -28,9 +29,19 @@ enum RerenderCommand {
             let sha = try FileHasher.sha256Hex(of: folder.appending(path: p.sourceRelativePaths[0]))
             if sha != p.contentSHA256 { throw Failure.changed(p.sourceRelativePaths[0]) }
         }
-        try? FileManager.default.removeItem(at: store.url("slides/plainDump"))
-        _ = try PlainRenderer().render(plan: plain, aspect: manifest.aspectRatio, photos: photos,
-                                       features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }),
-                                       sourceFolder: folder, outputDirectory: store.url("slides/plainDump"))
+        // Render into a temp directory and swap only when every slide succeeded, so a failure keeps the old slides.
+        let fm = FileManager.default
+        let staging = store.url("slides/.plainDump-rerender")
+        try? fm.removeItem(at: staging)
+        let outcome = try PlainRenderer().render(plan: plain, aspect: manifest.aspectRatio, photos: photos,
+                                                 features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }),
+                                                 sourceFolder: folder, outputDirectory: staging)
+        guard outcome.failures.isEmpty else {
+            try? fm.removeItem(at: staging)
+            throw Failure.render(outcome.failures)
+        }
+        let final = store.url("slides/plainDump")
+        if fm.fileExists(atPath: final.path) { _ = try fm.replaceItemAt(final, withItemAt: staging) }
+        else { try fm.moveItem(at: staging, to: final) }
     }
 }

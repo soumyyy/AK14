@@ -8,12 +8,15 @@ import TestSupport
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
 final class FakeModel: ResponsesTransport, @unchecked Sendable {
-    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited }
+    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete }
     private let lock = NSLock()
     private var script: [String: [Behaviour]]
     private(set) var stages: [String] = []
+    /// When set, triage flags the first 3 photos (blink) and the planner puts flagged photos first (as cover).
+    let flagCover: Bool
+    private var flagged: [String] = []
 
-    init(_ script: [String: [Behaviour]] = [:]) { self.script = script }
+    init(_ script: [String: [Behaviour]] = [:], flagCover: Bool = false) { self.script = script; self.flagCover = flagCover }
 
     func send(_ body: Data) async throws -> (status: Int, body: Data) {
         let request = try JSONDecoder().decode(JSONValue.self, from: body)
@@ -29,12 +32,18 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         let schema = format["schema"]!
         let text: String
         switch (stage, behaviour) {
-        case (_, .garbage): text = "not json"
-        case ("triage", _), ("triage_repair", _): text = Self.triage(schema)
-        default: text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto)
+        case (_, .garbage), (_, .incomplete): text = "not json"
+        case ("triage", _), ("triage_repair", _):
+            let ids = Self.enumValues(schema["properties"]?["results"]?["items"]?["properties"]?["id"])
+            if flagCover { lock.withLock { flagged = Array(ids.prefix(3)) } }
+            text = Self.triage(schema, flagged: flagCover ? Set(ids.prefix(3)) : [])
+        default:
+            let first = lock.withLock { flagged }
+            text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first)
         }
         let envelope: JSONValue = .object([
-            ("id", .string("resp_test")), ("status", .string("completed")),
+            ("id", .string("resp_test")), ("status", .string(behaviour == .incomplete ? "incomplete" : "completed")),
+            ("incomplete_details", behaviour == .incomplete ? .object([("reason", .string("max_output_tokens"))]) : .null),
             ("output", .array([.object([("type", .string("message")), ("content", .array([
                 .object([("type", .string("output_text")), ("text", .string(text))])]))])])),
             ("usage", .object([("input_tokens", .int(1000)), ("output_tokens", .int(200)),
@@ -46,16 +55,18 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
 
     static func enumValues(_ v: JSONValue?) -> [String] { v?["enum"]?.arrayValue?.compactMap(\.stringValue) ?? [] }
 
-    static func triage(_ schema: JSONValue) -> String {
+    static func triage(_ schema: JSONValue, flagged: Set<String> = []) -> String {
         let ids = enumValues(schema["properties"]?["results"]?["items"]?["properties"]?["id"])
         let results = ids.enumerated().map { i, id in
-            #"{"id":"\#(id)","emotionalValue":\#(i % 6),"imperfection":"neutral","safety":[],"tags":["people"],"confidence":"high"}"#
+            let safety = flagged.contains(id) ? #"["blink"]"# : "[]"
+            return #"{"id":"\#(id)","emotionalValue":\#(i % 6),"imperfection":"neutral","safety":\#(safety),"tags":["people"],"confidence":"high"}"#
         }
         return #"{"results":[\#(results.joined(separator: ","))]}"#
     }
 
-    static func planner(_ schema: JSONValue, duplicate: Bool) -> String {
-        let ids = enumValues(schema["properties"]?["spine"]?["properties"]?["orderedAssetIDs"]?["items"])
+    static func planner(_ schema: JSONValue, duplicate: Bool, first: [String] = []) -> String {
+        let pool = enumValues(schema["properties"]?["spine"]?["properties"]?["orderedAssetIDs"]?["items"])
+        let ids = pool.filter { first.contains($0) } + pool.filter { !first.contains($0) }
         let decos = enumValues(schema["properties"]?["plans"]?["items"]?["properties"]?["slides"]?["items"]?["properties"]?["decorations"]?["items"]?["properties"]?["decorationID"])
         func photo(_ i: Int, _ role: String = "hero") -> String {
             #"{"assetID":"\#(ids[i])","role":"\#(role)","importance":2,"cropIntent":"balanced","anchorIntent":"center","overlapIntent":"none","rotationIntent":"none"}"#
@@ -161,4 +172,65 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let store = try await run(tmp, folder: folder, model: FakeModel(["planner": [.garbage], "repair": [.garbage], "retry": [.garbage]]))
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.plainSlides.count == 3)
+}
+
+
+// MARK: - Review fixes
+
+@Test func flaggedCoverIsNeverRendered() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(flagCover: true))
+    let d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    let flagged = Set(d.triage.filter { !$0.value.safety.isEmpty }.keys)
+    #expect(flagged.count == 3)
+    let cover = try #require(d.spine?.orderedAssetIDs.first)
+    #expect(!flagged.contains(cover.rawValue))
+    for p in d.plans { #expect(!flagged.contains(p.coverAssetID!.rawValue), "\(p.conceptType) cover flagged") }
+}
+
+@Test func failedFirstPlannerCallIsRetriedAndBilled() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let model = FakeModel(["planner": [.incomplete]])
+    let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
+    let m = try store.read(RunManifest.self, from: "manifest.json")
+    #expect(model.stages == ["triage", "planner", "retry"])
+    let failed = try #require(m.providerCalls.first { $0.stage == "planner" })
+    #expect(!failed.ok && failed.estimatedCost > 0)
+    #expect(m.directorStatus == "ok")
+    #expect(FileManager.default.fileExists(atPath: store.url("llm/2-planner.json").path))
+}
+
+@Test func requestedSlideCountIsEnforced() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(), slides: 5)
+    let d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect((d.spine?.orderedAssetIDs.count ?? 99) <= 5)
+    #expect(d.plans.allSatisfy { $0.slides.count <= 5 || $0.conceptType != .plainDump })
+}
+
+@Test func invalidSpineMakesDesignedConceptsUnavailable() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    // 6-photo spine against a 5-slide request stays invalid through repair and retry.
+    let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(), slides: 5)
+    let d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect(d.status == "fallback")
+    #expect(d.plans.map(\.conceptType) == [.plainDump])
+}
+
+@Test func oldManifestsStillOpenInReport() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp, count: 2)
+    let o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"),
+                       cacheDirectory: tmp.url.appending(path: "cache"), noLLM: true)
+    let store = try await RunPipeline.live(options: o, log: { _ in }).run(o)
+    var json = try JSONSerialization.jsonObject(with: Data(contentsOf: store.url("manifest.json"))) as! [String: Any]
+    for key in ["providerCalls", "totalEstimatedCost", "funnel", "directorStatus"] { json.removeValue(forKey: key) }
+    try JSONSerialization.data(withJSONObject: json).write(to: store.url("manifest.json"))
+    try ReportCommand.rebuild(runDirectory: store.root)
+}
+
+@Test func envFileWithCRLFIsRead() throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    try Data("# comment\r\nOTHER=1\r\nOPENAI_API_KEY=\"sk-test\"\r\n".utf8).write(to: tmp.url.appending(path: ".env"))
+    #expect(Env.apiKey(cwd: tmp.url, environment: [:]) == "sk-test")
 }

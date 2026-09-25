@@ -14,7 +14,7 @@ public struct ValidationIssue: Codable, Sendable, Equatable, CustomStringConvert
 /// Semantic validation of a planner response (spec §6.4). Schema shape is enforced by strict JSON schema + decoding.
 public enum PlanValidator {
     public static func validate(_ r: PlannerResponse, pool: [AssetID], stylePack: StylePack,
-                                flagged: Set<AssetID>) -> [ValidationIssue] {
+                                flagged: Set<AssetID>, requestedSlides: Int? = nil) -> [ValidationIssue] {
         var issues: [ValidationIssue] = []
         let poolSet = Set(pool)
         let minSlides = min(5, pool.count)
@@ -27,6 +27,12 @@ public enum PlanValidator {
         }
         if !(minSlides...20).contains(spine.count) {
             issues.append(.init(path: "spine.orderedAssetIDs", message: "has \(spine.count) photos; need \(minSlides)...20"))
+        }
+        if let n = requestedSlides, spine.count > n {
+            issues.append(.init(path: "spine.orderedAssetIDs", message: "has \(spine.count) photos; the user asked for at most \(n)"))
+        }
+        if let cover = spine.first, flagged.contains(cover), spine.contains(where: { !flagged.contains($0) }) {
+            issues.append(.init(path: "spine.cover", message: "cover \(cover) has a social-safety flag; put an unflagged photo first"))
         }
         if r.spine.sequenceIntent.count != spine.count {
             issues.append(.init(path: "spine.sequenceIntent", message: "has \(r.spine.sequenceIntent.count) entries; need \(spine.count)"))
@@ -42,6 +48,7 @@ public enum PlanValidator {
             let c = plan.conceptType
             func add(_ path: String, _ msg: String) { issues.append(.init(concept: c, path: "plans[\(c.rawValue)].\(path)", message: msg)) }
             if !(minSlides...20).contains(plan.slides.count) { add("slides", "has \(plan.slides.count) slides; need \(minSlides)...20") }
+            if let n = requestedSlides, plan.slides.count > n { add("slides", "has \(plan.slides.count) slides; the user asked for at most \(n)") }
             let ids = plan.photoAssetIDs
             if Set(ids).count != ids.count { add("slides", "a photo is used more than once") }
             for id in ids where !poolSet.contains(id) { add("slides", "\(id) is not a candidate") }
@@ -60,7 +67,8 @@ public enum PlanValidator {
                     if !s.decorations.isEmpty || !s.stamps.isEmpty { add("slides[\(i)]", "Plain Dump must have no decorations or stamps") }
                 }
             }
-            if let cover = plan.coverAssetID, flagged.contains(cover), ids.contains(where: { !flagged.contains($0) }) {
+            // Plain's cover is the spine cover, checked above.
+            if c != .plainDump, let cover = plan.coverAssetID, flagged.contains(cover), ids.contains(where: { !flagged.contains($0) }) {
                 add("slides[0]", "cover \(cover) has a social-safety flag while unflagged photos are available")
             }
         }

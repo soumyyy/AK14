@@ -11,7 +11,8 @@ public enum DiversitySelector {
 
         let bins = min(12, max(6, target / 8))
         let position = timePositions(ranked.compactMap { photos[$0.assetID] })
-        func timeBin(_ id: AssetID) -> Int { min(bins - 1, Int((position[id] ?? 0) * Double(bins))) }
+        /// Undated photos share one extra bin, so they can't each claim an "uncovered" time slot.
+        func timeBin(_ id: AssetID) -> Int { position[id].map { min(bins - 1, Int($0 * Double(bins))) } ?? bins }
         func peopleBucket(_ id: AssetID) -> Int {
             let n = features[id]?.faces.count ?? 0
             return n == 0 ? 0 : n == 1 ? 1 : n <= 3 ? 2 : 3
@@ -55,16 +56,18 @@ public enum DiversitySelector {
         return selected
     }
 
-    /// 0...1 position over the capture span; undated photos use their index in source order.
+    /// 0...1 position over the capture span. Undated photos get no position (they share one bin), except when
+    /// nothing is dated: then source order is the only sequence signal and is used for all photos.
     static func timePositions(_ photos: [PhotoRecord]) -> [AssetID: Double] {
         let dates = photos.compactMap(\.metadata.capturedAt)
         var out: [AssetID: Double] = [:]
-        if let lo = dates.min(), let hi = dates.max(), hi > lo {
-            let span = hi.timeIntervalSince(lo)
+        if let lo = dates.min(), let hi = dates.max() {
+            let span = max(1, hi.timeIntervalSince(lo))
             for p in photos { if let t = p.metadata.capturedAt { out[p.assetID] = t.timeIntervalSince(lo) / span } }
+            return out
         }
-        let undated = photos.filter { out[$0.assetID] == nil }.sorted { $0.sourceRelativePaths[0] < $1.sourceRelativePaths[0] }
-        for (i, p) in undated.enumerated() { out[p.assetID] = Double(i) / Double(max(1, undated.count)) }
+        let ordered = photos.sorted { $0.sourceRelativePaths[0] < $1.sourceRelativePaths[0] }
+        for (i, p) in ordered.enumerated() { out[p.assetID] = Double(i) / Double(max(1, ordered.count)) }
         return out
     }
 }

@@ -32,6 +32,17 @@ public struct CaptureMetadata: Codable, Sendable, Equatable {
         self.capturedAt = capturedAt; self.timeZoneAssumed = timeZoneAssumed; self.location = location
         self.hasLocation = location != nil; self.cameraModel = cameraModel; self.isScreenshot = isScreenshot
     }
+
+    /// Tolerates records written before `hasLocation` existed.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        capturedAt = try c.decodeIfPresent(Date.self, forKey: .capturedAt)
+        timeZoneAssumed = try c.decodeIfPresent(Bool.self, forKey: .timeZoneAssumed) ?? false
+        location = try c.decodeIfPresent(GeoPoint.self, forKey: .location)
+        hasLocation = try c.decodeIfPresent(Bool.self, forKey: .hasLocation) ?? (location != nil)
+        cameraModel = try c.decodeIfPresent(String.self, forKey: .cameraModel)
+        isScreenshot = try c.decodeIfPresent(Bool.self, forKey: .isScreenshot) ?? false
+    }
 }
 
 public enum PhotoOrientation: String, Codable, Sendable { case portrait, landscape, square }

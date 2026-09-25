@@ -25,18 +25,23 @@ public struct ReductionResult: Codable, Sendable {
     /// Runs clustering → junk → ranking → shortlist selection.
     public static func reduce(photos: [PhotoRecord], features: [AssetID: PhotoFeatures],
                               distance: (AssetID, AssetID) -> Double?, config: ReductionConfig = ReductionConfig()) -> ReductionResult {
-        let clusters = ShotClusterer.cluster(photos: photos, features: features, distance: distance, config: config)
+        let rawClusters = ShotClusterer.cluster(photos: photos, features: features, distance: distance, config: config)
         let junk = photos.map { JunkFilter.classify(photo: $0, features: features[$0.assetID]) }
         let junkByID = Dictionary(uniqueKeysWithValues: junk.map { ($0.assetID, $0) })
         // A rejected representative hands over to the best non-rejected member of its cluster.
-        let usableClusters: [ShotCluster] = clusters.compactMap { c in
+        let clusters = rawClusters.map { c in
             var c = c
             let usable = c.memberAssetIDs.filter { junkByID[$0]?.verdict != .reject }
-            guard !usable.isEmpty else { return nil }
-            if !usable.contains(c.representativeAssetID) {
+            if !usable.isEmpty && !usable.contains(c.representativeAssetID) {
                 c.representativeAssetID = usable.max { config.technicalScore(features[$0]) < config.technicalScore(features[$1]) }!
             }
             return c
+        }
+        // Ranking sees only usable members, so cluster size reflects frames that could actually be posted.
+        let usableClusters: [ShotCluster] = clusters.compactMap { c in
+            var c = c
+            c.memberAssetIDs = c.memberAssetIDs.filter { junkByID[$0]?.verdict != .reject }
+            return c.memberAssetIDs.isEmpty ? nil : c
         }
         let ranked = CandidateRanker.rank(photos: photos, features: features, clusters: usableClusters, junk: junkByID, config: config)
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })

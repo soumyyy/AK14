@@ -37,7 +37,9 @@ public enum PlanMetrics {
         let sameCover = a.coverAssetID == b.coverAssetID
         let order = orderAgreement(a.photoAssetIDs, b.photoAssetIDs)
         return ConceptDistance(jaccard: jaccard, sameCover: sameCover, orderSimilarity: order, structuralDiffs: diffs,
-                               passes: !sameCover && (jaccard <= 0.8 || order < 0.5) && diffs.count >= 2)
+                               // Structure is the primary signal (spec §6.5 prefers changing structure over selection):
+                               // with 3+ structural differences, photo overlap from a shared strong spine is fine.
+                               passes: !sameCover && diffs.count >= 2 && (jaccard <= 0.8 || order < 0.5 || diffs.count >= 3))
     }
 
     static func primitiveMix(_ p: CarouselPlan) -> [String: Int] {

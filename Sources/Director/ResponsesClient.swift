@@ -8,7 +8,7 @@ public protocol ResponsesTransport: Sendable {
 public struct OpenAITransport: ResponsesTransport {
     let apiKey: String
     let timeout: TimeInterval
-    public init(apiKey: String, timeout: TimeInterval = 240) { self.apiKey = apiKey; self.timeout = timeout }
+    public init(apiKey: String, timeout: TimeInterval = 180) { self.apiKey = apiKey; self.timeout = timeout }
 
     public func send(_ body: Data) async throws -> (status: Int, body: Data) {
         var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!, timeoutInterval: timeout)
@@ -58,11 +58,25 @@ public enum DirectorError: Error, CustomStringConvertible {
     }
 }
 
+/// A failed call with whatever was billed and observed, so telemetry and llm/ artifacts stay complete.
+public struct CallFailure: Error, CustomStringConvertible {
+    public let error: DirectorError
+    public let usage: Usage
+    public let retryCount: Int
+    public let latencySeconds: Double
+    public let imageCount: Int
+    public let imageBytes: Int
+    public let redactedRequest: JSONValue
+    public let rawResponse: JSONValue?
+    public var description: String { error.description }
+}
+
 public struct ResponsesClient: Sendable {
     public let transport: any ResponsesTransport
     public let model: String
     let sleep: @Sendable (Double) async -> Void
 
+    /// Throws `CallFailure`.
     public init(transport: any ResponsesTransport, model: String = "gpt-6-luna",
                 sleep: @escaping @Sendable (Double) async -> Void = { try? await Task.sleep(for: .seconds($0)) }) {
         self.transport = transport; self.model = model; self.sleep = sleep
@@ -98,38 +112,43 @@ public struct ResponsesClient: Sendable {
         let clock = ContinuousClock(), start = clock.now
         var retries = 0
         let backoff = [1.0, 3.0]
+        func failure(_ e: DirectorError, _ usage: Usage = Usage(), _ raw: JSONValue? = nil) -> CallFailure {
+            CallFailure(error: e, usage: usage, retryCount: retries, latencySeconds: (clock.now - start).seconds,
+                        imageCount: images, imageBytes: imageBytes, redactedRequest: body(redacted: true), rawResponse: raw)
+        }
         while true {
             let status: Int, responseData: Data
             do {
                 (status, responseData) = try await transport.send(data)
             } catch {
                 if retries < backoff.count { await sleep(jitter(backoff[retries])); retries += 1; continue }
-                throw DirectorError.transport((error as NSError).localizedDescription)
+                throw failure(.transport((error as NSError).localizedDescription))
             }
+            let raw = try? JSONDecoder().decode(JSONValue.self, from: responseData)
             if status == 429 || status >= 500 {
                 if retries < backoff.count { await sleep(jitter(backoff[retries])); retries += 1; continue }
-                throw DirectorError.http(status, Self.errorMessage(responseData))
+                throw failure(.http(status, Self.errorMessage(responseData)), Usage(), raw)
             }
-            if status == 401 || status == 403 { throw DirectorError.auth(status) }
-            if status >= 400 || status == 0 { throw DirectorError.http(status, Self.errorMessage(responseData)) }
+            if status == 401 || status == 403 { throw failure(.auth(status)) }
+            if status >= 400 || status == 0 { throw failure(.http(status, Self.errorMessage(responseData)), Usage(), raw) }
 
-            let json = try JSONDecoder().decode(JSONValue.self, from: responseData)
-            if let s = json["status"]?.stringValue, s != "completed" {
-                throw DirectorError.incomplete(json["incomplete_details"]?["reason"]?.stringValue ?? s)
-            }
-            var text: String?
-            for item in json["output"]?.arrayValue ?? [] where item["type"]?.stringValue == "message" {
-                for c in item["content"]?.arrayValue ?? [] {
-                    if c["type"]?.stringValue == "refusal" { throw DirectorError.refusal(c["refusal"]?.stringValue ?? "") }
-                    if c["type"]?.stringValue == "output_text" { text = (text ?? "") + (c["text"]?.stringValue ?? "") }
-                }
-            }
-            guard let text else { throw DirectorError.noOutput }
+            guard let json = raw else { throw failure(.noOutput) }
             let u = json["usage"]
             let usage = Usage(input: u?["input_tokens"]?.intValue ?? 0,
                               cached: u?["input_tokens_details"]?["cached_tokens"]?.intValue ?? 0,
                               output: u?["output_tokens"]?.intValue ?? 0,
                               reasoning: u?["output_tokens_details"]?["reasoning_tokens"]?.intValue ?? 0)
+            if let s = json["status"]?.stringValue, s != "completed" {
+                throw failure(.incomplete(json["incomplete_details"]?["reason"]?.stringValue ?? s), usage, json)
+            }
+            var text: String?
+            for item in json["output"]?.arrayValue ?? [] where item["type"]?.stringValue == "message" {
+                for c in item["content"]?.arrayValue ?? [] {
+                    if c["type"]?.stringValue == "refusal" { throw failure(.refusal(c["refusal"]?.stringValue ?? ""), usage, json) }
+                    if c["type"]?.stringValue == "output_text" { text = (text ?? "") + (c["text"]?.stringValue ?? "") }
+                }
+            }
+            guard let text else { throw failure(.noOutput, usage, json) }
             return ResponsesResult(outputText: text, usage: usage, responseID: json["id"]?.stringValue,
                                    latencySeconds: (clock.now - start).seconds, retryCount: retries,
                                    imageCount: images, imageBytes: imageBytes,

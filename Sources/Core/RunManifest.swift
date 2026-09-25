@@ -36,4 +36,28 @@ public struct RunManifest: Codable, Sendable, Equatable {
     public init(runID: String, createdAt: Date, sourceFolderLabel: String) {
         self.runID = runID; self.createdAt = createdAt; self.sourceFolderLabel = sourceFolderLabel
     }
+
+    /// Tolerates manifests written by older versions: every field added after M1 is optional on read.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        runID = try c.decode(String.self, forKey: .runID)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
+        sourceFolderLabel = try c.decode(String.self, forKey: .sourceFolderLabel)
+        inputDigest = try c.decodeIfPresent(String.self, forKey: .inputDigest) ?? ""
+        photoCount = try c.decodeIfPresent(Int.self, forKey: .photoCount) ?? 0
+        skippedCount = try c.decodeIfPresent(Int.self, forKey: .skippedCount) ?? 0
+        aspectRatio = try c.decodeIfPresent(CarouselAspect.self, forKey: .aspectRatio) ?? .portrait4x5
+        aspectOverridden = try c.decodeIfPresent(Bool.self, forKey: .aspectOverridden) ?? false
+        versions = try c.decodeIfPresent([String: String].self, forKey: .versions) ?? [:]
+        stageTimings = try c.decodeIfPresent([StageTiming].self, forKey: .stageTimings) ?? []
+        cacheHits = try c.decodeIfPresent(Int.self, forKey: .cacheHits) ?? 0
+        cacheMisses = try c.decodeIfPresent(Int.self, forKey: .cacheMisses) ?? 0
+        warnings = try c.decodeIfPresent([String].self, forKey: .warnings) ?? []
+        funnel = try c.decodeIfPresent(Funnel.self, forKey: .funnel)
+        directorStatus = try c.decodeIfPresent(String.self, forKey: .directorStatus)
+        providerCalls = try c.decodeIfPresent([ProviderCallRecord].self, forKey: .providerCalls) ?? []
+        totalEstimatedCost = try c.decodeIfPresent(Double.self, forKey: .totalEstimatedCost) ?? 0
+    }
 }

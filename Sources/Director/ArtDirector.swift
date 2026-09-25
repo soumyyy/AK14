@@ -8,9 +8,12 @@ public struct CandidateCard: Sendable {
     public let capturedAt: Date?
     public let triageJPEG: Data?
     public let planningJPEG: Data?
-    public init(assetID: AssetID, summary: String, capturedAt: Date?, triageJPEG: Data?, planningJPEG: Data?) {
+    /// Local social-safety flags (e.g. very low face-capture quality); treated like triage safety flags.
+    public let localFlags: [String]
+    public init(assetID: AssetID, summary: String, capturedAt: Date?, triageJPEG: Data?, planningJPEG: Data?,
+                localFlags: [String] = []) {
         self.assetID = assetID; self.summary = summary; self.capturedAt = capturedAt
-        self.triageJPEG = triageJPEG; self.planningJPEG = planningJPEG
+        self.triageJPEG = triageJPEG; self.planningJPEG = planningJPEG; self.localFlags = localFlags
     }
 }
 
@@ -72,6 +75,7 @@ public struct ArtDirector: Sendable {
         // 2. Planning pool
         out.pool = input.selectPool(out.triage)
         let flagged = Set(out.triage.filter { !$0.value.safety.isEmpty }.keys)
+            .union(input.shortlist.filter { !$0.localFlags.isEmpty }.map(\.assetID))
 
         // 3. Planning with bounded repair / retry
         log("Art-directing the post… planning from \(out.pool.count) candidates")
@@ -81,31 +85,37 @@ public struct ArtDirector: Sendable {
         let schema = Schemas.planner(ids: out.pool, decorationIDs: stylePack.decorationIDs)
         let prompt = load("planner.system", &out)
 
-        if let prompt, let text = await call("planner", prompt, content, schema, reasoning: "medium", &out) {
-            (response, issues) = decode(text, pool: out.pool, flagged: flagged)
-            if !issues.isEmpty, let repair = load("repair.system", &out) {
-                let repairContent: [ContentPart] = [
-                    .text("Candidate ids: \(out.pool.map(\.rawValue).joined(separator: ", "))"),
-                    .text("Validation errors:\n" + issues.map { "- \($0)" }.joined(separator: "\n")),
-                    .text("Original JSON:\n" + text),
-                ]
-                if let fixed = await call("repair", repair, repairContent, schema, reasoning: "low", &out) {
-                    let (r2, i2) = decode(fixed, pool: out.pool, flagged: flagged)
-                    if r2 != nil && (response == nil || i2.count < issues.count) { (response, issues) = (r2, i2) }
+        let requested = input.requestedSlides
+        func consider(_ text: String) {
+            let (r, i) = decode(text, pool: out.pool, flagged: flagged, requested: requested)
+            if r != nil && (response == nil || Self.quality(i) > Self.quality(issues)) { (response, issues) = (r, i) }
+        }
+        if let prompt {
+            let first = await call("planner", prompt, content, schema, reasoning: "medium", &out)
+            if let first {
+                consider(first)
+                if response == nil { issues = decode(first, pool: out.pool, flagged: flagged, requested: requested).1 }
+                if !issues.isEmpty, let repair = load("repair.system", &out) {
+                    let repairContent: [ContentPart] = [
+                        .text("Candidate ids: \(out.pool.map(\.rawValue).joined(separator: ", "))"),
+                        .text("Validation errors:\n" + issues.map { "- \($0)" }.joined(separator: "\n")),
+                        .text("Original JSON:\n" + first),
+                    ]
+                    if let fixed = await call("repair", repair, repairContent, schema, reasoning: "low", &out) { consider(fixed) }
                 }
             }
-            if !issues.isEmpty {
-                let note = ContentPart.text("Your previous attempt was invalid: " + issues.prefix(12).map(\.description).joined(separator: "; "))
-                if let retry = await call("retry", prompt, content + [note], schema, reasoning: "medium", &out) {
-                    let (r3, i3) = decode(retry, pool: out.pool, flagged: flagged)
-                    if r3 != nil && (response == nil || i3.count < issues.count) { (response, issues) = (r3, i3) }
+            if response == nil || !issues.isEmpty {
+                var retryContent = content
+                if !issues.isEmpty {
+                    retryContent.append(.text("Your previous attempt was invalid: " + issues.prefix(12).map(\.description).joined(separator: "; ")))
                 }
+                if let retry = await call("retry", prompt, retryContent, schema, reasoning: "medium", &out) { consider(retry) }
             }
         }
         if !issues.isEmpty { out.warnings.append("planner issues after repair/retry: " + issues.prefix(8).map(\.description).joined(separator: "; ")) }
 
         // 4. Assemble: keep valid parts, deterministic Plain fallback otherwise
-        assemble(response, issues: issues, input: input, cards: cards, &out)
+        assemble(response, issues: issues, input: input, cards: cards, flagged: flagged, &out)
 
         // 5. Diversity check with one mutation
         if let d = out.plans.first(where: { $0.conceptType == .designed }),
@@ -117,7 +127,7 @@ public struct ArtDirector: Sendable {
                 let failed = "same cover: \(distance.sameCover), photo overlap (jaccard): \(String(format: "%.2f", distance.jaccard)), structural differences so far: \(distance.structuralDiffs)"
                 if let text = await call("mutation", mutation, [.text("Too similar: \(failed)"), .text("JSON:\n" + json)],
                                          schema, reasoning: "low", &out) {
-                    let (r, i) = decode(text, pool: out.pool, flagged: flagged)
+                    let (r, i) = decode(text, pool: out.pool, flagged: flagged, requested: requested)
                     if let r, let newW = r.plans.first(where: { $0.conceptType == .wildcard }),
                        !i.contains(where: { $0.concept == .wildcard }), PlanMetrics.diversity(d, newW).passes {
                         out.plans = out.plans.map { $0.conceptType == .wildcard ? newW : $0 }
@@ -183,6 +193,7 @@ public struct ArtDirector: Sendable {
                 if !t.tags.isEmpty { line += ", tags \(t.tags.joined(separator: " "))" }
                 if !t.safety.isEmpty { line += ", SAFETY \(t.safety.joined(separator: " "))" }
             }
+            if !card.localFlags.isEmpty { line += " | SAFETY \(card.localFlags.joined(separator: " ")) (never use as a cover)" }
             content.append(.text(line))
             if i < input.maxPlanningImages, let jpeg = card.planningJPEG {
                 content.append(.image(jpeg: jpeg, assetID: id, detail: "high"))
@@ -191,37 +202,51 @@ public struct ArtDirector: Sendable {
         return content
     }
 
+    /// Spine validity dominates, then the number of valid concepts, then fewer issues.
+    static func quality(_ issues: [ValidationIssue]) -> (Int, Int, Int) {
+        let spineOK = !issues.contains { $0.concept == nil && $0.path != "spine.cover" }
+        let broken = Set(issues.compactMap(\.concept))
+        return (spineOK ? 1 : 0, ConceptType.allCases.filter { !broken.contains($0) }.count, -issues.count)
+    }
+
+    /// Moves the first unflagged photo to the front so a flagged face is never the cover.
+    static func safeCover(_ spine: SelectionSpine, flagged: Set<AssetID>) -> SelectionSpine {
+        guard let cover = spine.coverAssetID, flagged.contains(cover),
+              let i = spine.orderedAssetIDs.firstIndex(where: { !flagged.contains($0) }) else { return spine }
+        var s = spine
+        s.orderedAssetIDs.insert(s.orderedAssetIDs.remove(at: i), at: 0)
+        return s
+    }
+
     private func assemble(_ response: PlannerResponse?, issues: [ValidationIssue], input: DirectorInput,
-                          cards: [AssetID: CandidateCard], _ out: inout DirectorOutput) {
-        let spineOK = response != nil && !issues.contains { $0.concept == nil && $0.path.hasPrefix("spine") }
-        let spine: SelectionSpine
+                          cards: [AssetID: CandidateCard], flagged: Set<AssetID>, _ out: inout DirectorOutput) {
+        // A flagged cover alone is fixable locally; any other spine issue means the model's story is unusable.
+        let spineOK = response != nil && !issues.contains { $0.concept == nil && $0.path != "spine.cover" }
+        var spine: SelectionSpine
         if spineOK, let response {
             spine = response.spine
-            out.recommendedSlideCount = response.recommendedSlideCount
         } else {
             let n = min(input.requestedSlides ?? 10, out.pool.count)
             let ids = Array(out.pool.prefix(n)).sorted {
                 (cards[$0]?.capturedAt ?? .distantFuture, $0) < (cards[$1]?.capturedAt ?? .distantFuture, $1)
             }
             spine = SelectionSpine(orderedAssetIDs: ids, sequenceIntent: ids.map { _ in .build }, rationale: [])
-            out.recommendedSlideCount = ids.count
             out.warnings.append("used deterministic fallback spine (top-ranked photos in time order)")
         }
+        spine = Self.safeCover(spine, flagged: flagged)
         out.spine = spine
+        out.recommendedSlideCount = spine.orderedAssetIDs.count
 
-        var plans: [CarouselPlan] = []
         let modelPlain = spineOK ? response?.plans.first { $0.conceptType == .plainDump } : nil
-        if let modelPlain, !issues.contains(where: { $0.concept == .plainDump }) {
-            plans.append(modelPlain)
-        } else {
-            plans.append(.plainDump(from: spine, note: "Deterministic Plain Dump of the selection spine."))
-        }
+        var plans = [modelPlain.map { Self.normalizePlain($0, spine: spine) }
+                     ?? .plainDump(from: spine, note: "Deterministic Plain Dump of the selection spine.")]
         for type in [ConceptType.designed, .wildcard] {
-            if let p = response?.plans.first(where: { $0.conceptType == type }),
+            if spineOK, let p = response?.plans.first(where: { $0.conceptType == type }),
                !issues.contains(where: { $0.concept == type }) {
                 plans.append(p)
             } else {
-                out.unavailable[type.rawValue] = response == nil ? "planner produced no usable response" : "invalid after repair/retry"
+                out.unavailable[type.rawValue] = response == nil ? "planner produced no usable response"
+                    : spineOK ? "invalid after repair/retry" : "the model's selection spine was invalid"
             }
         }
         out.plans = plans
@@ -256,6 +281,16 @@ public struct ArtDirector: Sendable {
             out.calls.append(record)
             out.exchanges.append(Exchange(name: "\(out.exchanges.count + 1)-\(stage)", request: r.redactedRequest, response: r.rawResponse))
             return r.outputText
+        } catch let f as CallFailure {
+            record.inputTokens = f.usage.input; record.cachedTokens = f.usage.cached
+            record.outputTokens = f.usage.output; record.reasoningTokens = f.usage.reasoning
+            record.imageCount = f.imageCount; record.thumbnailBytes = f.imageBytes
+            record.latencySeconds = f.latencySeconds; record.retryCount = f.retryCount
+            record.estimatedCost = Pricing.estimate(f.usage); record.error = f.description
+            out.calls.append(record)
+            out.exchanges.append(Exchange(name: "\(out.exchanges.count + 1)-\(stage)", request: f.redactedRequest, response: f.rawResponse))
+            out.warnings.append("\(stage) call failed: \(f)")
+            return nil
         } catch {
             record.error = "\(error)"
             out.calls.append(record)
@@ -264,11 +299,12 @@ public struct ArtDirector: Sendable {
         }
     }
 
-    private func decode(_ text: String, pool: [AssetID], flagged: Set<AssetID>) -> (PlannerResponse?, [ValidationIssue]) {
+    private func decode(_ text: String, pool: [AssetID], flagged: Set<AssetID>, requested: Int?) -> (PlannerResponse?, [ValidationIssue]) {
         do {
             var r = try JSONDecoder().decode(PlannerResponse.self, from: Data(text.utf8))
             r.plans = r.plans.map { Self.normalizePlain($0, spine: r.spine) }
-            return (r, PlanValidator.validate(r, pool: pool, stylePack: stylePack, flagged: flagged))
+            r.recommendedSlideCount = r.spine.orderedAssetIDs.count
+            return (r, PlanValidator.validate(r, pool: pool, stylePack: stylePack, flagged: flagged, requestedSlides: requested))
         } catch {
             return (nil, [ValidationIssue(path: "json", message: "could not decode: \(error)")])
         }
