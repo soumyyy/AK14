@@ -37,6 +37,8 @@ public struct PhotoFeatures: Codable, Sendable, Equatable {
     public var meanLuminance: Double?
     /// Fraction of pixels with luma < 0.06.
     public var darkFraction: Double?
+    /// Laplacian variance on a 256 px gray downsample, /1000, clamped 0...1. Low = blurry.
+    public var sharpness: Double?
     /// Path relative to the cache root.
     public var featurePrintFile: String?
     /// FeatureName.rawValue -> error description. Empty means complete.

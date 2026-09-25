@@ -1,0 +1,23 @@
+{
+  "id": "starter-editorial",
+  "version": "1.0.0",
+  "active": true,
+  "minAppVersion": "0.1.0",
+  "primitiveWeights": {
+    "full_bleed": 0.3, "hero": 0.2, "framed_hero": 0.1,
+    "inset": 0.12, "asymmetric_pair": 0.14, "overlap_cluster": 0.14
+  },
+  "decorationIDs": ["grain-fine", "paper-warm", "tape-clear", "film-edge", "date-stamp"],
+  "fontIDs": [],
+  "textureIDs": ["paper-warm"],
+  "allowedRotations": { "photoDegrees": 2, "decorationDegrees": 4 },
+  "overlapRanges": { "minimumVisibleFraction": 0.55 },
+  "spacingRanges": { "marginMin": 0.04, "marginMax": 0.07 },
+  "densityProfile": ["quiet", "balanced", "dense"],
+  "promptHints": [
+    "Editorial and effortless, not scrapbook-heavy.",
+    "Let strong single photos breathe; use multi-photo slides for rhythm, not everywhere.",
+    "Grain and paper are subtle; tape and film edges are occasional accents."
+  ],
+  "explorationWeight": 0.3
+}

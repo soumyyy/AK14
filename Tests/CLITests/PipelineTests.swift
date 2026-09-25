@@ -7,7 +7,7 @@ import TestSupport
 
 private func options(_ tmp: TempDirectory, folder: URL) -> RunOptions {
     RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"),
-               cacheDirectory: tmp.url.appending(path: "cache"))
+               cacheDirectory: tmp.url.appending(path: "cache"), noLLM: true)
 }
 
 private func run(_ o: RunOptions, now: Date = Date()) async throws -> RunStore {
@@ -40,7 +40,8 @@ private func run(_ o: RunOptions, now: Date = Date()) async throws -> RunStore {
     #expect(m1.photoCount == 3 && m1.skippedCount == 5)
     #expect(m1.cacheMisses == 3 && m1.cacheHits == 0)
     #expect(m1.warnings.isEmpty, "\(m1.warnings)")
-    #expect(m1.stageTimings.map(\.stage) == ["ingest", "thumbnails", "analysis"])
+    #expect(m1.stageTimings.map(\.stage) == ["ingest", "thumbnails", "analysis", "reduction"])
+    #expect(m1.directorStatus == "skipped: --no-llm")
     #expect(m1.aspectRatio == .portrait4x5 && !m1.aspectOverridden)     // 1 portrait of 3 -> mixed
     #expect(m1.versions["analyzer"] == VisionAnalyzer.version)
 
@@ -141,7 +142,7 @@ private func run(_ o: RunOptions, now: Date = Date()) async throws -> RunStore {
     try FixtureFactory.writeJPEG(to: package.appending(path: "internal.jpg"), gray: 0.9)
     // Output and cache live inside the input folder, like `cd trip && ak14 run . --recursive`.
     let o = RunOptions(folder: folder, recursive: true,
-                       runsDirectory: folder.appending(path: "runs"), cacheDirectory: folder.appending(path: ".ak14-cache"))
+                       runsDirectory: folder.appending(path: "runs"), cacheDirectory: folder.appending(path: ".ak14-cache"), noLLM: true)
     _ = try await run(o, now: Date(timeIntervalSince1970: 1))
     let second = try await run(o, now: Date(timeIntervalSince1970: 2))
     let index = try second.read(IngestResult.self, from: "input-index.json")

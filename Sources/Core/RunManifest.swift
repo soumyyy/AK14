@@ -27,6 +27,11 @@ public struct RunManifest: Codable, Sendable, Equatable {
     public var cacheHits: Int = 0
     public var cacheMisses: Int = 0
     public var warnings: [String] = []
+    public var funnel: Funnel?
+    /// "ok", "fallback", "failed: …", or "skipped: …". nil before M3 stages run.
+    public var directorStatus: String?
+    public var providerCalls: [ProviderCallRecord] = []
+    public var totalEstimatedCost: Double = 0
 
     public init(runID: String, createdAt: Date, sourceFolderLabel: String) {
         self.runID = runID; self.createdAt = createdAt; self.sourceFolderLabel = sourceFolderLabel

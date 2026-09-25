@@ -11,6 +11,9 @@ struct AK14Command {
             case .run(let options):
                 let store = try await RunPipeline.live(options: options).run(options)
                 print(store.url("report.html").path)
+            case .rerender(let dir, let source):
+                try RerenderCommand.rerender(runDirectory: dir, source: source)
+                print(dir.appending(path: "slides/plainDump").path)
             case .report(let dir):
                 try ReportCommand.rebuild(runDirectory: dir)
                 print(dir.appending(path: "report.html").path)

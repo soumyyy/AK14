@@ -8,23 +8,29 @@ struct RunOptions: Equatable, Sendable {
     var aspect: CarouselAspect? = nil
     var runsDirectory: URL
     var cacheDirectory: URL
+    /// Requested slide count (5...20); nil lets the planner recommend.
+    var slides: Int? = nil
+    var noLLM: Bool = false
 }
 
 enum Command: Equatable {
     case run(RunOptions)
     case report(runDirectory: URL)
+    case rerender(runDirectory: URL, source: URL)
     case help
 }
 
 enum ArgumentError: Error, Equatable, CustomStringConvertible {
-    case unknownCommand(String), missingFolder, missingRunDirectory
-    case missingValue(String), unknownOption(String), invalidAspect(String)
+    case unknownCommand(String), missingFolder, missingRunDirectory, missingSource
+    case missingValue(String), unknownOption(String), invalidAspect(String), invalidSlides(String)
 
     var description: String {
         switch self {
         case .unknownCommand(let c): "unknown command '\(c)'"
         case .missingFolder: "run needs a photo folder"
-        case .missingRunDirectory: "report needs a run directory"
+        case .missingRunDirectory: "report/rerender needs a run directory"
+        case .missingSource: "rerender needs --source <folder>"
+        case .invalidSlides(let s): "invalid --slides '\(s)' (use 5...20)"
         case .missingValue(let o): "\(o) needs a value"
         case .unknownOption(let o): "unknown option '\(o)'"
         case .invalidAspect(let a): "invalid aspect '\(a)' (use auto, 3:4, 1:1, 4:5)"
@@ -35,8 +41,9 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
 enum Arguments {
     static let usage = """
     usage:
-      ak14 run <folder> [--recursive] [--aspect auto|3:4|1:1|4:5] [--runs DIR] [--cache DIR]
+      ak14 run <folder> [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
+      ak14 rerender <runDir> --source <folder>
     """
 
     static func parse(_ args: [String], cwd: URL) throws -> Command {
@@ -51,6 +58,11 @@ enum Arguments {
         case "report":
             guard let dir = rest.first else { throw ArgumentError.missingRunDirectory }
             return .report(runDirectory: path(dir))
+        case "rerender":
+            guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
+            rest.removeFirst()
+            guard rest.count == 2, rest[0] == "--source" else { throw ArgumentError.missingSource }
+            return .rerender(runDirectory: path(dir), source: path(rest[1]))
         case "run":
             guard let folder = rest.first, !folder.hasPrefix("--") else { throw ArgumentError.missingFolder }
             rest.removeFirst()
@@ -63,6 +75,11 @@ enum Arguments {
                 }
                 switch flag {
                 case "--recursive": o.recursive = true
+                case "--no-llm": o.noLLM = true
+                case "--slides":
+                    let v = try value()
+                    guard let n = Int(v), (5...20).contains(n) else { throw ArgumentError.invalidSlides(v) }
+                    o.slides = n
                 case "--aspect":
                     let v = try value()
                     if v == "auto" { o.aspect = nil }
