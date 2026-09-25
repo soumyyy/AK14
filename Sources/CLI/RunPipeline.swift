@@ -2,6 +2,7 @@ import Analysis
 import Core
 import CryptoKit
 import Foundation
+import UniformTypeIdentifiers
 
 struct RunPipeline: Sendable {
     let ingester: any PhotoIngesting
@@ -16,7 +17,9 @@ struct RunPipeline: Sendable {
         RunPipeline(ingester: FolderIngester(),
                     thumbnailer: Thumbnailer(cacheRoot: options.cacheDirectory),
                     analyzer: VisionAnalyzer(cacheRoot: options.cacheDirectory),
-                    cache: AnalysisCache(root: options.cacheDirectory, analyzerVersion: VisionAnalyzer.version),
+                    // Features are computed from thumbnails, so both versions key the cache.
+                    cache: AnalysisCache(root: options.cacheDirectory,
+                                         analyzerVersion: "\(VisionAnalyzer.version)+\(Thumbnailer.version)"),
                     log: log)
     }
 
@@ -27,7 +30,10 @@ struct RunPipeline: Sendable {
 
         // 1. Ingest
         var start = clock.now
-        let ingest = try await ingester.ingest(folder: options.folder, options: IngestOptions(recursive: options.recursive))
+        let ingest = try await ingester.ingest(
+            folder: options.folder,
+            options: IngestOptions(recursive: options.recursive,
+                                   excludedDirectories: [options.runsDirectory, options.cacheDirectory]))
         timings.append(StageTiming(stage: "ingest", seconds: (clock.now - start).seconds))
         log("Finding the best moments… \(ingest.photos.count) photos, \(ingest.skipped.count) skipped")
 
@@ -35,7 +41,9 @@ struct RunPipeline: Sendable {
         start = clock.now
         let thumbnailer = self.thumbnailer
         let folder = options.folder.resolvingSymlinksInPath()
-        let thumbURLs: [URL?] = try await ingest.photos.concurrentMap(limit: 4) { p in
+        // RAW decodes are full-size before downsampling; keep fewer in flight to bound memory.
+        let hasRAW = ingest.photos.contains { UTType($0.fileType)?.conforms(to: .rawImage) == true }
+        let thumbURLs: [URL?] = try await ingest.photos.concurrentMap(limit: hasRAW ? 2 : 4) { p in
             try? thumbnailer.thumbnail(sha: p.contentSHA256, source: folder.appending(path: p.sourceRelativePaths[0]),
                                        tier: .analysis)
         }
@@ -60,7 +68,9 @@ struct RunPipeline: Sendable {
         for ((p, _), f) in zip(pending, fresh) {
             features[p.assetID] = f
             if f.failures.isEmpty {
-                try cache.store(f, sha: p.contentSHA256)
+                do { try cache.store(f, sha: p.contentSHA256) } catch {
+                    warnings.append("could not cache analysis for \(p.sourceRelativePaths[0])")
+                }
             } else {
                 warnings.append("analysis incomplete for \(p.sourceRelativePaths[0]): \(f.failures.keys.sorted().joined(separator: ", "))")
             }
@@ -93,10 +103,11 @@ struct RunPipeline: Sendable {
         manifest.warnings = warnings
         manifest.completedAt = now.addingTimeInterval(timings.reduce(0) { $0 + $1.seconds })
 
-        try store.write(ingest, to: "input-index.json")
+        let redacted = IngestResult(photos: ingest.photos.map { $0.redactingLocation() }, skipped: ingest.skipped)
+        try store.write(redacted, to: "input-index.json")
         try store.write(ingest.photos.compactMap { features[$0.assetID] }, to: "cache/features.json")
         try store.write(manifest, to: "manifest.json")
-        try store.writeText(ReportBuilder.html(ReportInput(manifest: manifest, photos: ingest.photos, skipped: ingest.skipped,
+        try store.writeText(ReportBuilder.html(ReportInput(manifest: manifest, photos: redacted.photos, skipped: ingest.skipped,
                                                            features: features, thumbnails: thumbRel)),
                             to: "report.html")
         log("Report: \(store.url("report.html").path)")

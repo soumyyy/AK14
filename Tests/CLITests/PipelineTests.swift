@@ -120,3 +120,53 @@ private func run(_ o: RunOptions, now: Date = Date()) async throws -> RunStore {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     await #expect(throws: (any Error).self) { _ = try await run(options(tmp, folder: tmp.url.appending(path: "nope"))) }
 }
+
+// MARK: - Review fixes
+
+@Test func missingFolderFailsInRecursiveModeAndForFiles() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    var o = options(tmp, folder: tmp.url.appending(path: "Pictues")); o.recursive = true
+    await #expect(throws: (any Error).self) { _ = try await run(o) }
+    let file = tmp.url.appending(path: "a.jpg")
+    try FixtureFactory.writeJPEG(to: file)
+    var f = options(tmp, folder: file); f.recursive = true
+    await #expect(throws: (any Error).self) { _ = try await run(f) }
+}
+
+@Test func recursiveRunSkipsPackagesAndOwnOutput() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try tmp.sub("trip")
+    try FixtureFactory.writeJPEG(to: folder.appending(path: "a.jpg"))
+    let package = try tmp.sub("trip/Library.app")          // package bundle: must not be descended
+    try FixtureFactory.writeJPEG(to: package.appending(path: "internal.jpg"), gray: 0.9)
+    // Output and cache live inside the input folder, like `cd trip && ak14 run . --recursive`.
+    let o = RunOptions(folder: folder, recursive: true,
+                       runsDirectory: folder.appending(path: "runs"), cacheDirectory: folder.appending(path: ".ak14-cache"))
+    _ = try await run(o, now: Date(timeIntervalSince1970: 1))
+    let second = try await run(o, now: Date(timeIntervalSince1970: 2))
+    let index = try second.read(IngestResult.self, from: "input-index.json")
+    #expect(index.photos.map(\.sourceRelativePaths) == [["a.jpg"]])
+}
+
+@Test func runArtifactsContainNoCoordinates() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try tmp.sub("gps")
+    try FixtureFactory.writeJPEG(to: folder.appending(path: "a.jpg"))
+    let store = try await run(options(tmp, folder: folder))
+    let index = try store.read(IngestResult.self, from: "input-index.json")
+    #expect(index.photos[0].metadata.location == nil)
+    #expect(index.photos[0].metadata.hasLocation)
+    for file in ["input-index.json", "manifest.json", "cache/features.json", "report.html"] {
+        let text = try String(contentsOf: store.url(file), encoding: .utf8)
+        #expect(!text.contains("15.49") && !text.contains("73.82"), "\(file) leaks coordinates")
+    }
+}
+
+@Test func analysisCacheIsKeyedByThumbnailerVersionToo() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try tmp.sub("v")
+    try FixtureFactory.writeJPEG(to: folder.appending(path: "a.jpg"))
+    _ = try await run(options(tmp, folder: folder))
+    let dir = tmp.url.appending(path: "cache/features/\(VisionAnalyzer.version)+\(Thumbnailer.version)")
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).count == 1)
+}

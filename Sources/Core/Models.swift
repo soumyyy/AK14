@@ -22,13 +22,15 @@ public struct GeoPoint: Codable, Sendable, Equatable {
 public struct CaptureMetadata: Codable, Sendable, Equatable {
     public var capturedAt: Date?
     public var timeZoneAssumed: Bool
+    /// Exact coordinates. In memory only: run artifacts store `hasLocation` instead (see `redactingLocation()`).
     public var location: GeoPoint?
+    public var hasLocation: Bool
     public var cameraModel: String?
     public var isScreenshot: Bool
     public init(capturedAt: Date? = nil, timeZoneAssumed: Bool = false, location: GeoPoint? = nil,
                 cameraModel: String? = nil, isScreenshot: Bool = false) {
         self.capturedAt = capturedAt; self.timeZoneAssumed = timeZoneAssumed; self.location = location
-        self.cameraModel = cameraModel; self.isScreenshot = isScreenshot
+        self.hasLocation = location != nil; self.cameraModel = cameraModel; self.isScreenshot = isScreenshot
     }
 }
 
@@ -56,13 +58,22 @@ public struct PhotoRecord: Codable, Sendable, Equatable, Identifiable {
     }
 
     public var id: AssetID { assetID }
+
+    /// Copy safe to write into run artifacts: coordinates dropped, `hasLocation` kept.
+    public func redactingLocation() -> PhotoRecord {
+        var metadata = self.metadata
+        metadata.location = nil
+        return PhotoRecord(assetID: assetID, contentSHA256: contentSHA256, sourceRelativePaths: sourceRelativePaths,
+                           byteCount: byteCount, fileType: fileType, pixelWidth: pixelWidth, pixelHeight: pixelHeight,
+                           exifOrientation: exifOrientation, metadata: metadata)
+    }
     public var orientation: PhotoOrientation {
         pixelHeight > pixelWidth ? .portrait : pixelWidth > pixelHeight ? .landscape : .square
     }
 }
 
 public enum SkipReason: String, Codable, Sendable, CaseIterable {
-    case unsupportedType, video, decodeFailure, hiddenFile, directory
+    case unsupportedType, video, decodeFailure, hiddenFile, directory, unreadable
 }
 
 public struct SkippedFile: Codable, Sendable, Equatable {

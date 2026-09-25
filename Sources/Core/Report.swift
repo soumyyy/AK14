@@ -47,7 +47,7 @@ public enum ReportBuilder {
         let photos = input.photos
         let noDate = photos.filter { $0.metadata.capturedAt == nil }.count
         let assumedTZ = photos.filter { $0.metadata.timeZoneAssumed }.count
-        let noGPS = photos.filter { $0.metadata.location == nil }.count
+        let noGPS = photos.filter { !$0.metadata.hasLocation }.count
         let noCamera = photos.filter { $0.metadata.cameraModel == nil }.count
         let screenshots = photos.filter { $0.metadata.isScreenshot }.count
         let dupGroups = photos.filter { $0.sourceRelativePaths.count > 1 }.count
@@ -117,7 +117,7 @@ public enum ReportBuilder {
         var badges: [String] = []
         if p.metadata.capturedAt == nil { badges.append("no capture date") }
         if p.metadata.timeZoneAssumed { badges.append("time zone assumed") }
-        if p.metadata.location == nil { badges.append("no GPS") }
+        if !p.metadata.hasLocation { badges.append("no GPS") }
         if p.metadata.cameraModel == nil { badges.append("no camera metadata") }
         if p.metadata.isScreenshot { badges.append("screenshot") }
         if p.sourceRelativePaths.count > 1 { badges.append("\(p.sourceRelativePaths.count) paths") }
