@@ -1097,19 +1097,6 @@ private struct OptionsReviewStage: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                         .accessibilityLabel("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
-                        if currentPlan != nil {
-                            Button {
-                                editorPresented = true
-                            } label: {
-                                Label("Edit slides", systemImage: "arrow.up.arrow.down")
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(model.isEditingOption)
-                        } else if isLoadingPlan {
-                            ProgressView("Preparing slide editing…")
-                                .font(.footnote)
-                                .accessibilityAddTraits(.updatesFrequently)
-                        }
                         if option.generationMode == .photosOnly {
                             Text("Created on this device from your selected photos.")
                                 .font(.footnote).foregroundStyle(.secondary)
@@ -1127,6 +1114,21 @@ private struct OptionsReviewStage: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Options")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if currentPlan != nil {
+                    Button { editorPresented = true } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .accessibilityLabel("Edit slides")
+                    .disabled(model.isEditingOption)
+                } else if isLoadingPlan {
+                    ProgressView()
+                        .accessibilityLabel("Preparing slide editing")
+                        .accessibilityAddTraits(.updatesFrequently)
+                }
+            }
+        }
         .overlay(alignment: .topLeading) {
             if let option {
                 Text(option.runDirectory.appending(path: "interaction-events.jsonl").path)

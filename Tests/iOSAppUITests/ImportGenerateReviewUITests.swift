@@ -62,7 +62,8 @@ final class ImportGenerateReviewUITests: XCTestCase {
         var didReorder = false
         let edit = app.buttons["Edit slides"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10))
-        edit.tap()
+        XCTAssertTrue(edit.isHittable, "The visible edit control should be reachable")
+        edit.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(app.navigationBars["Edit slides"].waitForExistence(timeout: 30))
         let moveEarlier = app.buttons["Move slide 2 earlier"]
         if moveEarlier.waitForExistence(timeout: 15), moveEarlier.isEnabled { moveEarlier.tap(); didReorder = true }
