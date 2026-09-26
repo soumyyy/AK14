@@ -40,14 +40,16 @@ Status: active (2026-09-27). The local iOS flow previously passed a simulator UI
 | 5 | W5-A Occasion split (content-aware) + planner v6 | `w5-occasion` | Core EventSegmenter (time blocks and a local scene-signature fallback), new Director OccasionSplitter (one cheap model call), RunPipeline, prompts, Worker schema allow-list | IMG splits the wedding from the trip; the trip spine has no wedding, beach or arcade frame without a transition reason | Merged; local IMG pass separated 447 trip photos and 11 likely wedding photos; live model split and trip story taste still unverified |
 | 5 | W5-B Candid recall in the pool | `w5-pool` | Core/Reduction (Ranker, DiversitySelector, config) and RunPipeline's selectPool | Triage weight ±40%; characterful and candid frames reach planning; representatives consider triage | Merged; 59 Swift tests and simulator build passed on branch; cached IMG pool unchanged because new burst alternates lack cached triage |
 | 5 | W5-C Legibility, pairing and scale rules | `w5-layout` | Core/Layout/Composer.swift, Core/Compose/ComposerEngine.swift | Minimum on-slide face size; pairs need a people or scene relationship; deliberate bleed, band and inset scales; no runs of small centered cards | Merged; relevant tests and full 58-test suite passed |
-| 6 | W5-D Staged evaluation (split, selection, cover, layout, "neither") | — | eval harness | after the judge rewrite | Queued |
+| 6 | W5-D Staged evaluation (split, selection, cover, layout, "neither") | `w7-eval-stages` | eval harness | per-stage agreement and "neither" rate; old evalsets still work | Running |
 | 6 | W6-A AI planning default and one-time Worker setup | `w6-ai-default` | iOS app settings and secure token storage | AI planning starts enabled when configured; missing setup is explicit; user may opt out | Merged; scoped invite provisioned, device model run pending |
 | 6 | W6-B Photo-first layouts inspired by 17V28 | `w6-design` | Core layout and renderer | Fewer pale mats; purposeful photo backdrops, scale and layering; safe faces and crops | Merged; real six-photo preview reviewed; taste on full IMG set and owner device pending |
 | 7 | CS-1 CanvasDocument model + document renderer | `w7-document` | new `Core/Document/*`, `Render` document renderer, conversion from `ResolvedCarousel` | Converted layouts render byte-identical to today; documents round-trip; e2e | Running |
 | 7 | CS-2 Exact photo sets (engine and Mac) | `w7-exact` | `RunOptions`/`Arguments` (`--exact`, `--keep-order`), `RunPipeline`, Director (`exactSet`, prompt rules), composer | Every selected photo appears exactly once; no event split or pool drop; `--keep-order` fixes the order; e2e | Running |
-| 7 | CS-3 iOS exact mode + Share Extension | — | iOS | after CS-2 | Queued |
-| 7 | CS-4 Asset kit v1 (first-party stickers, textures, film frames; OFL fonts) | — | Render + Resources | after CS-1 | Queued |
-| 7 | CS-5 Recipes v1 + recipe filler; `seamless` and `titleIdea` direction fields | — | Core + Director + StylePack | after CS-1, CS-4 | Queued |
+| 7 | CS-3 iOS exact mode + Share Extension | `w7-ios-exact` | iOS + share extension target | exact/keep-order UI; Share → AK14 app-group handoff; UI test | Running |
+| 7 | CS-4a Asset kit v1 (about 60 first-party procedural and vector pieces; 8 OFL fonts already added) | `w7-kit` | new Render/Kit | deterministic drawing, manifest, preview sheet | Running |
+| 7 | CS-4b Kit rendering in documents | — | DocumentRenderer | after CS-1, CS-4a | Queued |
+| 7 | CS-5a Recipe format + 7 starter recipes (data) | `w7-recipes` | StylePack, Recipe types, validation, starter pack, Worker config | decode, validate, fonts resolve | Running |
+| 7 | CS-5b Recipe filler in the composer; `seamless` and `titleIdea` direction fields | — | Core + Director | after CS-1, CS-4b, CS-5a | Queued |
 | 7 | CS-6 Seamless panorama | — | Core + Render | after CS-5 | Queued |
 | 7 | CS-7 iOS canvas editor v1 | — | iOS | after CS-1, CS-4 | Queued |
 | 7 | CS-8 Photo looks and carousel grade | — | Render + editor | after CS-7 | Queued |
