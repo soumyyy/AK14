@@ -1,6 +1,6 @@
 # AK14 implementation sheet — Phase 0 quality pass to Phase 1
 
-Status: active (2026-09-27). The local iOS flow previously passed a simulator UI smoke test on iOS 26.2, including Save to Photos. The latest signed build, with occasion splitting, AI planning default, native review polish and photo-derived backgrounds, was installed on the owner's iPhone 17. The Worker is deployed and its health endpoint responds; a Worker-backed iPhone run still needs the owner's smoke test. The current simulator UI test is blocked by intermittent SpringBoard/XCTest automation crashes and a stalled editor-sheet step. The [composer-engine design](superpowers/specs/2026-09-26-composer-engine-design.md) supersedes older Plain/Designed/Wildcard descriptions in the original product spec.
+Status: active (2026-09-27). The local iOS flow previously passed a simulator UI smoke test on iOS 26.2, including Save to Photos. The latest signed build, with occasion splitting, AI planning default, native review polish and photo-derived backgrounds, was installed on the owner's iPhone 17. The Worker is deployed; a tiny live model request through the scoped iPhone invite succeeded, while a photo run from the iPhone still needs the owner's smoke test. The current simulator UI test is blocked by intermittent SpringBoard/XCTest automation crashes and a stalled editor-sheet step. The [composer-engine design](superpowers/specs/2026-09-26-composer-engine-design.md) supersedes older Plain/Designed/Wildcard descriptions in the original product spec.
 
 ## Decisions already made
 
@@ -19,7 +19,7 @@ Status: active (2026-09-27). The local iOS flow previously passed a simulator UI
 | Q2 | Landscape and single-photo layout | Landscape group shots use intentional tall-canvas compositions with safe crops; single-photo slides vary position without losing hierarchy; rerender stays deterministic. | In progress |
 | P1-A | Shared iOS build | Core, Analysis, Director and Render build for iOS 26 or have isolated platform adapters. An iOS app target builds in the iOS 26 simulator. | Simulator and signed device builds passed; latest build installed on iPhone |
 | P1-B | Photo intake | User starts a date-range/selection flow, grants PhotoKit access (including limited access), and local assets enter the existing analysis pipeline with stable IDs and cache behavior. | Local simulator flow passed |
-| P1-C | Worker | Worker accepts authenticated, bounded Responses requests, keeps the provider key server-side, and serves a versioned style config. | Deployed; health/config checked; model-backed iPhone run pending |
+| P1-C | Worker | Worker accepts authenticated, bounded Responses requests, keeps the provider key server-side, and serves a versioned style config. | Deployed; live bounded model smoke passed with scoped invite; model-backed iPhone photo run pending |
 | P1-D | Review and handoff | iPhone displays neutral options, supports existing constrained edits, and saves or shares ordered slides. A real photo set reaches this flow on simulator/device. | Simulator import → options → editor → Save passed; owner device smoke pending |
 | P1-E | Reliability | Interrupted generation resumes or fails clearly, iCloud-backed assets and limited-library changes are handled, source photos remain untouched, and stage timing/cost are recorded. | Planned |
 
