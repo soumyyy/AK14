@@ -32,6 +32,10 @@ public struct RunManifest: Codable, Sendable, Equatable {
     public var directorStatus: String?
     public var providerCalls: [ProviderCallRecord] = []
     public var totalEstimatedCost: Double = 0
+    /// Pseudonymous participant code (never a name).
+    public var studyCode: String?
+    /// Set when the participant/operator acknowledged the provider disclosure.
+    public var consent: Consent?
 
     public init(runID: String, createdAt: Date, sourceFolderLabel: String) {
         self.runID = runID; self.createdAt = createdAt; self.sourceFolderLabel = sourceFolderLabel
@@ -59,5 +63,7 @@ public struct RunManifest: Codable, Sendable, Equatable {
         directorStatus = try c.decodeIfPresent(String.self, forKey: .directorStatus)
         providerCalls = try c.decodeIfPresent([ProviderCallRecord].self, forKey: .providerCalls) ?? []
         totalEstimatedCost = try c.decodeIfPresent(Double.self, forKey: .totalEstimatedCost) ?? 0
+        studyCode = try c.decodeIfPresent(String.self, forKey: .studyCode)
+        consent = try c.decodeIfPresent(Consent.self, forKey: .consent)
     }
 }

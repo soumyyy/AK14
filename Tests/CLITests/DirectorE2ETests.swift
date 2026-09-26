@@ -101,7 +101,7 @@ private func sceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {
 }
 
 private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: Int? = nil) async throws -> RunStore {
-    var o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"))
+    var o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
     o.slides = slides
     let client = ResponsesClient(transport: model, sleep: { _ in })
     return try await RunPipeline.live(options: o, client: client, log: { _ in }).run(o)

@@ -94,6 +94,10 @@ struct RunPipeline: Sendable {
             thumbRel[id] = rel
         }
         let aspect = options.aspect ?? CarouselAspect.infer(from: ingest.photos)
+        // Written immediately (completedAt = nil) so an interrupted run is visible as incomplete, never counted.
+        var early = RunManifest(runID: store.root.lastPathComponent, createdAt: now, sourceFolderLabel: options.folder.lastPathComponent)
+        early.studyCode = options.studyCode
+        try store.write(early, to: "manifest.json")
 
         // 6. Director (triage → pool → planning) and Plain render
         var concepts: ConceptsReport?
@@ -104,6 +108,8 @@ struct RunPipeline: Sendable {
                         "reduction": config.version]
         if options.noLLM {
             directorStatus = "skipped: --no-llm"
+        } else if !options.consent {
+            directorStatus = "skipped: no consent"
         } else if client == nil {
             directorStatus = "skipped: no OPENAI_API_KEY"
         } else if reduction.shortlist.isEmpty {
@@ -170,6 +176,10 @@ struct RunPipeline: Sendable {
         manifest.cacheHits = hits
         manifest.cacheMisses = pending.count
         manifest.funnel = reduction.funnel
+        manifest.studyCode = options.studyCode
+        if options.consent && !options.noLLM {
+            manifest.consent = Consent(acknowledgedAt: now, disclosureVersion: Disclosure.version)
+        }
         manifest.directorStatus = directorStatus
         manifest.providerCalls = calls
         manifest.totalEstimatedCost = calls.reduce(0) { $0 + $1.estimatedCost }

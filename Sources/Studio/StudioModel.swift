@@ -41,7 +41,7 @@ final class StudioModel {
         runs = dirs.compactMap { url in
             guard fm.fileExists(atPath: url.appending(path: "plans/director.json").path),
                   let data = try? Data(contentsOf: url.appending(path: "manifest.json")),
-                  let m = try? decoder.decode(RunManifest.self, from: data) else { return nil }
+                  let m = try? decoder.decode(RunManifest.self, from: data), m.completedAt != nil else { return nil }
             return RunSummary(url: url, label: m.sourceFolderLabel, created: m.createdAt, photos: m.photoCount,
                               status: m.directorStatus ?? "—")
         }.sorted { $0.created > $1.created }

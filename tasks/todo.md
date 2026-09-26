@@ -20,7 +20,7 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 - [x] M3 — Triage + planner (Plain first), GPT-6 Luna
 - [x] M4 — Layout resolver + renderer
 - [x] M5 — Studio (Mac app)
-- [ ] M6 — Study readiness
+- [x] M6 — Study readiness
 
 ## Review — M1 (2026-09-26)
 - Testing: per the user, no unit tests. Four e2e tests in `Tests/CLITests/PipelineTests.swift` (mixed folder, symlink + recursive + aspect override, video-only, missing folder), all passing.
@@ -119,3 +119,20 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 - Events: `slide_reordered` carries the moved photos, and `cover_changed` is logged when the cover changes.
 - Slide images are cached and only reloaded after a render.
 - E2E: 31 tests passing.
+
+## Review — M6 (2026-09-26)
+- `ak14 run --study-code P07`: the code is validated as pseudonymous. The provider disclosure and a consent prompt come before any model call (`--yes` for scripted runs), and consent is recorded in the manifest. Without consent, nothing is sent.
+- Interrupted runs: the manifest is written early, and runs without `completedAt` are shown as incomplete and never counted. A re-run reuses the local cache.
+- `ak14 followup`: structured day-7 answers, no URLs or free text.
+- `ak14 study summary`: the pre-registered bar (≥50% minimum at the 30% rule, with 20%/40% sensitivity; ≥33% posted within 7 days), picks, edit burden, repeat demand, cost and latency. Writes .md and .json.
+- `ak14 delete --purge-cache`: removes the run and any cache entries no other run uses.
+- `ak14 versions`: the version list frozen into `docs/study/protocol.md`.
+- Docs: `docs/study/protocol.md`, `consent.md`, `operator-guide.md`.
+- E2E: 34 tests passing, plus an opt-in operator dry-run test.
+- Dry run on IMG/ as DRY01:
+  - live run: 2 calls, $0.0045
+  - Studio-equivalent edits (reorder, swap, reroll), select, export (8 slides)
+  - follow-up, then summary: met both bars at n=1
+  - report shows the events; 0 absolute paths
+  - delete kept the shared cache that older runs use
+- Open item for you: verify OpenAI's current API data-retention terms before recruiting (protocol §Privacy).

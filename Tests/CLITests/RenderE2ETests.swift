@@ -17,7 +17,7 @@ private func sceneFolder(_ tmp: TempDirectory, count: Int = 12, dated: Bool = tr
 }
 
 private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
-    let o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"))
+    let o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
     return try await RunPipeline.live(options: o, client: ResponsesClient(transport: FakeModel(), sleep: { _ in }), log: { _ in }).run(o)
 }
 
