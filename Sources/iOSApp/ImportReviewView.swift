@@ -4,6 +4,7 @@ import Director
 import Photos
 import PhotosUI
 import Render
+import Security
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -55,13 +56,15 @@ final class ImportReviewModel {
     var importCompleted = 0
     var importTotal = 0
     private var importDuration: Double = 0
-    var modelAssist = false
+    var modelAssist = UserDefaults.standard.object(forKey: "ak14.modelAssist") as? Bool ?? true
+    var allowThumbnailTransfer = false
     var shareURLs: [URL] = []
     var sharePresented = false
     var showWorkerSettings = false
+    var showThumbnailDisclosure = false
     var showLimitedLibraryPicker = false
-    var workerBaseURL = ""
-    var workerInviteToken = ""
+    var workerBaseURL = UserDefaults.standard.string(forKey: "ak14.workerBaseURL") ?? "https://ak14-api.soumyamaheshwari1234.workers.dev"
+    var workerInviteToken = WorkerInviteToken.load() ?? ""
     let injectedClient: ResponsesClient?
     let injectedStylePackProvider: (@Sendable () async throws -> LoadedStylePack)?
 
@@ -178,7 +181,7 @@ final class ImportReviewModel {
 
     func prepareOccasionChoices(useModel: Bool) async {
         guard !records.isEmpty, let folder = importedFolder else { return }
-        let client = useModel ? configuredResponsesClient : nil
+        let client = useModel && allowThumbnailTransfer ? configuredResponsesClient : nil
         let preserveAllEventsChoice = selectedEventIndex == nil
         let previouslySelectedIDs = selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } }
         isPreparingOccasions = true
@@ -233,6 +236,14 @@ final class ImportReviewModel {
 
     func generateOptions() async -> Bool {
         guard let importedFolder else { return false }
+        if modelAssist && configuredResponsesClient == nil {
+            showWorkerSettings = true
+            return false
+        }
+        guard !modelAssist || allowThumbnailTransfer else {
+            showThumbnailDisclosure = true
+            return false
+        }
         isGenerating = true
         failureMessage = nil
         retryImport = false
@@ -487,14 +498,28 @@ struct ImportReviewView: View {
                 .alert(item: $model.alert) { alert in
                     Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
                 }
+                .alert("Send selected thumbnails?", isPresented: $model.showThumbnailDisclosure) {
+                    Button("Allow and create options") {
+                        model.allowThumbnailTransfer = true
+                        Task { if await model.generateOptions() { path.append(.options) } }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Small selected thumbnails and short descriptions will be sent to the AK14 Worker and OpenAI for story planning. Full-resolution originals stay on this device.")
+                }
                 .onChange(of: model.state) { _, state in
                     guard case .failed(let message) = state else { return }
                     model.alert = .init(title: "Could not continue", message: message)
                     model.state = model.records.isEmpty ? .idle : .ready
                 }
                 .onChange(of: model.modelAssist) { _, enabled in
+                    UserDefaults.standard.set(enabled, forKey: "ak14.modelAssist")
                     guard !model.records.isEmpty else { return }
                     Task { await model.prepareOccasionChoices(useModel: enabled) }
+                }
+                .onChange(of: model.allowThumbnailTransfer) { _, allowed in
+                    guard !model.records.isEmpty, model.modelAssist else { return }
+                    Task { await model.prepareOccasionChoices(useModel: allowed) }
                 }
         }
     }
@@ -765,13 +790,20 @@ struct ImportReviewView: View {
                         Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
                             .accessibilityHint("When on, selected thumbnails and short descriptions are sent to the configured Worker. Full-resolution originals stay on this device.")
                         if model.modelAssist {
-                            Text("Selected thumbnails and short descriptions are sent to create story directions. Full-resolution originals stay on this device.")
+                            Toggle("Allow selected thumbnails to be sent", isOn: $model.allowThumbnailTransfer)
+                            Text("When allowed, selected small thumbnails and short descriptions go to the AK14 Worker and OpenAI to plan story directions. Full-resolution originals stay on this device.")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else {
                             localModeExplanation
                         }
                     } else {
-                        localModeExplanation
+                        Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
+                        Text("AI planning is on by default. Add your scoped invite token before creating options. No photos are sent until you allow thumbnail transfer below.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        if model.modelAssist {
+                            Toggle("Allow selected thumbnails to be sent", isOn: $model.allowThumbnailTransfer)
+                        }
+                        if !model.modelAssist { localModeExplanation }
                         Button("Set up AI-assisted planning") { model.showWorkerSettings = true }
                             .buttonStyle(.bordered)
                     }
@@ -851,7 +883,7 @@ struct ImportReviewView: View {
                         .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
                     SecureField("Invite token", text: $model.workerInviteToken)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Text("The invite token stays in memory for this app session and is not saved in preferences.")
+                    Text("Your invite token is saved securely on this device. The Worker URL is saved in app preferences.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
@@ -860,6 +892,12 @@ struct ImportReviewView: View {
                          : "Add your HTTPS Worker URL and invite token to enable AI-assisted planning. HTTP localhost is available for simulator development.")
                         .font(.callout)
                 }
+            }
+            .onChange(of: model.workerBaseURL) { _, value in
+                UserDefaults.standard.set(value, forKey: "ak14.workerBaseURL")
+            }
+            .onChange(of: model.workerInviteToken) { _, value in
+                WorkerInviteToken.save(value)
             }
             .navigationTitle("Story settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -1431,4 +1469,44 @@ private struct ActivityShareSheet: UIViewControllerRepresentable {
         return controller
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+private enum WorkerInviteToken {
+    private static let service = "com.ak14.worker-invite"
+    private static let account = "scoped-invite"
+
+    static func load() -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func save(_ token: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let clean = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else {
+            SecItemDelete(query as CFDictionary)
+            return
+        }
+        let data = Data(clean.utf8)
+        let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var insertion = query
+            insertion[kSecValueData as String] = data
+            insertion[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            SecItemAdd(insertion as CFDictionary, nil)
+        }
+    }
 }
