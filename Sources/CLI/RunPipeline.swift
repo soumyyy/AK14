@@ -45,28 +45,14 @@ struct RunPipeline: Sendable {
         lap("ingest", start)
         log("Finding the best moments… \(ingest.photos.count) photos, \(ingest.skipped.count) skipped")
 
-        let events = EventSegmenter.segment(ingest.photos)
+        var events = EventSegmenter.segment(ingest.photos)
         if options.event != nil && options.allEvents { throw ArgumentError.invalidValue("--event", "cannot be combined with --all-events") }
-        if let requested = options.event, !events.contains(where: { $0.index == requested }) {
-            throw ArgumentError.invalidEvent("\(requested) (found \(events.count) events)")
-        }
-        let chosenEvent: Int? = options.allEvents ? nil : (options.event ?? events.max(by: { $0.photoCount < $1.photoCount })?.index)
-        let selectedIDs = chosenEvent.flatMap { id in events.first(where: { $0.index == id })?.assetIDs }
-        let photos = selectedIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos
-        if options.event == nil && !options.allEvents && events.count > 1 {
-            log("Found \(events.count) events:")
-            for event in events {
-                let dates = event.start.map { Self.eventDate($0) } ?? "undated"
-                let end = event.end.map { Self.eventDate($0) } ?? dates
-                log("  Event \(event.index): \(dates)–\(end), \(event.photoCount) photos")
-            }
-            log("Using the largest event. Choose another with --event N, or use --all-events for one story across everything.")
-        }
+        var photos = ingest.photos
 
         // 2. Analysis-tier thumbnails (cached across runs)
         start = clock.now
         let folder = options.folder.resolvingSymlinksInPath()
-        let thumbByID = try await thumbnails(photos, tier: .analysis, folder: folder, warnings: &warnings)
+        var thumbByID = try await thumbnails(photos, tier: .analysis, folder: folder, warnings: &warnings)
         lap("thumbnails", start)
 
         // 3. Vision features (cached by content digest + analyzer/thumbnailer version)
@@ -92,6 +78,29 @@ struct RunPipeline: Sendable {
             }
         }
         lap("analysis", start)
+
+        // Refine timestamp groups with the on-device Vision scene signatures before selection.
+        events = EventSegmenter.segment(ingest.photos, features: features)
+        if let requested = options.event, !events.contains(where: { $0.index == requested }) {
+            throw ArgumentError.invalidEvent("\(requested) (found \(events.count) events)")
+        }
+        let chosenEvent: Int? = options.allEvents ? nil : (options.event ?? events.max(by: { $0.photoCount < $1.photoCount })?.index)
+        let selectedIDs = chosenEvent.flatMap { id in events.first(where: { $0.index == id })?.assetIDs }
+        if let selectedIDs {
+            let selected = Set(selectedIDs)
+            photos = ingest.photos.filter { selected.contains($0.assetID) }
+            thumbByID = thumbByID.filter { selected.contains($0.key) }
+            features = features.filter { selected.contains($0.key) }
+        }
+        if options.event == nil && !options.allEvents && events.count > 1 {
+            log("Found \(events.count) events:")
+            for event in events {
+                let dates = event.start.map { Self.eventDate($0) } ?? "undated"
+                let end = event.end.map { Self.eventDate($0) } ?? dates
+                log("  Event \(event.index): \(dates)–\(end), \(event.photoCount) photos")
+            }
+            log("Using the largest event. Choose another with --event N, or use --all-events for one story across everything.")
+        }
 
         // 4. Reduction: clusters → junk → rank → diverse shortlist
         start = clock.now

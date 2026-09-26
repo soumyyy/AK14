@@ -58,6 +58,25 @@ private func eventRun(_ tmp: TempDirectory, folder: URL, model: FakeModel, event
     #expect(EventSegmenter.segment(photos).count == 1)
 }
 
+@Test func sceneSignatureSplitsWeddingFromSameDayTrip() throws {
+    let base = Date(timeIntervalSince1970: 1_800_000_000)
+    let photos = (0..<8).map { i in
+        PhotoRecord(assetID: AssetID(rawValue: "mix\(i)"), contentSHA256: "\(i)", sourceRelativePaths: ["\(i).jpg"],
+                    byteCount: 1, fileType: "public.jpeg", pixelWidth: 20, pixelHeight: 20, exifOrientation: 1,
+                    metadata: CaptureMetadata(capturedAt: base.addingTimeInterval(Double(i) * 600)))
+    }
+    var features: [AssetID: PhotoFeatures] = [:]
+    for (index, photo) in photos.enumerated() {
+        var f = PhotoFeatures(assetID: photo.assetID, analyzerVersion: "fixture")
+        f.labels = [SceneLabel(identifier: index < 4 ? "mountain landscape" : "wedding ceremony", confidence: 0.9)]
+        features[photo.assetID] = f
+    }
+    let events = EventSegmenter.segment(photos, features: features)
+    #expect(events.count == 2)
+    #expect(Set(events.map(\.photoCount)) == Set([4]))
+    #expect(Set(events.flatMap(\.assetIDs)) == Set(photos.map(\.assetID)))
+}
+
 @Test func storyHintReachesModelRequestsAndManifestAndLongHintIsRejected() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let folder = try eventFixture(tmp, days: [1])
