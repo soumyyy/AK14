@@ -30,7 +30,7 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     let m = try store.read(RunManifest.self, from: "manifest.json")
     let features = Dictionary(uniqueKeysWithValues: try store.read([PhotoFeatures].self, from: "cache/features.json").map { ($0.assetID, $0) })
-    #expect(m.versions["renderer"] == "render-1" && m.versions["resolver"] == "layout-2" && m.versions["composer"] == ComposerEngine.version)
+    #expect(m.versions["renderer"] == "render-2" && m.versions["resolver"] == "layout-3" && m.versions["composer"] == ComposerEngine.version)
 
     for plan in d.plans {
         let concept = plan.id
@@ -118,6 +118,14 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
             guard let variant = slide.variant, variant.hasPrefix("band.") || variant.hasPrefix("bandpair.") else { continue }
             sawBand = sawBand || variant.hasPrefix("band.")
             sawPair = sawPair || variant.hasPrefix("bandpair.")
+            if variant.hasPrefix("band.") {
+                #expect(slide.background.hasPrefix("wash:"), "landscape bands should use their scene as the surrounding color field")
+                #expect(slide.background == "wash:\(slide.elements.first(where: { $0.kind == .photo })?.assetID?.rawValue ?? "")",
+                        "wash must be derived from the foreground band photo")
+            }
+            if slide.primitive == .inset || slide.primitive == .asymmetricPair || slide.primitive == .overlapCluster {
+                #expect(slide.background.hasPrefix("wash:"), "multi-photo layouts should sit on a field derived from their hero photo")
+            }
             #expect((slide.metrics?.maxCropLoss ?? 1) <= 0.2, "\(variant) crop loss exceeds 20%")
             #expect(!slide.warnings.contains { $0.contains("some people are cropped") }, "\(variant) cuts people")
         }
@@ -184,7 +192,7 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender").path))
 }
 
-// MARK: - Placement engine (layout-2)
+// MARK: - Placement engine (layout-3)
 
 @Test func composerKeepsHierarchyCropsAndRhythmPostable() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }

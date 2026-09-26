@@ -114,7 +114,9 @@ extension LayoutResolver {
                 let element = env.photo(e, frame: band, z: 0)
                 guard let crop = element.crop, 1 - crop.width * crop.height <= 0.2,
                       CropPlanner.facesFit(env.context.features[e.assetID], crop: crop) else { continue }
-                out.append(Candidate(variant: "band.\(name)", elements: [element], background: "plain"))
+                // Carry the same scene into the negative space as a soft, photo-derived field.
+                // The foreground band remains the only scored/cropped photo; the wash is a renderer treatment.
+                out.append(Candidate(variant: "band.\(name)", elements: [element], background: "wash:\(e.assetID.rawValue)"))
             }
         }
         return out
