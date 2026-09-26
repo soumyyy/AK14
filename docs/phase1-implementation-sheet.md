@@ -56,6 +56,8 @@ Status: active (2026-09-27). The local iOS flow previously passed a simulator UI
 | 2 | Model-assisted flow on device through the deployed Worker | — | iOS settings and Worker URL | Configure a scoped invite in the app and complete an end-to-end device run | Pending device smoke |
 | 2 | Taste calibration from the owner's picks on 2–3 events | — | Composer weights | Needs the owner's picks | Blocked on owner |
 
+**Current goal (2026-09-27, Claude drives; Luna implements until its limits, then Claude):** wave 7 complete (CS-1 to CS-9). Automatic 17V28-level carousels, a full iPhone canvas editor, and exact photo sets (in the app and via Share), verified by e2e and UI tests, a GPT-6 Sol quality review, and an owner device build.
+
 Creative studio (wave 7): [spec](superpowers/specs/2026-09-27-creative-studio-design.md): 17V28-level automatic output, a canvas editor, and exact photo sets.
 
 Reviews: [GPT-6 Sol taste review](reviews/2026-09-26-gpt6-sol-taste-review.md) drives wave 5.
