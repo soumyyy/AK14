@@ -10,12 +10,21 @@ public struct CandidateRef: Codable, Sendable, Equatable {
 }
 
 public struct EvalPair: Codable, Sendable, Equatable {
+    public enum Stage: String, Codable, Sendable, CaseIterable { case split, selection, cover, layout }
     public var pairID: String
     public var runID: String
+    public var stage: Stage
     public var left: CandidateRef
     public var right: CandidateRef
-    public init(pairID: String, runID: String, left: CandidateRef, right: CandidateRef) {
-        self.pairID = pairID; self.runID = runID; self.left = left; self.right = right
+    public init(pairID: String, runID: String, stage: Stage = .layout, left: CandidateRef, right: CandidateRef) {
+        self.pairID = pairID; self.runID = runID; self.stage = stage; self.left = left; self.right = right
+    }
+    enum CodingKeys: String, CodingKey { case pairID, runID, stage, left, right }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        pairID = try c.decode(String.self, forKey: .pairID); runID = try c.decode(String.self, forKey: .runID)
+        stage = try c.decodeIfPresent(Stage.self, forKey: .stage) ?? .layout
+        left = try c.decode(CandidateRef.self, forKey: .left); right = try c.decode(CandidateRef.self, forKey: .right)
     }
 }
 
@@ -32,7 +41,7 @@ public struct EvalSet: Codable, Sendable, Equatable {
 }
 
 public struct EvalLabel: Codable, Sendable, Equatable {
-    public enum Choice: String, Codable, Sendable { case left, right, tie }
+    public enum Choice: String, Codable, Sendable { case left, right, tie, neither }
     public var pairID: String
     public var rater: String
     public var choice: Choice
@@ -45,6 +54,16 @@ public struct EvalLabel: Codable, Sendable, Equatable {
 }
 
 public struct EvalReport: Codable, Sendable {
+    public struct StageSummary: Codable, Sendable {
+        public var stage: EvalPair.Stage
+        public var agreement: Double
+        public var neitherRate: Double
+        public var labelledPairs: Int
+        public var neither: Int
+        public init(stage: EvalPair.Stage, agreement: Double, neitherRate: Double, labelledPairs: Int, neither: Int) {
+            self.stage = stage; self.agreement = agreement; self.neitherRate = neitherRate; self.labelledPairs = labelledPairs; self.neither = neither
+        }
+    }
     public struct Event: Codable, Sendable {
         public var event: String
         public var agreement: Double
@@ -59,7 +78,8 @@ public struct EvalReport: Codable, Sendable {
     public var labelledPairs: Int
     public var ties: Int
     public var events: [Event]
-    public init(agreement: Double, confidenceInterval: [Double], labelledPairs: Int, ties: Int, events: [Event]) {
-        self.agreement = agreement; self.confidenceInterval = confidenceInterval; self.labelledPairs = labelledPairs; self.ties = ties; self.events = events
+    public var stages: [StageSummary]
+    public init(agreement: Double, confidenceInterval: [Double], labelledPairs: Int, ties: Int, events: [Event], stages: [StageSummary] = []) {
+        self.agreement = agreement; self.confidenceInterval = confidenceInterval; self.labelledPairs = labelledPairs; self.ties = ties; self.events = events; self.stages = stages
     }
 }

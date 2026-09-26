@@ -15,6 +15,39 @@ enum EvalCommand {
         var pairs: [EvalPair] = []
         for run in records {
             let plans = run.report.plans
+            let index = try? JSONCoding.decoder.decode(IngestResult.self, from: Data(contentsOf: run.root.appending(path: "input-index.json")))
+            let photos = Dictionary(uniqueKeysWithValues: (index?.photos ?? []).map { ($0.assetID, $0) })
+            func thumb(_ id: AssetID) -> URL? {
+                guard photos[id] != nil else { return nil }
+                let url = run.root.appending(path: "cache/thumbnails/analysis/\(id.rawValue).jpg")
+                return fm.fileExists(atPath: url.path) ? url : nil
+            }
+            func add(_ stage: EvalPair.Stage, _ leftID: String, _ leftAssets: [AssetID], _ rightID: String, _ rightAssets: [AssetID]) throws {
+                guard !leftAssets.isEmpty, !rightAssets.isEmpty else { return }
+                let refs = [CandidateRef(carouselID: leftID, compositionSeed: "0", runID: run.id), CandidateRef(carouselID: rightID, compositionSeed: "0", runID: run.id)]
+                let sides = [leftAssets, rightAssets]
+                for (i, ref) in refs.enumerated() {
+                    let urls = sides[i].compactMap(thumb)
+                    guard !urls.isEmpty else { return }
+                    let key = "\(run.id)/\(stage.rawValue)/\(ref.carouselID)"
+                    let name = "\(run.id)-\(stage.rawValue)-\(ref.carouselID).jpg"
+                    try StripRenderer().strip(slides: urls, height: stage == .cover ? 420 : 128, quality: 0.82).write(to: out.appending(path: "strips/\(name)"), options: .atomic)
+                    stripMap[key] = "strips/\(name)"
+                }
+                pairs.append(EvalPair(pairID: "\(run.id)-\(stage.rawValue)-\(pairs.filter { $0.runID == run.id && $0.stage == stage }.count + 1)", runID: run.id, stage: stage, left: refs[0], right: refs[1]))
+            }
+            if let spine = run.report.spine?.orderedAssetIDs, let ranked = try? JSONCoding.decoder.decode(ReductionResult.self, from: Data(contentsOf: run.root.appending(path: "cache/reduction.json"))) {
+                let top = Array(ranked.ranked.map(\.assetID).prefix(spine.count))
+                if top.count == spine.count && top != spine { try add(.selection, "model-spine", spine, "ranked-spine", top) }
+            }
+            let covers = plans.compactMap { $0.coverAssetID.map { ($0, $0) } }
+            if covers.count >= 2 { try add(.cover, "cover-\(covers[0].0.rawValue)", [covers[0].1], "cover-\(covers[1].0.rawValue)", [covers[1].1]) }
+            if let manifest = try? JSONCoding.decoder.decode(RunManifest.self, from: Data(contentsOf: run.root.appending(path: "manifest.json"))), manifest.events.count > 1,
+               let all = run.report.spine?.orderedAssetIDs, !all.isEmpty {
+                let groups = manifest.events.map(\.photoCount)
+                let cut = min(all.count - 1, max(1, groups.first ?? 1))
+                try add(.split, "event-groups", Array(all.prefix(cut)) + Array(all.dropFirst(cut)), "single-group", all)
+            }
             for plan in plans {
                 guard let paths = run.report.renderedSlides[plan.id], !paths.isEmpty else { continue }
                 let filename = "\(run.id)-\(plan.id).jpg"
@@ -35,7 +68,7 @@ enum EvalCommand {
                 func ref(_ p: CarouselPlan) -> CandidateRef {
                     CandidateRef(carouselID: p.id, compositionSeed: p.compositionSeed ?? "0", runID: run.id)
                 }
-                pairs.append(EvalPair(pairID: "\(run.id)-\(index + 1)", runID: run.id, left: ref(combo.0), right: ref(combo.1)))
+                pairs.append(EvalPair(pairID: "\(run.id)-layout-\(index + 1)", runID: run.id, stage: .layout, left: ref(combo.0), right: ref(combo.1)))
             }
         }
         var rng = SeededRandom(seed: seed)
@@ -56,8 +89,8 @@ enum EvalCommand {
         let html = #"""
         <!doctype html><meta charset="utf-8"><title>AK14 Eval</title><style>body{font:16px system-ui;max-width:1200px;margin:2rem auto;background:#f5f3ee;color:#222}main{display:flex;gap:1rem;align-items:center}figure{margin:0;flex:1}img{width:100%;height:auto}button{padding:.8rem 1.2rem;font:inherit;margin:.5rem}#status{margin:1rem 0}</style>
         <h1>Carousel preference</h1><div id="status"></div><main><figure><figcaption>Left</figcaption><img id="left"></figure><figure><figcaption>Right</figcaption><img id="right"></figure></main>
-        <button onclick="choose('left')">Left ←</button><button onclick="choose('right')">Right →</button><button onclick="choose('tie')">Can't choose (space)</button><button onclick="exportLabels()">Export</button>
-        <script>const pairs=__PAIRS__,strips=__STRIPS__,versions=__VERSIONS__,rater=__RATER__;let i=0;const key='ak14-eval-'+rater;let labels=JSON.parse(localStorage.getItem(key)||'[]');function render(){while(i<pairs.length&&labels.some(x=>x.pairID===pairs[i].pairID))i++;if(i>=pairs.length){document.querySelector('#status').textContent='Complete';return}const p=pairs[i];document.querySelector('#status').textContent=`Pair ${i+1} of ${pairs.length}`;document.querySelector('#left').src=strips[p.left.runID+'/'+p.left.carouselID];document.querySelector('#right').src=strips[p.right.runID+'/'+p.right.carouselID]}function choose(choice){const p=pairs[i];labels.push({pairID:p.pairID,rater,choice,shownLeft:p.left,decidedAt:new Date().toISOString(),versions});localStorage.setItem(key,JSON.stringify(labels));i++;render()}function exportLabels(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(labels,null,2)],{type:'application/json'}));a.download='labels-'+rater+'.json';a.click();URL.revokeObjectURL(a.href)}document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')choose('left');else if(e.key==='ArrowRight')choose('right');else if(e.key===' ')choose('tie')});render();</script>
+        <button onclick="choose('left')">Left ←</button><button onclick="choose('right')">Right →</button><button onclick="choose('tie')">Can't choose (space)</button><button onclick="choose('neither')">Neither is postable (n)</button><button onclick="exportLabels()">Export</button>
+        <script>const pairs=__PAIRS__,strips=__STRIPS__,versions=__VERSIONS__,rater=__RATER__;let i=0;const key='ak14-eval-'+rater;let labels=JSON.parse(localStorage.getItem(key)||'[]');function sk(p,r){return strips[p.runID+'/'+p.stage+'/'+r.carouselID]||strips[p.runID+'/'+r.carouselID]}function question(s){return ({split:'Which grouping tells the better story?',selection:'Which photo set tells the better story?',cover:'Which cover is more compelling?',layout:'Which carousel layout is better?'})[s]}function render(){while(i<pairs.length&&labels.some(x=>x.pairID===pairs[i].pairID))i++;if(i>=pairs.length){document.querySelector('#status').textContent='Complete';return}const p=pairs[i];document.querySelector('#status').textContent=`${p.stage} · ${question(p.stage)} · Pair ${i+1} of ${pairs.length}`;document.querySelector('#left').src=sk(p,p.left);document.querySelector('#right').src=sk(p,p.right)}function choose(choice){if(i>=pairs.length)return;const p=pairs[i];labels.push({pairID:p.pairID,rater,choice,shownLeft:p.left,decidedAt:new Date().toISOString(),versions});localStorage.setItem(key,JSON.stringify(labels));i++;render()}function exportLabels(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(labels,null,2)],{type:'application/json'}));a.download='labels-'+rater+'.json';a.click();URL.revokeObjectURL(a.href)}document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')choose('left');else if(e.key==='ArrowRight')choose('right');else if(e.key===' ')choose('tie');else if(e.key.toLowerCase()==='n')choose('neither')});render();</script>
         """#.replacingOccurrences(of: "__PAIRS__", with: pairsJSON).replacingOccurrences(of: "__STRIPS__", with: stripsJSON)
             .replacingOccurrences(of: "__VERSIONS__", with: versionsJSON).replacingOccurrences(of: "__RATER__", with: String(data: try JSONCoding.encoder.encode(rater), encoding: .utf8)!)
         try Data(html.utf8).write(to: evalDirectory.appending(path: "index.html"), options: .atomic)
@@ -78,11 +111,15 @@ enum EvalCommand {
         } else { try JSONCoding.encoder.encode(labels).write(to: target, options: .atomic) }
     }
 
-    static func score(evalDirectory: URL) throws -> String {
+    static func score(evalDirectory: URL, stage selectedStage: EvalPair.Stage? = nil) throws -> String {
         let set = try readSet(evalDirectory)
         let files = (try? FileManager.default.contentsOfDirectory(at: evalDirectory.appending(path: "labels"), includingPropertiesForKeys: nil)) ?? []
         var all: [EvalLabel] = []
         for file in files where file.pathExtension == "json" { all += try JSONCoding.decoder.decode([EvalLabel].self, from: Data(contentsOf: file)) }
+        if let selectedStage {
+            let selectedIDs = Set(set.pairs.filter { $0.stage == selectedStage }.map(\.pairID))
+            all = all.filter { selectedIDs.contains($0.pairID) }
+        }
         var cache: [String: (Double, String)] = [:]
         for runPath in set.runs {
             let root = URL(fileURLWithPath: runPath)
@@ -95,7 +132,7 @@ enum EvalCommand {
         var votes: [String: [Bool]] = [:], ties = 0
         let pairByID = Dictionary(uniqueKeysWithValues: set.pairs.map { ($0.pairID, $0) })
         for label in all {
-            guard label.choice != .tie else { ties += 1; continue }
+            guard label.choice == .left || label.choice == .right else { if label.choice == .tie { ties += 1 }; continue }
             votes[label.pairID, default: []].append(label.choice == .left)
         }
         var pairCorrect: [Bool] = [], eventVotes: [String: [Bool]] = [:], majorityTies = 0
@@ -120,13 +157,31 @@ enum EvalCommand {
             return EvalReport.Event(event: key, agreement: v.isEmpty ? 0 : Double(v.filter { $0 }.count) / Double(v.count), labelledPairs: v.count, ties: tieEvents[key] ?? 0)
         }
         let report = EvalReport(agreement: agreement, confidenceInterval: ci, labelledPairs: pairCorrect.count, ties: ties, events: events)
+        let stagePairs = set.pairs.filter { selectedStage == nil || $0.stage == selectedStage }
+        let stageLabels = all.filter { label in stagePairs.contains(where: { $0.pairID == label.pairID }) }
+        let summaries = (selectedStage.map { [$0] } ?? EvalPair.Stage.allCases).map { stage in
+            let pairs = stagePairs.filter { $0.stage == stage }
+            let labels = stageLabels.filter { label in pairs.contains(where: { $0.pairID == label.pairID }) }
+            let neither = labels.filter { $0.choice == .neither }.count
+            var agreed = 0, compared = 0
+            for pair in pairs {
+                let choices = labels.filter { $0.pairID == pair.pairID }.map(\.choice).filter { $0 == .left || $0 == .right }
+                guard !choices.isEmpty else { continue }
+                let l = choices.filter { $0 == .left }.count, r = choices.count - l
+                guard l != r else { continue }
+                compared += 1; if max(l, r) == choices.count { agreed += 1 }
+            }
+            return EvalReport.StageSummary(stage: stage, agreement: compared == 0 ? 0 : Double(agreed) / Double(compared),
+                                           neitherRate: labels.isEmpty ? 0 : Double(neither) / Double(labels.count), labelledPairs: labels.count, neither: neither)
+        }
+        var finalReport = report; finalReport.stages = summaries
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let markdown = "# Eval report\n\nAgreement: \(agreement) (95% bootstrap CI \(ci[0])–\(ci[1]))\n\nLabelled pairs: \(pairCorrect.count)\nTies: \(ties)\n\n| Event | Agreement | Pairs |\n|---|---:|---:|\n" + events.map { "| \($0.event) | \($0.agreement) | \($0.labelledPairs) |" }.joined(separator: "\n") + "\n"
+        let markdown = "# Eval report\n\nAgreement: \(agreement) (95% bootstrap CI \(ci[0])–\(ci[1]))\n\nLabelled pairs: \(pairCorrect.count)\nTies: \(ties)\n\n| Stage | Agreement | Neither rate | Labelled | Neither |\n|---|---:|---:|---:|---:|\n" + summaries.map { "| \($0.stage.rawValue) | \($0.agreement) | \($0.neitherRate) | \($0.labelledPairs) | \($0.neither) |" }.joined(separator: "\n") + "\n\n| Event | Agreement | Pairs |\n|---|---:|---:|\n" + events.map { "| \($0.event) | \($0.agreement) | \($0.labelledPairs) |" }.joined(separator: "\n") + "\n"
         let reportDir = evalDirectory.appending(path: "eval")
         try FileManager.default.createDirectory(at: reportDir, withIntermediateDirectories: true)
         try Data(markdown.utf8).write(to: reportDir.appending(path: "report-\(stamp).md"), options: .atomic)
-        try JSONCoding.encoder.encode(report).write(to: reportDir.appending(path: "report.json"), options: .atomic)
-        return "Agreement: \(agreement) (95% CI \(ci[0])–\(ci[1])); \(pairCorrect.count) pairs; \(ties) ties"
+        try JSONCoding.encoder.encode(finalReport).write(to: reportDir.appending(path: "report.json"), options: .atomic)
+        return "Agreement: \(agreement) (95% CI \(ci[0])–\(ci[1])); \(pairCorrect.count) pairs; \(ties) ties\n" + summaries.map { "\($0.stage.rawValue): agreement \($0.agreement), neither rate \($0.neitherRate)" }.joined(separator: "\n")
     }
 
     private static func composerScore(_ plan: CarouselPlan, _ slides: [ResolvedSlide]) -> Double {
