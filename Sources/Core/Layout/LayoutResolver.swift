@@ -123,6 +123,11 @@ public enum LayoutResolver {
             variant = chosen.variant
             elements = chosen.elements
             background = chosen.background
+            // Multi-photo slides need a surface that belongs to their images. Reuse the hero scene as
+            // a subdued wash so inset/pair/cluster layouts do not read as photos pasted onto blank paper.
+            if background == "plain" && [.inset, .asymmetricPair, .overlapCluster].contains(primitive) {
+                background = "wash:\(ranked[0].assetID.rawValue)"
+            }
             warnings += chosen.notes
             for e in elements where e.crop.map({ $0.width * $0.height < 0.999 }) == true
                 && !CropPlanner.facesFit(context.features[e.assetID!], crop: e.crop!) {
@@ -208,7 +213,7 @@ public enum LayoutResolver {
                 slide.grain = 0.12 * strength
             case "paper-warm":
                 if slide.background == "none" { slide.warnings.append("paper-warm has no visible area on a full-bleed slide") }
-                else { slide.background = "paper" }
+                else if !slide.background.hasPrefix("wash:") { slide.background = "paper" }
             case "film-edge":
                 slide.filmEdge = true
             case "date-stamp":

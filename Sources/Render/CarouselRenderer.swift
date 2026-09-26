@@ -1,4 +1,5 @@
 import Core
+import CoreImage
 import CoreGraphics
 import CoreText
 import Foundation
@@ -19,8 +20,9 @@ public enum RenderError: Error, CustomStringConvertible {
 
 /// Draws resolved slides deterministically: same layout + sources + seed → same PNG bytes.
 public struct CarouselRenderer: Sendable {
-    public static let version = "render-1"
+    public static let version = "render-2"
     static let paperColor = CGColor(srgbRed: 0.957, green: 0.945, blue: 0.918, alpha: 1)
+    private static let washContext = CIContext(options: [.useSoftwareRenderer: true])
 
     public struct Outcome: Sendable {
         /// Slide file names written, in slide order (slide-01.png, …).
@@ -66,6 +68,18 @@ public struct CarouselRenderer: Sendable {
         // Background
         ctx.setFillColor(Self.paperColor); ctx.fill(canvas)
         if slide.background == "paper" { StyleLayer.paper(ctx, size: canvas.size, rng: &rng) }
+        if slide.background.hasPrefix("wash:"),
+           let rawID = slide.background.split(separator: ":").dropFirst().first.map(String.init),
+           let record = photos[AssetID(rawValue: rawID)] {
+            let source = sourceFolder.appending(path: record.sourceRelativePaths[0])
+            if let base = try? Self.decodeCropped(source, record: record, crop: UnitRect(x: 0, y: 0, width: 1, height: 1),
+                                                  frame: CGSize(width: canvas.width * 0.34, height: canvas.height * 0.34)),
+               let wash = Self.photoWash(base, size: canvas.size) {
+                ctx.draw(wash, in: canvas)
+                // Keep the softened scene rich but subordinate to the sharp foreground image.
+                ctx.setFillColor(CGColor(gray: 0, alpha: 0.24)); ctx.fill(canvas)
+            }
+        }
 
         for e in slide.elements.sorted(by: { $0.zIndex < $1.zIndex }) {
             let rect = Self.cgRect(e.frame, W: Double(W), H: Double(H))
@@ -108,6 +122,21 @@ public struct CarouselRenderer: Sendable {
     static func cgRect(_ u: UnitRect, W: Double, H: Double) -> CGRect {
         CGRect(x: (u.x * W).rounded(), y: (H - (u.y + u.height) * H).rounded(),
                width: (u.width * W).rounded(), height: (u.height * H).rounded())
+    }
+
+    /// Reuses the slide's own photograph as a soft, full-canvas color field behind a landscape band.
+    /// No new asset or random treatment is involved, so rerenders remain stable.
+    static func photoWash(_ image: CGImage, size: CGSize) -> CGImage? {
+        let washSize = CGSize(width: max(1, (size.width * 0.34).rounded()), height: max(1, (size.height * 0.34).rounded()))
+        let target = CGRect(origin: .zero, size: washSize)
+        let input = CIImage(cgImage: image)
+        let scale = max(washSize.width / CGFloat(image.width), washSize.height / CGFloat(image.height))
+        let scaled = input.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let origin = CGPoint(x: (scaled.extent.width - washSize.width) / -2, y: (scaled.extent.height - washSize.height) / -2)
+        let cropped = scaled.transformed(by: CGAffineTransform(translationX: origin.x, y: origin.y)).cropped(to: target)
+        let radius = max(1, 34 * washSize.width / 1080)
+        let blurred = cropped.clampedToExtent().applyingFilter("CIGaussianBlur", parameters: ["inputRadius": radius]).cropped(to: target)
+        return washContext.createCGImage(blurred, from: target)
     }
 
     /// Decodes the oriented original at just enough resolution for the frame, then crops (top-left crop coords).
