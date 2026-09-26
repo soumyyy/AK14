@@ -46,9 +46,12 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     fb.labels = [SceneLabel(identifier: "tea_hill", confidence: 0.7)]
     #expect(ComposerEngine.pairHasStoryLink(members: [a, b], context: context([a: record(a, nil), b: record(b, nil)], [a: fa, b: fb])))
     fa.labels = []; fb.labels = []
+    let moment = Date(timeIntervalSince1970: 1_800_000_000)
+    #expect(!ComposerEngine.pairHasStoryLink(members: [a, b], context: context(
+        [a: record(a, moment), b: record(b, moment.addingTimeInterval(8 * 60))], [a: fa, b: fb])),
+        "same-hour personless photos need shared scene evidence")
     fa.faces = [FaceRegion(box: UnitRect(x: 0.2, y: 0.2, width: 0.2, height: 0.2), captureQuality: 0.8)]
     fb.faces = fa.faces
-    let moment = Date(timeIntervalSince1970: 1_800_000_000)
     #expect(ComposerEngine.pairHasStoryLink(members: [a, b], context: context([a: record(a, moment), b: record(b, moment.addingTimeInterval(8 * 60))], [a: fa, b: fb])))
 }
 

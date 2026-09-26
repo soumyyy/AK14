@@ -78,9 +78,20 @@ public enum ComposerEngine {
                         var moved = d; moved.coverAssetID = alt; tries.append(moved)
                     }
                 }
-                var nudged = tries.last ?? d
-                nudged.style.grouping = d.style.grouping == "single" ? "mixed" : d.style.grouping == "mixed" ? "collage" : "mixed"
-                tries.append(nudged)
+                var groupingNudge = tries.last ?? d
+                groupingNudge.style.grouping = d.style.grouping == "single" ? "mixed" : d.style.grouping == "mixed" ? "collage" : "mixed"
+                tries.append(groupingNudge)
+                // If relation constraints send every group to separate slides, grouping alone
+                // cannot distinguish the direction. Try coherent adjacent style axes before
+                // dropping an otherwise valid option.
+                var airyNudge = groupingNudge
+                airyNudge.style.whitespace = d.style.whitespace == "airy" ? "tight" : "airy"
+                airyNudge.style.density = d.style.density == "dense" ? "quiet" : "dense"
+                tries.append(airyNudge)
+                var finishNudge = airyNudge
+                finishNudge.style.decoration = d.style.decoration == "rich" ? "none" : "rich"
+                finishNudge.style.rotation = d.style.rotation == "some" ? "none" : "some"
+                tries.append(finishNudge)
                 var fixed = false
                 attempts: for t in tries {
                     for salt in 0..<3 {
@@ -460,10 +471,15 @@ public enum ComposerEngine {
             let generic: Set<String> = ["outdoor", "indoor", "person", "people", "human", "adult", "child",
                                         "nature", "landscape", "sky", "land", "ground", "grass", "tree", "vegetation"]
             if !shared.subtracting(generic).isEmpty { continue }
+            let hasCredibleFace: (AssetID) -> Bool = { id in
+                (context.features[id]?.faces ?? []).contains { face in
+                    face.box.width >= 0.025 && face.box.height >= 0.025
+                        && (face.captureQuality == nil || face.captureQuality! >= 0.2)
+                }
+            }
             if let a = context.photos[x]?.metadata.capturedAt, let b = context.photos[y]?.metadata.capturedAt,
-               abs(a.timeIntervalSince(b)) <= 60 * 60 {
-                // A tight capture-time window is evidence of the same outing/moment even
-                // when face or scene classification is unavailable.
+               abs(a.timeIntervalSince(b)) <= 60 * 60, hasCredibleFace(x), hasCredibleFace(y) {
+                // Nearby people-bearing frames plausibly show the same group or moment.
                 continue
             }
             return false
