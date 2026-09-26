@@ -20,12 +20,21 @@ public struct SpineRationale: Codable, Sendable, Equatable {
     public var reason: String
 }
 
+public struct TransitionRationale: Codable, Sendable, Equatable {
+    public var from: AssetID
+    public var to: AssetID
+    public var reason: String
+}
+
 public struct SelectionSpine: Codable, Sendable, Equatable {
     public var orderedAssetIDs: [AssetID]
     public var sequenceIntent: [SequenceIntent]
     public var rationale: [SpineRationale]
-    public init(orderedAssetIDs: [AssetID], sequenceIntent: [SequenceIntent], rationale: [SpineRationale]) {
+    public var transitionReasons: [TransitionRationale]?
+    public init(orderedAssetIDs: [AssetID], sequenceIntent: [SequenceIntent], rationale: [SpineRationale],
+                transitionReasons: [TransitionRationale]? = nil) {
         self.orderedAssetIDs = orderedAssetIDs; self.sequenceIntent = sequenceIntent; self.rationale = rationale
+        self.transitionReasons = transitionReasons
     }
     public var coverAssetID: AssetID? { orderedAssetIDs.first }
 }

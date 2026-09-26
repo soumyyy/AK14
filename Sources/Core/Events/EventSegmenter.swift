@@ -55,6 +55,56 @@ public enum EventSegmenter {
         }
     }
 
+    /// Content-aware refinement of timestamp events. Vision labels are a local scene signature;
+    /// only repeated, high-confidence signatures can create a boundary, so one unusual photo
+    /// (a meal or a sign, for example) cannot split an otherwise coherent outing.
+    public static func segment(_ photos: [PhotoRecord], features: [AssetID: PhotoFeatures]) -> [EventSegment] {
+        let timed = segment(photos)
+        var refined: [[PhotoRecord]] = []
+        let byID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
+        for event in timed {
+            let ordered = event.assetIDs.compactMap { byID[$0] }.sorted {
+                let a = $0.metadata.capturedAt ?? .distantPast, b = $1.metadata.capturedAt ?? .distantPast
+                return a == b ? $0.assetID < $1.assetID : a < b
+            }
+            let labels = ordered.map { p in signature(features[p.assetID]) }
+            // A repeated celebration signature (attire, table setting, festive decoration,
+            // wedding terms) can separate an occasion even when timestamps and GPS cannot.
+            let wedding = labels.map { $0.contains(where: isWeddingLabel) }
+            let gathering = labels.map(isDistinctGatheringSignature)
+            let split = wedding.filter({ $0 }).count >= 3 && wedding.filter({ !$0 }).count >= 3
+                ? wedding : gathering.filter({ $0 }).count >= 5 && gathering.filter({ !$0 }).count >= 5 ? gathering : nil
+            if let split {
+                let gatheringPhotos = ordered.enumerated().filter { split[$0.offset] }.map(\.element)
+                let otherPhotos = ordered.enumerated().filter { !split[$0.offset] }.map(\.element)
+                refined.append(contentsOf: [otherPhotos, gatheringPhotos].filter { !$0.isEmpty })
+            } else {
+                refined.append(ordered)
+            }
+        }
+        return refined.enumerated().map { index, group in
+            let dates = group.compactMap(\.metadata.capturedAt)
+            return EventSegment(index: index + 1, start: dates.min(), end: dates.max(), assetIDs: group.map(\.assetID).sorted())
+        }
+    }
+
+    private static func signature(_ features: PhotoFeatures?) -> [String] {
+        Array((features?.labels.prefix(5).map { $0.identifier.lowercased() } ?? []))
+    }
+
+    private static func isWeddingLabel(_ label: String) -> Bool {
+        ["wedding", "bride", "groom", "bridal", "wedding dress", "wedding ceremony", "wedding reception"]
+            .contains(where: label.contains)
+    }
+
+    private static func isDistinctGatheringSignature(_ labels: [String]) -> Bool {
+        if labels.contains(where: isWeddingLabel) { return true }
+        let markers = ["sari", "balloon", "ceremony", "chandelier", "bridal", "bride", "groom", "wedding dress"]
+        if labels.contains(where: { label in markers.contains(where: label.contains) }) { return true }
+        let setting = ["tableware", "table", "utensil", "furniture", "textile", "curtain", "interior_room"]
+        return labels.filter { label in setting.contains(where: label.contains) }.count >= 2 && labels.contains("people")
+    }
+
     private static func distance(_ a: GeoPoint?, _ b: GeoPoint?) -> Double {
         guard let a, let b else { return 0 }
         let radians = Double.pi / 180

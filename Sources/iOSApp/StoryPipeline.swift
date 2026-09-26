@@ -30,14 +30,17 @@ struct StoryPipeline: Sendable {
 
     func run(folder: URL, modelAssist: Bool, importDuration: Double = 0,
              eventAssetIDs: Set<AssetID>? = nil, storyHint: String? = nil,
+             eventSegments: [EventSegment]? = nil,
+             occasionResult: OccasionSplitter.Result? = nil,
              progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> [StoryOption] {
         let clock = ContinuousClock()
         var timings: [StageTiming] = []
+        if let occasionResult { timings.append(StageTiming(stage: "occasion_split", seconds: occasionResult.call.latencySeconds)) }
         var stageStart = clock.now
         let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
         timings.append(StageTiming(stage: "import", seconds: importDuration + (clock.now - stageStart).seconds))
         guard !ingest.photos.isEmpty else { throw PipelineFailure.noPhotos }
-        let events = EventSegmenter.segment(ingest.photos)
+        let events = eventSegments ?? EventSegmenter.segment(ingest.photos)
         let chosenEvent = eventAssetIDs.flatMap { ids in events.first { Set($0.assetIDs) == ids }?.index }
         let photos = eventAssetIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos
         guard !photos.isEmpty else { throw PipelineFailure.noPhotos }
@@ -93,7 +96,7 @@ struct StoryPipeline: Sendable {
         let plans: [CarouselPlan]
         let presentationOrder: [String]
         let generationMode: StoryOption.GenerationMode
-        var providerCalls: [ProviderCallRecord] = []
+        var providerCalls: [ProviderCallRecord] = occasionResult.map { [$0.call] } ?? []
 
         stageStart = clock.now
         if modelAssist, let client = responsesClient {
@@ -138,9 +141,10 @@ struct StoryPipeline: Sendable {
             let output = await ArtDirector(client: client, stylePack: stylePack).direct(
                 DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
                               shortlist: cards, selectPool: poolSelector, composition: context, runID: runID,
-                              storyHint: modelAssist ? storyHint : nil))
+                              storyHint: modelAssist ? storyHint : nil,
+                              allowMultiEventRecap: eventSegments.map { $0.count > 1 } == true && eventAssetIDs == nil))
             guard !output.plans.isEmpty else { throw PipelineFailure.directorProducedNoPlans }
-            providerCalls = output.calls
+            providerCalls += output.calls
             let adjusted = CandidateRanker.applyTriage(candidates, triage: output.triage, config: reductionConfig)
             let adjustedByID = Dictionary(uniqueKeysWithValues: adjusted.map { ($0.assetID, $0) })
             reduction.planningPool = output.pool.compactMap { adjustedByID[$0] }
@@ -186,6 +190,11 @@ struct StoryPipeline: Sendable {
         try store.writeText(folder.lastPathComponent, to: "source-import-id.txt")
         try store.write(plans, to: "plans/options.json")
         try store.write(presentationOrder, to: "plans/presentation-order.json")
+        if let occasionResult {
+            try store.write(JSONValue.object([("request", occasionResult.exchange.request),
+                                              ("response", occasionResult.exchange.response ?? .null)]),
+                            to: "llm/0-occasion-split.json")
+        }
 
         stageStart = clock.now
         var byID: [String: [URL]] = [:]
@@ -267,7 +276,7 @@ struct StoryPipeline: Sendable {
         return result
     }
 
-    private static func applicationSupport() throws -> URL {
+    static func applicationSupport() throws -> URL {
         let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let url = base.appending(path: "AK14", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

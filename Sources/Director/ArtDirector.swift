@@ -22,6 +22,7 @@ public struct DirectorInput: Sendable {
     public var dateSpan: String
     public var requestedSlides: Int?
     public var storyHint: String?
+    public var allowMultiEventRecap: Bool
     /// Shortlist in rank order.
     public var shortlist: [CandidateCard]
     /// Given triage scores, returns the planning pool ordered by adjusted rank.
@@ -34,10 +35,11 @@ public struct DirectorInput: Sendable {
     public var runID: String
     public init(storyLabel: String, dateSpan: String, requestedSlides: Int?, shortlist: [CandidateCard],
                 selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID], composition: CompositionContext,
-                runID: String, storyHint: String? = nil) {
+                runID: String, storyHint: String? = nil, allowMultiEventRecap: Bool = false) {
         self.storyLabel = storyLabel; self.dateSpan = dateSpan; self.requestedSlides = requestedSlides
         self.shortlist = shortlist; self.selectPool = selectPool; self.composition = composition; self.runID = runID
         self.storyHint = storyHint
+        self.allowMultiEventRecap = allowMultiEventRecap
     }
 }
 
@@ -186,6 +188,9 @@ public struct ArtDirector: Sendable {
         Available decorationIDs: \(stylePack.decorationIDs.joined(separator: ", ")).
         Style hints: \(stylePack.promptHints.joined(separator: " "))
         """)]
+        if input.allowMultiEventRecap {
+            content.insert(.text("The owner explicitly chose one story across all detected occasions. A multi-event recap is allowed; keep transitions honest and include only photos that support that recap."), at: 0)
+        }
         if let hint = input.storyHint {
             content.insert(.text("The owner describes this post as: \"\(hint)\". Treat it as the primary brief: what the post is about, who and what matters, and anything they want left out."), at: 0)
         }

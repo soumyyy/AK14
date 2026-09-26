@@ -34,6 +34,7 @@ enum Schemas {
                 ("orderedAssetIDs", .arr(id, min: 1, max: 20)),
                 ("sequenceIntent", .arr(.str(SequenceIntent.allCases.map(\.rawValue)))),
                 ("rationale", .arr(.obj([("id", id), ("reason", .str(["cover", "emotional", "story", "variety", "detail", "people", "place"]))]))),
+                ("transitionReasons", .arr(.obj([("from", id), ("to", id), ("reason", .str())]))),
             ])),
             ("directions", .arr(direction, min: 2, max: 5)),
         ])
