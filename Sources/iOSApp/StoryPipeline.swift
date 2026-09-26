@@ -28,8 +28,13 @@ struct StoryPipeline: Sendable {
         self.stylePackProvider = stylePackProvider
     }
 
-    func run(folder: URL, modelAssist: Bool, progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> [StoryOption] {
+    func run(folder: URL, modelAssist: Bool, importDuration: Double = 0,
+             progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> [StoryOption] {
+        let clock = ContinuousClock()
+        var timings: [StageTiming] = []
+        var stageStart = clock.now
         let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
+        timings.append(StageTiming(stage: "import", seconds: importDuration + (clock.now - stageStart).seconds))
         guard !ingest.photos.isEmpty else { throw PipelineFailure.noPhotos }
         let photos = ingest.photos
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
@@ -45,6 +50,7 @@ struct StoryPipeline: Sendable {
             analysisURLs.append((photo, thumbnail))
             progress("Preparing photo thumbnails · \(offset + 1) of \(photos.count)")
         }
+        stageStart = clock.now
         let analyzer = VisionAnalyzer(cacheRoot: cacheRoot)
         progress("Analyzing photos on device · 0 of \(analysisURLs.count)")
         let analysisProgress = StageProgress()
@@ -56,18 +62,25 @@ struct StoryPipeline: Sendable {
             return features
         }
         try Task.checkCancellation()
+        timings.append(StageTiming(stage: "analysis", seconds: (clock.now - stageStart).seconds))
+        stageStart = clock.now
         let features = Dictionary(uniqueKeysWithValues: featuresList.map { ($0.assetID, $0) })
         let index = FeaturePrintIndex(cacheRoot: cacheRoot, features: features)
         var reduction = ReductionResult.reduce(photos: photos, features: features, distance: index.distance)
         guard !reduction.shortlist.isEmpty else { throw PipelineFailure.noUsablePhotos }
+        timings.append(StageTiming(stage: "reduction", seconds: (clock.now - stageStart).seconds))
 
         let loadedStylePack = try await stylePackProvider?()
         let stylePack = try loadedStylePack?.stylePack ?? StylePackLoader.load()
         let stylePackPin = loadedStylePack?.pin ?? StylePackPin(id: stylePack.id, version: stylePack.version)
         let aspect = CarouselAspect.infer(from: photos)
         let runID = RunID.make(now: Date())
-        let store = try RunStore.create(in: support.appending(path: "runs", directoryHint: .isDirectory), runID: runID)
-        let runRoot = store.root
+        let runsRoot = support.appending(path: "runs", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: runsRoot, withIntermediateDirectories: true)
+        let stagingRoot = runsRoot.appending(path: ".staging-\(runID)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: stagingRoot, withIntermediateDirectories: false)
+        let store = RunStore.open(stagingRoot)
+        let runRoot = stagingRoot
         var completedRun = false
         defer {
             if !completedRun { try? FileManager.default.removeItem(at: runRoot) }
@@ -76,7 +89,9 @@ struct StoryPipeline: Sendable {
         let plans: [CarouselPlan]
         let presentationOrder: [String]
         let generationMode: StoryOption.GenerationMode
+        var providerCalls: [ProviderCallRecord] = []
 
+        stageStart = clock.now
         if modelAssist, let client = responsesClient {
             progress("Preparing a private photo summary for the model…")
             let candidates = reduction.shortlist
@@ -118,10 +133,15 @@ struct StoryPipeline: Sendable {
                 DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
                               shortlist: cards, selectPool: poolSelector, composition: context, runID: runID))
             guard !output.plans.isEmpty else { throw PipelineFailure.directorProducedNoPlans }
+            providerCalls = output.calls
             reduction.planningPool = output.pool.compactMap { id in reduction.shortlist.first { $0.assetID == id } }
             plans = output.plans
             presentationOrder = output.presentationOrder.isEmpty ? output.plans.map(\.id) : output.presentationOrder
             warnings = output.warnings
+            let elapsed = (clock.now - stageStart).seconds
+            let modelSeconds = output.calls.reduce(0) { $0 + $1.latencySeconds }
+            timings.append(StageTiming(stage: "director", seconds: min(elapsed, modelSeconds)))
+            timings.append(StageTiming(stage: "composition", seconds: max(0, elapsed - modelSeconds)))
             generationMode = output.plans.contains { !$0.isBaseline } ? .modelDirected : .photosOnly
         } else {
             progress("Composing local options…")
@@ -136,6 +156,8 @@ struct StoryPipeline: Sendable {
                                              stylePack: stylePack, maxSlides: nil)
             let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: runID)
             plans = set.plans
+            timings.append(StageTiming(stage: "director", seconds: 0))
+            timings.append(StageTiming(stage: "composition", seconds: (clock.now - stageStart).seconds))
             presentationOrder = set.presentationOrder
             warnings = set.warnings
             generationMode = .photosOnly
@@ -153,6 +175,7 @@ struct StoryPipeline: Sendable {
         try store.write(plans, to: "plans/options.json")
         try store.write(presentationOrder, to: "plans/presentation-order.json")
 
+        stageStart = clock.now
         var byID: [String: [URL]] = [:]
         for (optionIndex, plan) in plans.enumerated() {
             try Task.checkCancellation()
@@ -175,8 +198,44 @@ struct StoryPipeline: Sendable {
         }
         guard !options.isEmpty else { throw PipelineFailure.renderFailed(warnings.joined(separator: "; ")) }
         try Task.checkCancellation()
+        timings.append(StageTiming(stage: "render", seconds: (clock.now - stageStart).seconds))
+        var manifest = RunManifest(runID: runID, createdAt: Date(), sourceFolderLabel: folder.lastPathComponent)
+        manifest.photoCount = photos.count
+        manifest.aspectRatio = aspect
+        manifest.stageTimings = timings
+        manifest.directorStatus = generationMode == .modelDirected ? "ok" : "skipped: photos only"
+        manifest.providerCalls = providerCalls
+        manifest.totalEstimatedCost = providerCalls.reduce(0) { $0 + $1.estimatedCost }
+        manifest.completedAt = Date()
+        try store.write(manifest, to: "manifest.json")
+        let finalRoot = runsRoot.appending(path: runID, directoryHint: .isDirectory)
+        try FileManager.default.moveItem(at: stagingRoot, to: finalRoot)
+        let promotedOptions = options.map { option in
+            StoryOption(id: option.id, title: option.title, slides: option.slides.map { finalRoot.appending(path: $0.path.replacingOccurrences(of: stagingRoot.path + "/", with: "")) }, stylePackPin: option.stylePackPin, generationMode: option.generationMode, runDirectory: finalRoot, sourceFolder: option.sourceFolder)
+        }
         completedRun = true
-        return options
+        return promotedOptions
+    }
+
+    static func deleteRun(for option: StoryOption) throws {
+        let support = try applicationSupport()
+        let runsRoot = support.appending(path: "runs", directoryHint: .isDirectory).standardizedFileURL
+        let importsRoot = support.appending(path: "imports", directoryHint: .isDirectory).standardizedFileURL
+        let runDirectory = option.runDirectory.standardizedFileURL
+        let sourceFolder = option.sourceFolder.standardizedFileURL
+        guard runDirectory.deletingLastPathComponent() == runsRoot,
+              sourceFolder.deletingLastPathComponent() == importsRoot else { return }
+        try FileManager.default.removeItem(at: runDirectory)
+        try FileManager.default.removeItem(at: sourceFolder)
+    }
+
+    static func cleanupStaleStaging() {
+        guard let support = try? applicationSupport() else { return }
+        let runsRoot = support.appending(path: "runs", directoryHint: .isDirectory)
+        guard let entries = try? FileManager.default.contentsOfDirectory(at: runsRoot, includingPropertiesForKeys: nil) else { return }
+        for entry in entries where entry.lastPathComponent.hasPrefix(".staging-") {
+            try? FileManager.default.removeItem(at: entry)
+        }
     }
 
     private func thumbnailerURLs(_ candidates: [RankedCandidate], photos: [AssetID: PhotoRecord], folder: URL,
