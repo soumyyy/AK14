@@ -19,5 +19,9 @@
     "Let strong single photos breathe; use multi-photo slides for rhythm, not everywhere.",
     "Grain and paper are subtle; tape and film edges are occasional accents."
   ],
-  "explorationWeight": 0.3
+  "explorationWeight": 0.3,
+  "constitution": "- Good composition requires hierarchy.\n- Not every photo needs decoration.\n- Not every slide should have the same density.\n- Imperfection can carry emotional value; repeated perfection feels artificial.\n- A carousel should respond to its particular photos.\n- Surprise is valuable when coherent.\n- Avoid recognizable template fingerprints.\n- Do not optimize every image for generic beauty.\n- Random images (signs, food, details) can provide rhythm and personality.\n- Whitespace is an active compositional element.\n- A cover should create interest, not merely maximize aesthetic score.\n- Different directions must differ structurally.\n- A plain photo can outperform a designed slide. Design must earn its presence.",
+  "referenceImages": [],
+  "trendNotes": [],
+  "judge": { "enabled": false, "candidates": 6 }
 }

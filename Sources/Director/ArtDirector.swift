@@ -173,9 +173,12 @@ public struct ArtDirector: Sendable {
                                 triage: [AssetID: TriageScore]) -> [ContentPart] {
         let target = input.requestedSlides.map { "Target exactly \($0) photos in the spine unless fewer strong photos exist." }
             ?? "Choose the length yourself: usually 8-12, fewer if the pool is weak."
+        let constitution = stylePack.constitution ?? Self.defaultConstitution
         var content: [ContentPart] = [.text("""
         Event: \(input.storyLabel) (\(input.dateSpan)). \(pool.count) candidates, listed best-first by a local ranking (which is only a hint).
         \(target)
+        Taste constitution:\n\(constitution)
+        \(stylePack.trendNotes.map { "Trend notes:\n" + $0.map { "- " + $0 }.joined(separator: "\n") } ?? "")
         Available decorationIDs: \(stylePack.decorationIDs.joined(separator: ", ")).
         Style hints: \(stylePack.promptHints.joined(separator: " "))
         """)]
@@ -195,6 +198,22 @@ public struct ArtDirector: Sendable {
         }
         return content
     }
+
+    private static let defaultConstitution = """
+- Good composition requires hierarchy.
+- Not every photo needs decoration.
+- Not every slide should have the same density.
+- Imperfection can carry emotional value; repeated perfection feels artificial.
+- A carousel should respond to its particular photos.
+- Surprise is valuable when coherent.
+- Avoid recognizable template fingerprints.
+- Do not optimize every image for generic beauty.
+- Random images (signs, food, details) can provide rhythm and personality.
+- Whitespace is an active compositional element.
+- A cover should create interest, not merely maximize aesthetic score.
+- Different directions must differ structurally.
+- A plain photo can outperform a designed slide. Design must earn its presence.
+"""
 
     /// Spine validity dominates, then the number of valid directions, then fewer issues.
     static func quality(_ response: PlannerResponse, _ issues: [ValidationIssue]) -> (Int, Int, Int) {

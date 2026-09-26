@@ -44,6 +44,10 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
     case unsupportedDecorationID(String)
     case unsupportedTextureID(String)
     case assetManifestUnavailable
+    case invalidConstitution
+    case invalidReferenceImages
+    case invalidTrendNotes
+    case invalidJudgeConfig
 
     public var errorDescription: String? {
         switch self {
@@ -60,6 +64,10 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
         case .unsupportedDecorationID(let id): "Unsupported decoration ID: \(id)."
         case .unsupportedTextureID(let id): "Unsupported texture ID: \(id)."
         case .assetManifestUnavailable: "The bundled asset manifest could not be loaded."
+        case .invalidConstitution: "Style pack constitution must be at most 4,000 characters."
+        case .invalidReferenceImages: "Style pack reference images are invalid."
+        case .invalidTrendNotes: "Style pack trend notes are invalid."
+        case .invalidJudgeConfig: "Style pack judge configuration is invalid."
         }
     }
 }
@@ -106,6 +114,19 @@ public enum StyleConfigClient {
     }
 
     private static func validate(_ pack: StylePack) throws {
+        if let constitution = pack.constitution, constitution.count > 4_000 { throw StyleConfigError.invalidConstitution }
+        if let images = pack.referenceImages {
+            guard images.count <= 12, images.allSatisfy({ image in
+                !image.id.isEmpty && image.sha256.range(of: "^[a-fA-F0-9]{64}$", options: .regularExpression) != nil
+                    && image.tags.allSatisfy { !$0.isEmpty }
+            }) else { throw StyleConfigError.invalidReferenceImages }
+        }
+        if let notes = pack.trendNotes {
+            guard notes.count <= 8, notes.allSatisfy({ $0.count <= 200 }) else {
+                throw StyleConfigError.invalidTrendNotes
+            }
+        }
+        if let judge = pack.judge, !(2...8).contains(judge.candidates) { throw StyleConfigError.invalidJudgeConfig }
         let numericGroups: [(String, [String: Double])] = [
             ("primitiveWeights", pack.primitiveWeights), ("allowedRotations", pack.allowedRotations),
             ("overlapRanges", pack.overlapRanges), ("spacingRanges", pack.spacingRanges),

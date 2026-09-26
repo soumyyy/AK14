@@ -11,8 +11,12 @@ function token() {
 }
 class MemoryKV {
   values = new Map();
-  async get(key) { return this.values.get(key) ?? null; }
-  async put(key, value) { this.values.set(key, String(value)); }
+  async get(key, type) {
+    const value = this.values.get(key) ?? null;
+    if (type === "arrayBuffer" && value instanceof Uint8Array) return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+    return value;
+  }
+  async put(key, value) { this.values.set(key, value instanceof Uint8Array ? value : String(value)); }
 }
 const env = {
   OPENAI_API_KEY: "upstream-test-key",
@@ -20,6 +24,7 @@ const env = {
   DAILY_REQUEST_CAP: "5",
   DAILY_SPEND_CAP_USD: "1",
   AK14_USAGE: new MemoryKV(),
+  AK14_ASSETS: new MemoryKV(),
 };
 function body() {
   return {
@@ -107,5 +112,26 @@ test("serves a versioned style config matching the bundled style pack", async ()
   const config = await response.json();
   const bundled = JSON.parse(await readFile(new URL("../../../Sources/Render/Resources/StylePacks/starter-editorial.json", import.meta.url)));
   assert.deepEqual(config.stylePacks[0], bundled);
+  assert.equal(typeof config.stylePacks[0].constitution, "string");
+  assert.deepEqual(config.stylePacks[0].referenceImages, []);
+  assert.deepEqual(config.stylePacks[0].trendNotes, []);
+  assert.deepEqual(config.stylePacks[0].judge, { enabled: false, candidates: 6 });
   assert.equal(response.headers.get("etag"), '"starter-editorial-1.0.0-config-1"');
+});
+
+test("serves hash-addressed reference assets and rejects missing or corrupt bytes", async () => {
+  const bytes = new TextEncoder().encode("jpeg bytes");
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  const assets = new MemoryKV();
+  await assets.put(hash, bytes);
+  const handler = createHandler();
+  const response = await handler(new Request(`https://ak14.example/v1/assets/${hash}`), { AK14_ASSETS: assets });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "image/jpeg");
+  assert.match(response.headers.get("cache-control"), /immutable/);
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
+  assert.equal((await handler(new Request(`https://ak14.example/v1/assets/${"0".repeat(64)}`), { AK14_ASSETS: assets })).status, 404);
+  const corrupt = new MemoryKV();
+  await corrupt.put(hash, new TextEncoder().encode("other bytes"));
+  assert.equal((await handler(new Request(`https://ak14.example/v1/assets/${hash}`), { AK14_ASSETS: corrupt })).status, 500);
 });

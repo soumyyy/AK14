@@ -15,4 +15,20 @@ public struct StylePack: Codable, Sendable, Equatable {
     public var densityProfile: [String]
     public var promptHints: [String]
     public var explorationWeight: Double
+    public var constitution: String?
+    public var referenceImages: [ReferenceImage]?
+    public var trendNotes: [String]?
+    public var judge: JudgeConfig?
+}
+
+public struct ReferenceImage: Codable, Sendable, Equatable {
+    public var id: String
+    public var sha256: String
+    public var tags: [String]
+}
+
+public struct JudgeConfig: Codable, Sendable, Equatable {
+    public var enabled: Bool
+    public var candidates: Int
+    public var model: String?
 }
