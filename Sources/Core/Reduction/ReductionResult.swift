@@ -7,6 +7,8 @@ public struct Funnel: Codable, Sendable, Equatable {
 }
 
 public struct ReductionResult: Codable, Sendable {
+    /// Hard cap on low-resolution triage images in a model request, including alternate burst frames.
+    public static let maximumTriageCandidates = 120
     public var config: ReductionConfig
     public var clusters: [ShotCluster]
     public var junk: [JunkDisposition]
@@ -54,5 +56,35 @@ public struct ReductionResult: Codable, Sendable {
         funnel.representatives = ranked.count
         funnel.shortlisted = shortlist.count
         return ReductionResult(config: config, clusters: clusters, junk: junk, ranked: ranked, shortlist: shortlist, funnel: funnel)
+    }
+
+    /// Adds at most one safe alternate per shortlisted burst, preserving shortlist representatives first.
+    /// The fixed cap bounds thumbnail generation and model image count. Ties resolve by AssetID.
+    public func triageCandidates(photos: [PhotoRecord], features: [AssetID: PhotoFeatures],
+                                 limit: Int = maximumTriageCandidates) -> [RankedCandidate] {
+        let limit = max(0, limit)
+        let base = Array(shortlist.prefix(limit))
+        guard base.count < limit else { return base }
+        let junkByID = Dictionary(uniqueKeysWithValues: junk.map { ($0.assetID, $0) })
+        let clustersByID = Dictionary(uniqueKeysWithValues: clusters.map { ($0.clusterID, $0) })
+        var alternatives: [RankedCandidate] = []
+        for candidate in base {
+            guard alternatives.count < limit - base.count,
+                  var cluster = clustersByID[candidate.clusterID] else { break }
+            let safeMembers = cluster.memberAssetIDs.filter { junkByID[$0]?.verdict != .reject }
+            let alternativesForCluster = safeMembers.filter { $0 != candidate.assetID }
+            guard !alternativesForCluster.isEmpty else { continue }
+            cluster.memberAssetIDs = safeMembers
+            let bestID = alternativesForCluster.max { lhs, rhs in
+                let left = config.technicalScore(features[lhs]), right = config.technicalScore(features[rhs])
+                return left == right ? lhs > rhs : left < right
+            }!
+            cluster.representativeAssetID = bestID
+            if let alternate = CandidateRanker.rank(photos: photos, features: features, clusters: [cluster],
+                                                     junk: junkByID, config: config).first {
+                alternatives.append(alternate)
+            }
+        }
+        return base + alternatives
     }
 }

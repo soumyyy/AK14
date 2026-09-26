@@ -154,7 +154,8 @@ struct RunPipeline: Sendable {
             for e in output.exchanges {
                 try store.write(JSONValue.object([("request", e.request), ("response", e.response ?? .null)]), to: "llm/\(e.name).json")
             }
-            reduction = Self.applyDirector(output, to: reduction, config: config)
+            let triageCandidates = reduction.triageCandidates(photos: photos, features: features)
+            reduction = Self.applyDirector(output, to: reduction, triageCandidates: triageCandidates, config: config)
             if let spine = output.spine { try store.write(spine, to: "plans/selection-spine.json") }
             for p in output.plans { try store.write(p, to: "plans/\(p.id).json") }
 
@@ -254,13 +255,14 @@ struct RunPipeline: Sendable {
                         index: FeaturePrintIndex, folder: URL, options: RunOptions, stylePack: StylePack,
                         aspect: CarouselAspect, runID: String, warnings: inout [String]) async throws -> DirectorOutput {
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
-        let shortlistPhotos = reduction.shortlist.compactMap { photoByID[$0.assetID] }
+        let triageCandidates = reduction.triageCandidates(photos: photos, features: features)
+        let shortlistPhotos = triageCandidates.compactMap { photoByID[$0.assetID] }
         let triageThumbs = try await thumbnails(shortlistPhotos, tier: .triage, folder: folder, warnings: &warnings)
         let planningThumbs = try await thumbnails(shortlistPhotos, tier: .planning, folder: folder, warnings: &warnings)
         let junk = Dictionary(uniqueKeysWithValues: reduction.junk.map { ($0.assetID, $0) })
         let start = shortlistPhotos.compactMap(\.metadata.capturedAt).min()
 
-        let cards = reduction.shortlist.map { c in
+        let cards = triageCandidates.map { c in
             CandidateCard(assetID: c.assetID,
                           summary: Self.summary(c, photo: photoByID[c.assetID], features: features[c.assetID],
                                                 junk: junk[c.assetID], eventStart: start),
@@ -270,22 +272,14 @@ struct RunPipeline: Sendable {
                           localFlags: Self.localSafetyFlags(features[c.assetID]))
         }
 
-        let shortlist = reduction.shortlist, config = reduction.config
+        let shortlist = triageCandidates, config = reduction.config
         let planning = ReductionTargets.forUsable(reduction.ranked.count).planning
         let poolTarget = min(shortlist.count, options.slides.map { min(planning.upperBound, max(planning.lowerBound, $0 * 4)) }
                              ?? (planning.lowerBound + planning.upperBound) / 2)
         let selectPool: @Sendable ([AssetID: TriageScore]) -> [AssetID] = { triage in
-            let adjusted = CandidateRanker.applyTriage(shortlist, triage: triage, config: config)
-            // Photos the model itself judged near-worthless (≤1/5) stay out unless flagged as useful imperfection,
-            // as long as enough others remain to fill the pool.
-            let weak: (RankedCandidate) -> Bool = { c in
-                guard let t = c.triage else { return false }
-                return t.emotionalValue <= 1 && t.imperfection != "useful"
-            }
-            let strong = adjusted.filter { !weak($0) }
-            let candidates = strong.count >= poolTarget ? strong : strong + adjusted.filter(weak)
-            return DiversitySelector.select(ranked: candidates, target: poolTarget, photos: photoByID, features: features,
-                                            distance: index.distance, config: config).map(\.assetID)
+            DiversitySelector.selectPlanningPool(ranked: shortlist, triage: triage, target: poolTarget,
+                                                 photos: photoByID, features: features, distance: index.distance,
+                                                 config: config).map(\.assetID)
         }
         // Only the event's length is sent: no folder name (it may contain a study code or a name) and no calendar dates.
         let dates = shortlistPhotos.compactMap(\.metadata.capturedAt)
@@ -304,9 +298,10 @@ struct RunPipeline: Sendable {
     }
 
     /// Updates rank scores with triage, records the planning pool and funnel counts.
-    static func applyDirector(_ output: DirectorOutput, to reduction: ReductionResult, config: ReductionConfig) -> ReductionResult {
+    static func applyDirector(_ output: DirectorOutput, to reduction: ReductionResult,
+                              triageCandidates: [RankedCandidate], config: ReductionConfig) -> ReductionResult {
         var r = reduction
-        let adjusted = CandidateRanker.applyTriage(r.shortlist, triage: output.triage, config: config)
+        let adjusted = CandidateRanker.applyTriage(triageCandidates, triage: output.triage, config: config)
         let byID = Dictionary(uniqueKeysWithValues: adjusted.map { ($0.assetID, $0) })
         r.shortlist = r.shortlist.map { old in
             var new = byID[old.assetID] ?? old
@@ -314,6 +309,7 @@ struct RunPipeline: Sendable {
             return new
         }
         r.planningPool = output.pool.compactMap { byID[$0] }
+        r.funnel.shortlisted = triageCandidates.count
         r.funnel.triaged = output.triage.count
         r.funnel.planningPool = output.pool.count
         r.funnel.selected = output.spine?.orderedAssetIDs.count ?? 0

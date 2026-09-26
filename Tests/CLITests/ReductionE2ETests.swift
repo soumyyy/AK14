@@ -67,3 +67,78 @@ import TestSupport
     #expect(burst.representativeAssetID == ids[1])
     #expect(result.clusters.first { $0.memberAssetIDs == [ids[2]] }?.kind == .single)
 }
+
+@Test func triageCanPromoteCharacterfulPeopleFramesAndKeepLowScoresSoft() throws {
+    let plainID = AssetID(rawValue: "plain")
+    let candidID = AssetID(rawValue: "hillside-candid")
+    let plain = RankedCandidate(assetID: plainID, clusterID: "plain", clusterSize: 1,
+                                components: RankComponents(penalty: 0, base: 0.72), score: 0.72)
+    let candid = RankedCandidate(assetID: candidID, clusterID: "candid", clusterSize: 1,
+                                 components: RankComponents(penalty: 0, base: 0.60), score: 0.60)
+    let scores: [AssetID: TriageScore] = [
+        plainID: TriageScore(emotionalValue: 2, imperfection: "neutral", safety: [], tags: [], confidence: "high"),
+        candidID: TriageScore(emotionalValue: 5, imperfection: "useful", safety: [], tags: ["candid", "people"], confidence: "high"),
+    ]
+    let config = ReductionConfig()
+    let adjusted = CandidateRanker.applyTriage([plain, candid], triage: scores, config: config)
+    #expect(config.triageMaxAdjustment == 0.4)
+    #expect(adjusted.first?.assetID == candidID)
+    #expect(adjusted.first?.effectiveScore ?? 0 >= 0.60 * 1.4)
+    #expect(!CandidateRanker.isWeakTriageCandidate(adjusted.first!))
+
+    let lowID = AssetID(rawValue: "low")
+    let lowScore = TriageScore(emotionalValue: 1, imperfection: "neutral", safety: [], tags: [], confidence: "high")
+    let low = CandidateRanker.applyTriage([RankedCandidate(assetID: lowID, clusterID: "low", clusterSize: 1,
+                                          components: RankComponents(penalty: 0, base: 0.8), score: 0.8)],
+                                          triage: [lowID: lowScore], config: config)[0]
+    #expect(CandidateRanker.isWeakTriageCandidate(low))
+}
+
+@Test func triageCanReselectAUsableAlternateWithinABurst() throws {
+    let ids = [AssetID(rawValue: "burst-a"), AssetID(rawValue: "burst-b"),
+               AssetID(rawValue: "burst-black"), AssetID(rawValue: "solo")]
+    let base = Date(timeIntervalSince1970: 1_800_000_000)
+    let photos = ids.enumerated().map { index, id in
+        PhotoRecord(assetID: id, contentSHA256: "fixture-\(index)", sourceRelativePaths: ["\(id).jpg"],
+                    byteCount: 100, fileType: "public.jpeg", pixelWidth: 400, pixelHeight: 300,
+                    exifOrientation: 1, metadata: CaptureMetadata(capturedAt: base.addingTimeInterval(Double(index))))
+    }
+    var polished = PhotoFeatures(assetID: ids[0], analyzerVersion: "fixture")
+    polished.sharpness = 0.14; polished.aestheticScore = 0.8
+    polished.faces = [FaceRegion(box: UnitRect(x: 0.2, y: 0.2, width: 0.25, height: 0.3), captureQuality: 0.9)]
+    var candid = PhotoFeatures(assetID: ids[1], analyzerVersion: "fixture")
+    candid.sharpness = 0.10; candid.aestheticScore = 0.1
+    candid.faces = [FaceRegion(box: UnitRect(x: 0.2, y: 0.2, width: 0.25, height: 0.3), captureQuality: 0.3)]
+    var black = PhotoFeatures(assetID: ids[2], analyzerVersion: "fixture")
+    black.darkFraction = 1; black.meanLuminance = 0; black.sharpness = 0
+    var solo = PhotoFeatures(assetID: ids[3], analyzerVersion: "fixture")
+    solo.sharpness = 0.12; solo.aestheticScore = 0.2
+    let features = [ids[0]: polished, ids[1]: candid, ids[2]: black, ids[3]: solo]
+    let distances: [Set<AssetID>: Double] = [Set([ids[0], ids[1]]): 0.05, Set([ids[0], ids[2]]): 0.07]
+    let distance: (AssetID, AssetID) -> Double? = { lhs, rhs in distances[Set([lhs, rhs])] }
+    let reduction = ReductionResult.reduce(photos: photos, features: features, distance: distance)
+    let candidates = reduction.triageCandidates(photos: photos, features: features)
+    #expect(reduction.junk.first { $0.assetID == ids[2] }?.verdict == .reject)
+    #expect(!candidates.contains { $0.assetID == ids[2] })
+    let burstCluster = try #require(reduction.clusters.first { $0.memberAssetIDs.contains(ids[0]) })
+    let burstCandidates = candidates.filter { $0.clusterID == burstCluster.clusterID }
+    #expect(burstCandidates.count == 2)
+    #expect(Set(burstCandidates.map(\.assetID)) == Set([ids[0], ids[1]]))
+
+    let triage: [AssetID: TriageScore] = [
+        ids[0]: TriageScore(emotionalValue: 2, imperfection: "neutral", safety: [], tags: [], confidence: "high"),
+        ids[1]: TriageScore(emotionalValue: 5, imperfection: "useful", safety: [], tags: ["candid"], confidence: "high"),
+    ]
+    let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
+    let pool = DiversitySelector.selectPlanningPool(ranked: candidates, triage: triage, target: 2,
+                                                    photos: photoByID, features: features, distance: distance,
+                                                    config: reduction.config)
+    #expect(pool.filter { $0.clusterID == burstCluster.clusterID }.map(\.assetID) == [ids[1]])
+    #expect(pool.count == 2)
+
+    let partialTriage = Dictionary(uniqueKeysWithValues: [(ids[0], triage[ids[0]]!)])
+    let safeFallback = DiversitySelector.selectPlanningPool(ranked: candidates, triage: partialTriage, target: 2,
+                                                            photos: photoByID, features: features, distance: distance,
+                                                            config: reduction.config)
+    #expect(safeFallback.filter { $0.clusterID == burstCluster.clusterID }.map(\.assetID) == [ids[0]])
+}
