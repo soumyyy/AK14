@@ -27,6 +27,9 @@ final class ImportGenerateReviewUITests: XCTestCase {
         if findPhotos.isEnabled { findPhotos.tap() }
         let selected = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'photos selected'")).firstMatch
         XCTAssertTrue(selected.waitForExistence(timeout: 20), "Expected a visible selected-photo count")
+        let firstPhoto = app.buttons["photo-1"]
+        XCTAssertTrue(firstPhoto.waitForExistence(timeout: 10), "Expected a photo tile to select")
+        firstPhoto.tap()
 
         let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Review '")).firstMatch
         XCTAssertTrue(review.waitForExistence(timeout: 10))

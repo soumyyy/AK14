@@ -59,6 +59,7 @@ final class ImportReviewModel {
     var shareURLs: [URL] = []
     var sharePresented = false
     var showWorkerSettings = false
+    var showLimitedLibraryPicker = false
     var workerBaseURL = ""
     var workerInviteToken = ""
     let injectedClient: ResponsesClient?
@@ -95,7 +96,9 @@ final class ImportReviewModel {
         }
         importedFolder = nil
         assets = (0..<result.count).map { result.object(at: $0) }
-        selectedIDs = Set(assets.map(\.localIdentifier))
+        // Keep the user's current choices when the date range or limited library changes.
+        // A fresh install starts with nothing selected so importing a large library is deliberate.
+        selectedIDs.formIntersection(Set(assets.map(\.localIdentifier)))
         records = []
         events = []
         occasionFeatures = [:]
@@ -513,8 +516,9 @@ struct ImportReviewView: View {
                             .frame(minHeight: 220)
                     } else {
                         LazyVGrid(columns: columns, spacing: 5) {
-                            ForEach(model.assets, id: \.localIdentifier) { asset in
-                                AssetTile(asset: asset, selected: model.selectedIDs.contains(asset.localIdentifier)) {
+                            ForEach(Array(model.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                AssetTile(asset: asset, ordinal: index + 1, total: model.assets.count,
+                                          selected: model.selectedIDs.contains(asset.localIdentifier)) {
                                     model.toggle(asset)
                                 }
                             }
@@ -524,7 +528,7 @@ struct ImportReviewView: View {
                     if model.authorization == .limited {
                         Label("Limited Photos access", systemImage: "checkmark.circle")
                             .font(.caption).foregroundStyle(.secondary)
-                        Button("Manage photo access in Settings", action: openSettings)
+                        Button("Choose more photos") { model.showLimitedLibraryPicker = true }
                             .font(.caption)
                     }
                 } else {
@@ -544,6 +548,13 @@ struct ImportReviewView: View {
             if model.authorization == .authorized || model.authorization == .limited, model.assets.isEmpty {
                 await model.loadAssets()
             }
+        }
+        .background {
+            LimitedLibraryPickerPresenter(isPresented: $model.showLimitedLibraryPicker) {
+                model.authorization = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+                Task { await model.loadAssets() }
+            }
+            .frame(width: 0, height: 0)
         }
         .sensoryFeedback(.selection, trigger: model.selectedIDs.count)
     }
@@ -922,6 +933,8 @@ private struct StageProgress: View {
 
 private struct AssetTile: View {
     let asset: PHAsset
+    let ordinal: Int
+    let total: Int
     let selected: Bool
     let action: () -> Void
     @State private var image: UIImage?
@@ -960,6 +973,7 @@ private struct AssetTile: View {
         .accessibilityLabel(photoLabel)
         .accessibilityValue(selected ? "Selected" : "Not selected")
         .accessibilityHint("Double-tap to change whether this photo is included")
+        .accessibilityIdentifier("photo-\(ordinal)")
         .accessibilityAddTraits(selected ? .isSelected : [])
         .task(id: asset.localIdentifier) {
             let request = PHImageRequestOptions()
@@ -976,8 +990,43 @@ private struct AssetTile: View {
     }
 
     private var photoLabel: String {
-        let date = asset.creationDate?.formatted(date: .abbreviated, time: .omitted) ?? "date unavailable"
-        return "Photo, \(date)"
+        var details = asset.mediaSubtypes.contains(.photoLive) ? "Live Photo" : "Photo"
+        if asset.mediaSubtypes.contains(.photoScreenshot) { details += ", screenshot" }
+        if let date = asset.creationDate {
+            details += ", " + date.formatted(date: .abbreviated, time: .shortened)
+        } else {
+            details += ", date unavailable"
+        }
+        return "\(details), \(ordinal) of \(total)"
+    }
+}
+
+private struct LimitedLibraryPickerPresenter: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onSelectionChanged: () -> Void
+
+    @MainActor final class Coordinator {
+        var isPresenting = false
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIViewController(context: Context) -> UIViewController { UIViewController() }
+
+    func updateUIViewController(_ controller: UIViewController, context: Context) {
+        let coordinator = context.coordinator
+        guard isPresented, !coordinator.isPresenting, controller.viewIfLoaded?.window != nil else { return }
+        coordinator.isPresenting = true
+        DispatchQueue.main.async {
+            guard isPresented else { coordinator.isPresenting = false; return }
+            isPresented = false
+            PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: controller) { _ in
+                DispatchQueue.main.async {
+                    coordinator.isPresenting = false
+                    onSelectionChanged()
+                }
+            }
+        }
     }
 }
 
@@ -1009,59 +1058,71 @@ private struct OptionsReviewStage: View {
     @State private var slideIndex = 0
     @State private var currentPlan: CarouselPlan?
     @State private var editorPresented = false
+    @State private var isLoadingPlan = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var option: StoryOption? { model.selectedOption }
 
     var body: some View {
-        VStack(spacing: 12) {
-            StageProgress(active: .options).padding(.horizontal, 18)
-            Text("Choose an option")
-                .font(.title3.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18)
-            optionPicker
-            if let option {
-                if editorPresented {
-                    Color.clear
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .accessibilityHidden(true)
-                } else {
-                    TabView(selection: $slideIndex) {
-                        ForEach(Array(option.slides.enumerated()), id: \.offset) { index, url in
-                            SlidePreview(url: url, index: index, count: option.slides.count)
-                                .tag(index)
-                        }
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .accessibilityLabel("Slides for \(option.title)")
-                }
-                HStack(spacing: 6) {
-                    Image(systemName: "rectangle.stack")
-                    Text("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
-                        .contentTransition(.numericText())
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
-                if currentPlan != nil {
-                    Button {
-                        editorPresented = true
-                    } label: {
-                        Label("Edit slides", systemImage: "arrow.up.arrow.down")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isEditingOption)
-                }
-                if option.generationMode == .photosOnly {
-                    Text("Created on this device from your selected photos.")
-                        .font(.footnote).foregroundStyle(.secondary)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 12) {
+                    StageProgress(active: .options).padding(.horizontal, 18)
+                    Text("Choose an option")
+                        .font(.title3.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 18)
+                    optionPicker
+                    if let option {
+                        if editorPresented {
+                            Color.clear
+                                .frame(height: max(240, geometry.size.height * 0.42))
+                                .accessibilityHidden(true)
+                        } else {
+                            TabView(selection: $slideIndex) {
+                                ForEach(Array(option.slides.enumerated()), id: \.offset) { index, url in
+                                    SlidePreview(url: url, index: index, count: option.slides.count)
+                                        .tag(index)
+                                }
+                            }
+                            .tabViewStyle(.page(indexDisplayMode: .never))
+                            .accessibilityLabel("Slides for \(option.title)")
+                            .frame(height: max(240, min(geometry.size.height * 0.48, 560)))
+                        }
+                        HStack(spacing: 6) {
+                            Image(systemName: "rectangle.stack")
+                            Text("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
+                                .contentTransition(.numericText())
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
+                        if currentPlan != nil {
+                            Button {
+                                editorPresented = true
+                            } label: {
+                                Label("Edit slides", systemImage: "arrow.up.arrow.down")
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(model.isEditingOption)
+                        } else if isLoadingPlan {
+                            ProgressView("Preparing slide editing…")
+                                .font(.footnote)
+                                .accessibilityAddTraits(.updatesFrequently)
+                        }
+                        if option.generationMode == .photosOnly {
+                            Text("Created on this device from your selected photos.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                                .padding(.horizontal, 18)
+                        }
+                    } else {
+                        ContentUnavailableView("No options available", systemImage: "photo.stack")
+                    }
                 }
-            } else {
-                ContentUnavailableView("No options available", systemImage: "photo.stack")
+                .padding(.bottom, 16)
+                .frame(minHeight: geometry.size.height, alignment: .top)
             }
-            Spacer(minLength: 0)
+            .scrollIndicators(.hidden)
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Options")
@@ -1078,11 +1139,14 @@ private struct OptionsReviewStage: View {
         .onChange(of: model.selectedOptionID) { _, _ in
             slideIndex = 0
             currentPlan = nil
+            isLoadingPlan = true
         }
         .task(id: option?.id) {
-            guard let option else { currentPlan = nil; return }
+            guard let option else { currentPlan = nil; isLoadingPlan = false; return }
+            isLoadingPlan = true
             model.presentOptions(for: option)
             currentPlan = await model.planForOption(option.id)
+            isLoadingPlan = false
         }
         .onDisappear {
             if let option { model.leaveOptions(for: option) }
