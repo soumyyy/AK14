@@ -2,9 +2,21 @@ import Foundation
 
 /// Chooses source crops so faces (then salient subjects) stay in frame.
 public enum CropPlanner {
-    /// Faces union if any, else the largest salient region, else nil (centre).
+    /// People large enough to matter in the frame (small background figures are ignored).
+    static func significantPeople(_ f: PhotoFeatures?) -> [UnitRect] {
+        (f?.humans ?? []).filter { $0.height >= 0.2 }
+    }
+
+    /// Faces union if any, else the largest salient region, else nil (centre). With faces, the horizontal extent
+    /// also covers significant people so group shots are centred on everyone, not just their faces.
     public static func focus(_ f: PhotoFeatures?) -> UnitRect? {
-        if let faces = f?.faces.map(\.box), !faces.isEmpty { return union(faces) }
+        if let faces = f?.faces.map(\.box), !faces.isEmpty {
+            let people = significantPeople(f)
+            guard !people.isEmpty else { return union(faces) }
+            let wide = union(faces + people), heads = union(faces)
+            return UnitRect(x: wide.x, y: heads.y, width: wide.width, height: heads.height)
+        }
+        if let people = Optional(significantPeople(f)), !people.isEmpty { return union(people) }
         return f?.salientRegions.max { $0.width * $0.height < $1.width * $1.height }
     }
 
@@ -40,12 +52,20 @@ public enum CropPlanner {
         return UnitRect(x: x, y: y, width: cw, height: ch)
     }
 
-    /// True when every detected face lies inside the crop (small tolerance).
+    /// True when every face is fully inside the crop and no significant person is cut at the sides
+    /// (at most 12% of their width) or loses their head / more than 40% of their height.
     public static func facesFit(_ f: PhotoFeatures?, crop: UnitRect) -> Bool {
-        (f?.faces ?? []).allSatisfy {
+        let facesIn = (f?.faces ?? []).allSatisfy {
             $0.box.x >= crop.x - 0.01 && $0.box.y >= crop.y - 0.01 &&
             $0.box.x + $0.box.width <= crop.x + crop.width + 0.01 && $0.box.y + $0.box.height <= crop.y + crop.height + 0.01
         }
+        let peopleIn = significantPeople(f).allSatisfy { h in
+            let cutLeft = max(0, crop.x - h.x), cutRight = max(0, (h.x + h.width) - (crop.x + crop.width))
+            let visibleTop = max(h.y, crop.y), visibleBottom = min(h.y + h.height, crop.y + crop.height)
+            return cutLeft <= 0.12 * h.width && cutRight <= 0.12 * h.width
+                && h.y >= crop.y - 0.02 && (visibleBottom - visibleTop) >= 0.6 * h.height
+        }
+        return facesIn && peopleIn
     }
 
     /// Face boxes mapped into canvas pixels for a photo drawn with `crop` into `frame`.

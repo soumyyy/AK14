@@ -56,9 +56,10 @@ public enum LayoutResolver {
             warnings.append("\(primitive.rawValue) cannot hold \(photos.count) photos; using \(fallback.rawValue)")
             primitive = fallback
         }
+        // The hero role is authoritative for the dominant frame; importance (3 = most) only orders the rest.
         let ranked = photos.enumerated().sorted {
-            let a = ($0.element.importance, $0.element.role == "hero" ? 1 : 0, -$0.offset)
-            let b = ($1.element.importance, $1.element.role == "hero" ? 1 : 0, -$1.offset)
+            let a = ($0.element.role == "hero" ? 1 : 0, $0.element.importance, -$0.offset)
+            let b = ($1.element.role == "hero" ? 1 : 0, $1.element.importance, -$1.offset)
             return a > b
         }.map(\.element)
 
@@ -90,24 +91,36 @@ public enum LayoutResolver {
             default: return 0
             }
         }
-        func photoElement(_ e: PhotoElement, frame: Box, z: Int, border: Double = 0, shadow: Bool = false,
-                          rotation: Double = 0, fitWholePhoto: Bool = false) -> ResolvedElement {
-            let crop = fitWholePhoto ? UnitRect(x: 0, y: 0, width: 1, height: 1)
-                : CropPlanner.cover(imageAspect: aspect(e.assetID), boxAspect: frame.w / frame.h,
-                                    features: context.features[e.assetID], cropIntent: e.cropIntent, anchorIntent: e.anchorIntent)
-            return ResolvedElement(kind: .photo, assetID: e.assetID, text: nil, frame: frame.unit(canvasW: c.W, canvasH: c.H),
-                                   rotationDegrees: rotation, crop: crop, zIndex: z, opacity: 1, border: border, shadow: shadow)
-        }
         func contain(_ id: AssetID, in box: Box) -> Box {
             let a = aspect(id)
             let (w, h) = a > box.w / box.h ? (box.w, box.w / a) : (box.h * a, box.h)
             return Box(x: box.midX - w / 2, y: box.midY - h / 2, w: w, h: h)
         }
+        /// Cover-crops into `frame`; if that would cut faces or people, shows the whole photo inside the frame instead
+        /// (only where the slide has a background to show around it).
+        func photoElement(_ e: PhotoElement, frame: Box, z: Int, border: Double = 0, shadow: Bool = false,
+                          rotation: Double = 0, fitWholePhoto: Bool = false, allowContain: Bool = true) -> ResolvedElement {
+            var frame = frame
+            var crop = fitWholePhoto ? UnitRect(x: 0, y: 0, width: 1, height: 1)
+                : CropPlanner.cover(imageAspect: aspect(e.assetID), boxAspect: frame.w / frame.h,
+                                    features: context.features[e.assetID], cropIntent: e.cropIntent, anchorIntent: e.anchorIntent)
+            if !fitWholePhoto && !CropPlanner.facesFit(context.features[e.assetID], crop: crop) {
+                if allowContain {
+                    frame = contain(e.assetID, in: frame)
+                    crop = UnitRect(x: 0, y: 0, width: 1, height: 1)
+                    warnings.append("\(e.assetID) shown whole: a crop would cut people")
+                } else {
+                    warnings.append("\(e.assetID): some people are cropped")
+                }
+            }
+            return ResolvedElement(kind: .photo, assetID: e.assetID, text: nil, frame: frame.unit(canvasW: c.W, canvasH: c.H),
+                                   rotationDegrees: rotation, crop: crop, zIndex: z, opacity: 1, border: border, shadow: shadow)
+        }
 
         switch primitive {
         case .fullBleed:
             background = filmBand > 0 ? "plain" : "none"
-            elements.append(photoElement(ranked[0], frame: content, z: 0))
+            elements.append(photoElement(ranked[0], frame: content, z: 0, allowContain: false))
 
         case .hero:
             let e = ranked[0]
@@ -141,10 +154,7 @@ public enum LayoutResolver {
         case .inset:
             background = filmBand > 0 ? "plain" : "none"
             let main = ranked[0], small = ranked[1]
-            let mainEl = photoElement(main, frame: content, z: 0)
-            if !CropPlanner.facesFit(context.features[main.assetID], crop: mainEl.crop!) {
-                warnings.append("some faces in the main inset photo are cropped")
-            }
+            let mainEl = photoElement(main, frame: content, z: 0, allowContain: false)
             elements.append(mainEl)
             let a = aspect(small.assetID)
             var w = 0.36 * c.W, h = w / a

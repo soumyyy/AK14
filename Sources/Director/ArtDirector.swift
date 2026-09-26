@@ -25,7 +25,8 @@ public struct DirectorInput: Sendable {
     public var shortlist: [CandidateCard]
     /// Given triage scores, returns the planning pool ordered by adjusted rank.
     public var selectPool: @Sendable ([AssetID: TriageScore]) -> [AssetID]
-    public var maxPlanningImages = 24
+    /// Every pool candidate is sent as an image: text-only candidates were never chosen in practice.
+    public var maxPlanningImages = 60
     public init(storyLabel: String, dateSpan: String, requestedSlides: Int?, shortlist: [CandidateCard],
                 selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID]) {
         self.storyLabel = storyLabel; self.dateSpan = dateSpan; self.requestedSlides = requestedSlides

@@ -147,3 +147,11 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 - Follow-ups are read across all of a participant's runs.
 - The median is correct for even counts. Unknown metrics count as not successful.
 - E2E: 39 tests passing.
+
+## Engine fixes from the selection/framing/placement audit (2026-09-26)
+Audit: Cursor/GPT-5.6 Sol, findings verified against runs/20260926-050016-e91f0c. Future audits use Claude only.
+1. Hero hierarchy: the model used importance 1 for heroes, so supporting photos got the big frame. The hero role is now authoritative, and the schema and prompt define 3 = most prominent. Live check: the hero is dominant on 4/4 two-photo slides.
+2. Planner sees every candidate: it got images for 24 of 35, and every pick came from those 24. Now all 35 are sent (about +$0.0002). The live spine now includes pool position 28.
+3. Crops protect people, not just faces: significant people (≥20% of height) may lose at most 12% of their width per side, must keep their head, and must keep 60% of their height. Otherwise the photo is shown whole where the slide has a background; full-bleed falls back to a whole-photo hero. Live check: the outstretched arms in Plain slide 1 are kept.
+6. Photos triaged ≤1/5 (and not flagged useful) stay out of the planning pool when enough others remain. Live check: 0 weak photos in the pool.
+- Seen during verification: two-photo slides use fixed box shapes, so a landscape hero shown whole floats small. This feeds into #5.

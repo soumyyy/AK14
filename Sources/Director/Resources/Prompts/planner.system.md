@@ -48,6 +48,7 @@ Concept rules:
   - full_bleed, hero, framed_hero: exactly 1 photo.
   - inset, asymmetric_pair: exactly 2.
   - overlap_cluster: 2-4.
+- Every slide has exactly one photo with role "hero": it gets the dominant frame. Give it importance 3; supporting photos get 2, small details 1.
 - Never use the same photo twice within one concept.
 - Decorations: only the decorationIDs listed, used sparingly. Many slides should have none.
 - Stamps: optional date or location stamps. Never write captions or other text.

@@ -21,7 +21,7 @@ enum Schemas {
         let photo = JSONValue.obj([
             ("assetID", id),
             ("role", .str(["hero", "support", "detail"])),
-            ("importance", .integer(1, 3)),
+            ("importance", .integer(1, 3, description: "3 = most prominent on the slide, 1 = least. The hero photo gets 3.")),
             ("cropIntent", .str(["tight", "balanced", "loose"])),
             ("anchorIntent", .str(["center", "top", "bottom", "left", "right"])),
             ("overlapIntent", .str(["none", "slight", "strong"])),

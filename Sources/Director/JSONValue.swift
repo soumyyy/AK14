@@ -75,7 +75,9 @@ extension JSONValue {
         if let values { p.append(("enum", .array(values.map { .string($0) }))) }
         return .object(p)
     }
-    static func integer(_ min: Int, _ max: Int) -> JSONValue {
-        .object([("type", .string("integer")), ("minimum", .int(min)), ("maximum", .int(max))])
+    static func integer(_ min: Int, _ max: Int, description: String? = nil) -> JSONValue {
+        var p: [(String, JSONValue)] = [("type", .string("integer")), ("minimum", .int(min)), ("maximum", .int(max))]
+        if let description { p.append(("description", .string(description))) }
+        return .object(p)
     }
 }
