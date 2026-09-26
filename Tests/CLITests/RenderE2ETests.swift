@@ -100,6 +100,36 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(positions.count > 1, "landscape single-photo layouts should vary: \(positions)")
 }
 
+@Test func singleHeroCardsUsePhotoWashOnlyWhenTheyLeaveSubstantialCanvas() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp, count: 6)
+    let records = try await FolderIngester().ingest(folder: folder, options: IngestOptions()).photos
+    let landscape = try #require(records.first { $0.pixelWidth > $0.pixelHeight })
+    let style = StyleVector(density: "balanced", overlap: "none", grouping: "single", decoration: "none", rotation: "none", whitespace: "standard")
+    let direction = Direction(brief: "", style: style, coverAssetID: landscape.assetID, orderedAssetIDs: [landscape.assetID])
+    let photos = [PhotoElement.plain(landscape.assetID)]
+    let hero = SlidePlan(primitive: .hero, mood: "", density: "balanced", photos: photos, decorations: [], stamps: [])
+    let framed = SlidePlan(primitive: .framedHero, mood: "", density: "balanced", photos: photos, decorations: [], stamps: [])
+    let quiet = SlidePlan(primitive: .hero, mood: "", density: "quiet", photos: photos, decorations: [], stamps: [])
+    let plan = CarouselPlan(id: "single-cards", brief: "", direction: direction,
+                            slides: [hero, framed, hero, framed, hero, quiet])
+    let context = LayoutContext(aspect: .portrait4x5, photos: [landscape.assetID: landscape],
+                                features: [landscape.assetID: PhotoFeatures(assetID: landscape.assetID, analyzerVersion: "test")],
+                                stylePack: try StylePackLoader.load(), seed: 92814)
+    let resolved = LayoutResolver.resolve(plan, context: context)
+    #expect(resolved == LayoutResolver.resolve(plan, context: context), "photo wash choice must be deterministic")
+    var washedCards = 0
+    for slide in resolved.slides.dropLast() {
+        let coverage = try #require(slide.metrics?.coverage)
+        if coverage < 0.75 {
+            #expect(slide.background == "wash:\(landscape.assetID.rawValue)")
+            washedCards += 1
+        }
+    }
+    #expect(washedCards > 0, "landscape single-photo cards should avoid a pale mat when most of the canvas is empty")
+    #expect(resolved.slides.last?.background == "plain", "quiet single-photo slides keep paper for pacing")
+}
+
 @Test func landscapeHeavyRunUsesSafeBandsAndStackedPairsDeterministically() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let folder = try sceneFolder(tmp)

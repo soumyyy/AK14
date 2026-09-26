@@ -128,6 +128,11 @@ public enum LayoutResolver {
             if background == "plain" && [.inset, .asymmetricPair, .overlapCluster].contains(primitive) {
                 background = "wash:\(ranked[0].assetID.rawValue)"
             }
+            let photoCoverage = metrics(elements, heroID: ranked[0].assetID, env: env).coverage
+            if background == "plain" && [.hero, .framedHero].contains(primitive)
+                && slide.density != "quiet" && photoCoverage < 0.75 {
+                background = "wash:\(ranked[0].assetID.rawValue)"
+            }
             warnings += chosen.notes
             for e in elements where e.crop.map({ $0.width * $0.height < 0.999 }) == true
                 && !CropPlanner.facesFit(context.features[e.assetID!], crop: e.crop!) {
