@@ -37,9 +37,16 @@ Status: active (2026-09-26). The local iOS flow passed a simulator UI smoke test
 | 4 | Q3a Event segmentation + story hint (engine, Mac) | `w4-events-core` | new `Sources/Core/Events/EventSegmenter.swift`; `RunPipeline` / `RunOptions` / `Arguments` (`--event`, `--all-events`, `--story`); `ArtDirector` (story hint in the planner content and planner prompt v5); `CompositionContext` (event membership) | A selection spanning several occasions is split into events (gap ≥ 36 h, or ≥ 8 h with a location jump ≥ 100 km); a run uses one event unless told otherwise; the hint reaches the planner and is stored with the run; e2e with a fixture of 3 separated events | Queued: after TE-5 merges (both touch ArtDirector) |
 | 4 | Q3b Event chooser + story hint (iPhone) | `w4-events-ios` | `Sources/iOSApp/*` | After import, more than one event shows an event picker (date range, photo count, a cover thumbnail, and "one story across all"); an optional story-hint field before generating; both are passed to the pipeline and saved with the run; simulator UI test | Queued: after TE-4 and Q3a merge |
 | 4 | TE-3 Judge stage | `w4-judge` | new `Director/Judge.swift`, `judge.system.md`, `Schemas.swift`, `ArtDirector.swift`, CLI eval config | FakeModel e2e; owner runs live `ak14 eval score` | After TE-2 |
-| 5 | TE-6 Preference memory, TE-7 references on iOS, TE-8 trend refresh | see spec §10 | see spec §10 | see spec §10 | After TE-3/4/5 |
+| 5 | W5-A Occasion split (content-aware) + planner v6 | `w5-occasion` | Core EventSegmenter (time blocks and a local scene-signature fallback), new Director OccasionSplitter (one cheap model call), RunPipeline, prompts, Worker schema allow-list | IMG splits the wedding from the trip; the trip spine has no wedding, beach or arcade frame without a transition reason | Running |
+| 5 | W5-B Candid recall in the pool | `w5-pool` | Core/Reduction (Ranker, DiversitySelector, config) and RunPipeline's selectPool | Triage weight ±40%; characterful and candid frames reach planning; representatives consider triage | Running |
+| 5 | W5-C Legibility, pairing and scale rules | `w5-layout` | Core/Layout/Composer.swift, Core/Compose/ComposerEngine.swift | Minimum on-slide face size; pairs need a people or scene relationship; deliberate bleed, band and inset scales; no runs of small centered cards | Running |
+| 6 | W5-D Staged evaluation (split, selection, cover, layout, "neither") | — | eval harness | after the judge rewrite | Queued |
+| — | TE-3 Judge | `w4-judge` (parked) | — | Two Luna attempts failed review (thumbnail strips; ignored remedies; failing tests). To be rewritten after W5 with Sol's advice: larger strips, direct pairwise comparison | Parked |
+| 5 | TE-6 Preference memory, TE-7 references on iOS (TE-8 trend refresh deferred per the Sol review) | see spec §10 | see spec §10 | see spec §10 | After TE-3/4/5 |
 | 2 | Model-assisted flow on device through the deployed Worker | — | iOS settings and Worker URL | Needs the owner's Cloudflare login | Blocked on owner |
 | 2 | Taste calibration from the owner's picks on 2–3 events | — | Composer weights | Needs the owner's picks | Blocked on owner |
+
+Reviews: [GPT-6 Sol taste review](reviews/2026-09-26-gpt6-sol-taste-review.md) drives wave 5.
 
 Taste engine: [spec](superpowers/specs/2026-09-26-taste-engine-design.md). Task briefs are written when a task's dependencies have merged, so they describe the code as it actually is.
 
