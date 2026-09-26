@@ -75,10 +75,10 @@ extension LayoutResolver {
         let box = framed ? env.usable.inset(0.04 * env.canvas.short) : env.usable
         let a = env.aspect(e.assetID)
         let canvasArea = env.canvas.W * env.canvas.H
-        /// Shrinks toward the density target, but never below 80%: a landscape that already leaves space stays full width.
+        /// Shrinks toward the density target, but never below 90%: prevent a photo from becoming a small card.
         func frame(_ aspect: Double) -> Box {
             let full = fit(aspect, in: box)
-            return fit(aspect, in: box, scale: min(1, max(0.8, (env.densityTarget * canvasArea / full.area).squareRoot())))
+            return fit(aspect, in: box, scale: min(1, max(0.9, (env.densityTarget * canvasArea / full.area).squareRoot())))
         }
         let style = { (frame: Box, whole: Bool) in
             env.photo(e, frame: frame, z: 0, border: framed ? 0.025 : 0, shadow: framed, rotation: framed ? rotation : 0, whole: whole)
@@ -323,12 +323,27 @@ extension LayoutResolver {
             let loss = 1 - crop.width * crop.height
             s += (id == heroID ? 1.0 : 0.6) * loss + 2 * max(0, loss - 0.35)
             if loss > 0.001 && !CropPlanner.facesFit(env.context.features[id], crop: crop) { s += 3 }
+            // A face can be technically safe yet too small to read in a phone-width preview.
+            // At a 390px-wide 4:5 preview, 5.5% of canvas height is about 21px.
+            let frame = env.box(p.frame)
+            for face in CropPlanner.facesOnCanvas(env.context.features[id], crop: crop, frame: frame) {
+                let displayedHeight = face.h / env.canvas.H
+                s += 1.4 * pow(max(0, 0.055 - displayedHeight) / 0.055, 2)
+            }
+            for subject in env.context.features[id]?.humans ?? [] {
+                let visibleHeight = max(0, min(subject.y + subject.height, crop.y + crop.height) - max(subject.y, crop.y))
+                let displayedHeight = visibleHeight / crop.height * frame.h / env.canvas.H
+                s += 0.45 * pow(max(0, 0.16 - displayedHeight) / 0.16, 2)
+            }
         }
         s += 4 * overlapPenalty(photos, canvas: env.canvas, context: env.context, minVisible: env.minVisible)
         s += 0.6 * salientCover(photos, env: env)
         if let share = m.heroShare { s += max(0, (primitive == .overlapCluster ? 1.25 : 1.6) - share) }
         let target = primitive == .inset ? min(0.95, env.densityTarget + 0.25) : env.densityTarget
         s += 1.5 * abs(m.coverage - target)
+        // Explicit scale vocabulary: bleed / near-full-width band / generous inset.
+        // Reward useful image area while the crop and face terms above protect content.
+        s += 0.22 * Double(photos.filter { env.box($0.frame).w / env.canvas.W < 0.68 }.count)
         // Visual balance: the area-weighted centre of the photos should sit near the canvas centre.
         let boxes = photos.map { env.box($0.frame) }, total = boxes.reduce(0) { $0 + $1.area }
         if total > 0 {

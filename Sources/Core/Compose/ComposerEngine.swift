@@ -222,6 +222,9 @@ public enum ComposerEngine {
                 return (first || emphasis.contains(seg.first!) ? 0 : base) + split
             }
             let oneKeepGroup = seg.allSatisfy { keepIndex[$0] != nil && keepIndex[$0] == keepIndex[seg.first!] }
+            // Colour can make two unrelated photos look compatible, but it cannot explain why
+            // they share a slide. Require scene evidence or a close, people-bearing moment.
+            if !oneKeepGroup && !pairHasStoryLink(members: Array(seg), context: context) { return 2.5 + split }
             var c = style.grouping == "mixed" ? (m == 2 ? 0.1 : 0.55) : (m == 2 ? 0.2 : m == 3 ? 0.05 : 0.2)
             if first && !oneKeepGroup { c += 0.8 }                               // a cover usually reads best alone
             if !oneKeepGroup { c += 0.6 * Double(seg.filter(emphasis.contains).count) }
@@ -443,6 +446,29 @@ public enum ComposerEngine {
         let ax = aspect(x, context), ay = aspect(y, context)
         add((ax > 1) == (ay > 1) && min(ax, 1 / ax) < 0.7 ? 0.3 : 0, 0.3)
         return weight > 0 ? total / weight : 0.5
+    }
+
+    /// True when analysis can explain a pairing without relying on colour alone.
+    /// Shared labels must be reasonably specific; generic labels such as "outdoor" are ignored.
+    static func pairHasStoryLink(members: [AssetID], context: CompositionContext) -> Bool {
+        guard members.count >= 2 else { return true }
+        for i in members.indices { for j in members.indices where j > i {
+            let x = members[i], y = members[j]
+            let rawX = Set((context.features[x]?.labels ?? []).filter { $0.confidence >= 0.3 }.map { $0.identifier.lowercased() })
+            let rawY = Set((context.features[y]?.labels ?? []).filter { $0.confidence >= 0.3 }.map { $0.identifier.lowercased() })
+            let shared = rawX.intersection(rawY)
+            let generic: Set<String> = ["outdoor", "indoor", "person", "people", "human", "adult", "child",
+                                        "nature", "landscape", "sky", "land", "ground", "grass", "tree", "vegetation"]
+            if !shared.subtracting(generic).isEmpty { continue }
+            if let a = context.photos[x]?.metadata.capturedAt, let b = context.photos[y]?.metadata.capturedAt,
+               abs(a.timeIntervalSince(b)) <= 60 * 60 {
+                // A tight capture-time window is evidence of the same outing/moment even
+                // when face or scene classification is unavailable.
+                continue
+            }
+            return false
+        }}
+        return true
     }
 
     static func mood(_ p: SequenceIntent) -> String {
