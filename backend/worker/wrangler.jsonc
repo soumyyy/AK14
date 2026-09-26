@@ -6,6 +6,6 @@
   "vars": {
     "DAILY_REQUEST_CAP": "30",
     "DAILY_SPEND_CAP_USD": "1.00",
-    "INVITE_TOKEN_HASHES": ""
+    "INVITE_TOKEN_HASHES": "f82050227214ecf5fb76c1bd38a691f8fdf4b0f171bca5bfa4b6c79d60884681"
   }
 }
