@@ -48,6 +48,8 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
     case invalidReferenceImages
     case invalidTrendNotes
     case invalidJudgeConfig
+    case invalidRecipes(String)
+    case unsupportedRecipeFontID(String)
 
     public var errorDescription: String? {
         switch self {
@@ -68,6 +70,8 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
         case .invalidReferenceImages: "Style pack reference images are invalid."
         case .invalidTrendNotes: "Style pack trend notes are invalid."
         case .invalidJudgeConfig: "Style pack judge configuration is invalid."
+        case .invalidRecipes(let detail): "Style pack recipes are invalid: \(detail)."
+        case .unsupportedRecipeFontID(let id): "Unsupported recipe font ID: \(id)."
         }
     }
 }
@@ -156,11 +160,14 @@ public enum StyleConfigClient {
         }
 
         let assets: Set<String>
+        let manifestFonts: Set<String>
         do {
             guard let url = Bundle.module.url(forResource: "manifest", withExtension: "json", subdirectory: "Assets") else {
                 throw StyleConfigError.assetManifestUnavailable
             }
-            assets = Set(try JSONDecoder().decode(AssetManifest.self, from: Data(contentsOf: url)).assets.map(\.assetID))
+            let manifest = try JSONDecoder().decode(AssetManifest.self, from: Data(contentsOf: url))
+            assets = Set(manifest.assets.map(\.assetID))
+            manifestFonts = Set(manifest.assets.filter { $0.assetType == "font" }.map(\.assetID))
         } catch let error as StyleConfigError { throw error }
         catch { throw StyleConfigError.assetManifestUnavailable }
 
@@ -174,6 +181,37 @@ public enum StyleConfigClient {
         for id in pack.textureIDs where !renderedTextures.contains(id) || !assets.contains(id) {
             throw StyleConfigError.unsupportedTextureID(id)
         }
+        if let recipes = pack.recipes {
+            guard Set(recipes.map(\.id)).count == recipes.count else { throw StyleConfigError.invalidRecipes("duplicate IDs") }
+            for recipe in recipes {
+                guard !recipe.id.isEmpty, recipe.version > 0, !recipe.pages.isEmpty,
+                      !recipe.slideRoles.isEmpty,
+                      recipe.axes.values.allSatisfy({ $0.isFinite && (0...1).contains($0) }) else {
+                    throw StyleConfigError.invalidRecipes("metadata or axes")
+                }
+                for page in recipe.pages {
+                    guard page.photoSlots.count <= 6 else { throw StyleConfigError.invalidRecipes("more than six photo slots") }
+                    for slot in page.photoSlots {
+                        let f = slot.frame
+                        let boundsOK = f.x.isFinite && f.y.isFinite && f.width.isFinite && f.height.isFinite && f.width > 0 && f.height > 0 && f.x >= 0 && f.y >= 0 && (slot.allowCrossSlide && recipe.family == .panorama || f.x + f.width <= 1 && f.y + f.height <= 1)
+                        guard boundsOK else { throw StyleConfigError.invalidRecipes("photo frame outside page") }
+                        guard slot.aspectMin.isFinite, slot.aspectMax.isFinite, slot.aspectMin > 0, slot.aspectMin <= slot.aspectMax,
+                              slot.rotationMin.isFinite, slot.rotationMax.isFinite, slot.rotationMin <= slot.rotationMax,
+                              abs(slot.rotationMin) <= 15, abs(slot.rotationMax) <= 15 else { throw StyleConfigError.invalidRecipes("photo slot ranges") }
+                    }
+                    for slot in page.textSlots {
+                        guard manifestFonts.contains(slot.fontID) else { throw StyleConfigError.unsupportedRecipeFontID(slot.fontID) }
+                        guard slot.sizeMin.isFinite, slot.sizeMax.isFinite, slot.sizeMin > 0, slot.sizeMin <= slot.sizeMax, slot.sizeMax <= 200 else { throw StyleConfigError.invalidRecipes("text size range") }
+                    }
+                    guard validRange(page.gutter, maximum: 0.25), validRange(page.margin, maximum: 0.35),
+                          page.stickerBudget.allSatisfy({ (0...12).contains($0.count) }) else { throw StyleConfigError.invalidRecipes("page spacing or sticker budget") }
+                }
+            }
+        }
+    }
+
+    private static func validRange(_ range: Recipe.RangeRule, maximum: Double) -> Bool {
+        range.min.isFinite && range.max.isFinite && range.min >= 0 && range.min <= range.max && range.max <= maximum
     }
 }
 
@@ -184,6 +222,6 @@ private struct StyleConfigDocument: Decodable {
 }
 
 private struct AssetManifest: Decodable {
-    struct Asset: Decodable { let assetID: String }
+    struct Asset: Decodable { let assetID: String; let assetType: String? }
     let assets: [Asset]
 }

@@ -4,16 +4,49 @@
   "active": true,
   "minAppVersion": "0.1.0",
   "primitiveWeights": {
-    "full_bleed": 0.3, "hero": 0.2, "framed_hero": 0.1,
-    "inset": 0.12, "asymmetric_pair": 0.14, "overlap_cluster": 0.14
+    "full_bleed": 0.3,
+    "hero": 0.2,
+    "framed_hero": 0.1,
+    "inset": 0.12,
+    "asymmetric_pair": 0.14,
+    "overlap_cluster": 0.14
   },
-  "decorationIDs": ["grain-fine", "paper-warm", "tape-clear", "film-edge", "date-stamp"],
-  "fontIDs": [],
-  "textureIDs": ["paper-warm"],
-  "allowedRotations": { "photoDegrees": 2, "decorationDegrees": 4 },
-  "overlapRanges": { "minimumVisibleFraction": 0.55 },
-  "spacingRanges": { "marginMin": 0.04, "marginMax": 0.07 },
-  "densityProfile": ["quiet", "balanced", "dense"],
+  "decorationIDs": [
+    "grain-fine",
+    "paper-warm",
+    "tape-clear",
+    "film-edge",
+    "date-stamp"
+  ],
+  "fontIDs": [
+    "font-fraunces",
+    "font-inter",
+    "font-jetbrainsmono",
+    "font-caveat",
+    "font-gochihand",
+    "font-bebasneue",
+    "font-dmserifdisplay",
+    "font-nothingyoucoulddo"
+  ],
+  "textureIDs": [
+    "paper-warm"
+  ],
+  "allowedRotations": {
+    "photoDegrees": 2,
+    "decorationDegrees": 4
+  },
+  "overlapRanges": {
+    "minimumVisibleFraction": 0.55
+  },
+  "spacingRanges": {
+    "marginMin": 0.04,
+    "marginMax": 0.07
+  },
+  "densityProfile": [
+    "quiet",
+    "balanced",
+    "dense"
+  ],
   "promptHints": [
     "Editorial and effortless, not scrapbook-heavy.",
     "Let strong single photos breathe; use multi-photo slides for rhythm, not everywhere.",
@@ -23,5 +56,2288 @@
   "constitution": "- Good composition requires hierarchy.\n- Not every photo needs decoration.\n- Not every slide should have the same density.\n- Imperfection can carry emotional value; repeated perfection feels artificial.\n- A carousel should respond to its particular photos.\n- Surprise is valuable when coherent.\n- Avoid recognizable template fingerprints.\n- Do not optimize every image for generic beauty.\n- Random images (signs, food, details) can provide rhythm and personality.\n- Whitespace is an active compositional element.\n- A cover should create interest, not merely maximize aesthetic score.\n- Different directions must differ structurally.\n- A plain photo can outperform a designed slide. Design must earn its presence.",
   "referenceImages": [],
   "trendNotes": [],
-  "judge": { "enabled": false, "candidates": 6 }
+  "judge": {
+    "enabled": false,
+    "candidates": 6
+  },
+  "recipes": [
+    {
+      "id": "minimal",
+      "version": 1,
+      "family": "minimal",
+      "axes": {
+        "whitespace": 0.8,
+        "decoration": 0.2,
+        "density": 0.35,
+        "overlap": 0.25
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.07,
+                "y": 0.08,
+                "width": 0.86,
+                "height": 0.72
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-fraunces",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.08,
+                "y": 0.08,
+                "width": 0.84,
+                "height": 0.84
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-fraunces",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "pair",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.06,
+                "y": 0.12,
+                "width": 0.42,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.52,
+                "y": 0.2,
+                "width": 0.42,
+                "height": 0.68
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 1,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-fraunces",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "closer",
+          "role": "closer",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.12,
+                "y": 0.1,
+                "width": 0.76,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "place",
+              "fontID": "font-fraunces",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "film",
+      "version": 1,
+      "family": "film",
+      "axes": {
+        "whitespace": 0.3,
+        "decoration": 0.2,
+        "density": 0.35,
+        "overlap": 0.25
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.08,
+                "y": 0.08,
+                "width": 0.84,
+                "height": 0.74
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "film",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-jetbrainsmono",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 1
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 1
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.08,
+                "y": 0.1,
+                "width": 0.84,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "film",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-jetbrainsmono",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 1
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 1
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "pair",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.07,
+                "y": 0.12,
+                "width": 0.4,
+                "height": 0.68
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "film",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.53,
+                "y": 0.17,
+                "width": 0.4,
+                "height": 0.66
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "film",
+              "z": 1,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-jetbrainsmono",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 1
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 1
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "closer",
+          "role": "closer",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.13,
+                "y": 0.12,
+                "width": 0.74,
+                "height": 0.68
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "film",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-jetbrainsmono",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 1
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 1
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "scrapbook",
+      "version": 1,
+      "family": "scrapbook",
+      "axes": {
+        "whitespace": 0.3,
+        "decoration": 0.8,
+        "density": 0.35,
+        "overlap": 0.25
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.08,
+                "y": 0.12,
+                "width": 0.75,
+                "height": 0.66
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "torn",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-caveat",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 2
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.11,
+                "y": 0.09,
+                "width": 0.77,
+                "height": 0.76
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "torn",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-caveat",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 2
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "trio",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.05,
+                "y": 0.12,
+                "width": 0.42,
+                "height": 0.4
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "torn",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.53,
+                "y": 0.1,
+                "width": 0.4,
+                "height": 0.35
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "torn",
+              "z": 1,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.2,
+                "y": 0.55,
+                "width": 0.58,
+                "height": 0.35
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "torn",
+              "z": 2,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "place",
+              "fontID": "font-caveat",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 2
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "closer",
+          "role": "closer",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.12,
+                "y": 0.12,
+                "width": 0.73,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "torn",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-caveat",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 2
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "grid",
+      "version": 1,
+      "family": "grid",
+      "axes": {
+        "whitespace": 0.3,
+        "decoration": 0.2,
+        "density": 0.8,
+        "overlap": 0.25
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.06,
+                "y": 0.08,
+                "width": 0.88,
+                "height": 0.74
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-inter",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.06,
+                "y": 0.06,
+                "width": 0.88,
+                "height": 0.88
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-inter",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "pair",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.06,
+                "y": 0.1,
+                "width": 0.42,
+                "height": 0.78
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.52,
+                "y": 0.1,
+                "width": 0.42,
+                "height": 0.78
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 1,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-inter",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "collage",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.05,
+                "y": 0.08,
+                "width": 0.57,
+                "height": 0.57
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.65,
+                "y": 0.08,
+                "width": 0.3,
+                "height": 0.32
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 1,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.65,
+                "y": 0.46,
+                "width": 0.3,
+                "height": 0.32
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 2,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "place",
+              "fontID": "font-inter",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "journal",
+      "version": 1,
+      "family": "journal",
+      "axes": {
+        "whitespace": 0.3,
+        "decoration": 0.8,
+        "density": 0.35,
+        "overlap": 0.25
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.12,
+                "y": 0.12,
+                "width": 0.76,
+                "height": 0.66
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "rounded",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-gochihand",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.1,
+                "y": 0.1,
+                "width": 0.8,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "rounded",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-gochihand",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "pair",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.09,
+                "y": 0.12,
+                "width": 0.38,
+                "height": 0.66
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "rounded",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.53,
+                "y": 0.19,
+                "width": 0.38,
+                "height": 0.62
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "rounded",
+              "z": 1,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-gochihand",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "closer",
+          "role": "closer",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.16,
+                "y": 0.12,
+                "width": 0.68,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": -1.5,
+              "rotationMax": 1.5,
+              "mask": "rounded",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "place",
+              "fontID": "font-gochihand",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 2
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 2
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "paper",
+            "colour": "paper"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "recap",
+      "version": 1,
+      "family": "recap",
+      "axes": {
+        "whitespace": 0.3,
+        "decoration": 0.2,
+        "density": 0.8,
+        "overlap": 0.25
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.06,
+                "y": 0.08,
+                "width": 0.88,
+                "height": 0.7
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-bebasneue",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.07,
+                "y": 0.08,
+                "width": 0.86,
+                "height": 0.8
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-bebasneue",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "collage",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.05,
+                "y": 0.07,
+                "width": 0.57,
+                "height": 0.55
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.65,
+                "y": 0.07,
+                "width": 0.3,
+                "height": 0.34
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 1,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.65,
+                "y": 0.47,
+                "width": 0.3,
+                "height": 0.3
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 2,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.05,
+                "y": 0.68,
+                "width": 0.35,
+                "height": 0.25
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "inset",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 3,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-bebasneue",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "closer",
+          "role": "closer",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.12,
+                "y": 0.1,
+                "width": 0.76,
+                "height": 0.72
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "place",
+              "fontID": "font-bebasneue",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 1
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "colour",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "id": "panorama",
+      "version": 1,
+      "family": "panorama",
+      "axes": {
+        "whitespace": 0.3,
+        "decoration": 0.2,
+        "density": 0.35,
+        "overlap": 0.85
+      },
+      "slideRoles": [
+        "cover",
+        "body",
+        "closer"
+      ],
+      "pages": [
+        {
+          "id": "cover",
+          "role": "cover",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.02,
+                "y": 0.08,
+                "width": 1.22,
+                "height": 0.72
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": true
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "title",
+              "fontID": "font-dmserifdisplay",
+              "sizeMin": 26,
+              "sizeMax": 48,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "photoBlur",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "single",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.0,
+                "y": 0.1,
+                "width": 1.35,
+                "height": 0.72
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": true
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "caption",
+              "fontID": "font-dmserifdisplay",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "photoBlur",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "pair",
+          "role": "body",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.0,
+                "y": 0.12,
+                "width": 0.7,
+                "height": 0.68
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": false
+            },
+            {
+              "frame": {
+                "x": 0.56,
+                "y": 0.18,
+                "width": 0.74,
+                "height": 0.66
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 1,
+              "allowCrossSlide": true
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "date",
+              "fontID": "font-dmserifdisplay",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "photoBlur",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        },
+        {
+          "id": "closer",
+          "role": "closer",
+          "photoSlots": [
+            {
+              "frame": {
+                "x": 0.04,
+                "y": 0.1,
+                "width": 1.16,
+                "height": 0.72
+              },
+              "aspectMin": 0.55,
+              "aspectMax": 2.2,
+              "edge": "bleed",
+              "rotationMin": 0,
+              "rotationMax": 0,
+              "mask": "rect",
+              "z": 0,
+              "allowCrossSlide": true
+            }
+          ],
+          "textSlots": [
+            {
+              "role": "place",
+              "fontID": "font-dmserifdisplay",
+              "sizeMin": 12,
+              "sizeMax": 22,
+              "alignment": "left",
+              "colour": "contrast"
+            }
+          ],
+          "stickerBudget": [
+            {
+              "category": "tape",
+              "count": 0
+            },
+            {
+              "category": "film",
+              "count": 0
+            },
+            {
+              "category": "paper",
+              "count": 0
+            },
+            {
+              "category": "doodle",
+              "count": 0
+            },
+            {
+              "category": "label",
+              "count": 0
+            },
+            {
+              "category": "texture",
+              "count": 0
+            }
+          ],
+          "background": {
+            "kind": "photoBlur",
+            "colour": "contrast"
+          },
+          "gutter": {
+            "min": 0.015,
+            "max": 0.04
+          },
+          "margin": {
+            "min": 0.04,
+            "max": 0.12
+          }
+        }
+      ]
+    }
+  ]
 }
