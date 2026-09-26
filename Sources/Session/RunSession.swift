@@ -243,13 +243,11 @@ public final class RunSession: @unchecked Sendable {
     public func compositionContext() -> CompositionContext {
         let triage = Dictionary(uniqueKeysWithValues: concepts.triage.map { (AssetID(rawValue: $0.key), $0.value) })
         let spine = concepts.spine
-        var moment: [AssetID: String] = [:]
-        for cl in reduction?.clusters ?? [] { for m in cl.memberAssetIDs { moment[m] = cl.clusterID } }
         return CompositionContext(aspect: manifest.aspectRatio, photos: photos, features: features, triage: triage,
                                   flagged: Set(triage.filter { !$0.value.safety.isEmpty }.keys),
                                   sequenceIntent: Dictionary(zip(spine?.orderedAssetIDs ?? [], spine?.sequenceIntent ?? []),
                                                              uniquingKeysWith: { a, _ in a }),
-                                  moment: moment, stylePack: stylePack, maxSlides: concepts.requestedSlides)
+                                  stylePack: stylePack, maxSlides: concepts.requestedSlides)
     }
 
     private func verify(_ id: AssetID, in folder: URL) throws {

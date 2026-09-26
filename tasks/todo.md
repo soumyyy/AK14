@@ -194,3 +194,11 @@ Owner decisions: no fixed concept types; the model decides 2-5 directions; a pho
   - also: directions must differ from the baseline (style distance ≥2 axes counts as a structural difference; the prompt asks for a cover other than the spine's); an empty direction list no longer discards a valid spine
 - [x] Live IMG runs 20260926-091442-547052 and 20260926-091727-6a3c0b: every direction has its own cover, all pairs are distinct, largest crop ≤40% (baseline) and ≤18% (directions), $0.0054
 - [x] Merged to main and pushed
+
+## Grouping by aesthetics, not time (2026-09-26)
+Owner: "photos should be grouped based on aesthetic; don't make such hard constraints."
+- [x] Removed the capture-time rule (the 6 h limit) and every other hard grouping rule. Cover-alone and emphasis-alone are now soft costs. The only hard limit left is the user's requested slide count.
+- [x] Analyzer vision-3 adds `ColorProfile` (CIELAB mean, saturation, warmth, contrast)
+- [x] Pairwise disharmony drives grouping: colour ΔE, warmth, saturation, contrast, brightness, people vs scenery, shared scene labels, shape
+- [x] Live IMG run 20260926-094318-6d87c2 ($0.0044): pairs form across days on look (e.g. two misty grey shots from May 29 and 31); after weighting brightness more, the neon night ride no longer pairs with a daylight garden
+- [x] E2E: 45 passing

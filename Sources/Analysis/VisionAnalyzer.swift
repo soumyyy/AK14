@@ -7,7 +7,7 @@ import Vision
 /// Extracts local features from an analysis-tier thumbnail. Each Vision request is isolated:
 /// a failure is recorded in `failures` and the remaining features are still produced.
 public struct VisionAnalyzer: PhotoAnalyzing {
-    public static let version = "vision-2"
+    public static let version = "vision-3"
     public let cacheRoot: URL
 
     public init(cacheRoot: URL) { self.cacheRoot = cacheRoot }
@@ -68,6 +68,7 @@ public struct VisionAnalyzer: PhotoAnalyzing {
             f.meanLuminance = stats.mean
             f.darkFraction = stats.darkFraction
             f.sharpness = sharpness
+            f.color = ImageStats.color(of: image)
         } else {
             f.failures[FeatureName.luminance.rawValue] = "could not draw image"
         }

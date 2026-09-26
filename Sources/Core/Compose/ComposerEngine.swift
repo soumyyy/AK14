@@ -9,17 +9,15 @@ public struct CompositionContext: Sendable {
     /// Photos with a social-safety flag (never a cover when an alternative exists).
     public var flagged: Set<AssetID>
     public var sequenceIntent: [AssetID: SequenceIntent]
-    /// Shot-cluster id per asset: photos sharing one were taken in the same moment.
-    public var moment: [AssetID: String]
     public var stylePack: StylePack
     /// The user's requested slide count, if any.
     public var maxSlides: Int?
 
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
                 triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
-                moment: [AssetID: String], stylePack: StylePack, maxSlides: Int?) {
+                stylePack: StylePack, maxSlides: Int?) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
-        self.sequenceIntent = sequenceIntent; self.moment = moment; self.stylePack = stylePack; self.maxSlides = maxSlides
+        self.sequenceIntent = sequenceIntent; self.stylePack = stylePack; self.maxSlides = maxSlides
     }
 }
 
@@ -169,9 +167,10 @@ public enum ComposerEngine {
 
     // MARK: - Grouping
 
-    /// Partitions the ordered photos into contiguous slides by dynamic programming. Costs favour the direction's
-    /// grouping axis, keep-together sets, emphasis photos alone, and groups from one scene; photos more than six
-    /// hours apart are never combined. Returns the groups and any photos dropped to respect the slide limit.
+    /// Partitions the ordered photos into contiguous slides by dynamic programming. Every rule is a soft cost:
+    /// the grouping axis, keep-together sets, emphasis photos alone, the cover alone, and above all how well the
+    /// photos look together (colour, light, subject, shape). Returns the groups and any photos dropped to respect
+    /// the requested slide count (the only limit that is never exceeded).
     static func group(_ ids: [AssetID], direction d: Direction, context: CompositionContext, noise: Double,
                       rng: inout SeededRandom) -> ([[AssetID]], [AssetID]) {
         let style = d.style
@@ -192,20 +191,16 @@ public enum ComposerEngine {
                 return (first || emphasis.contains(seg.first!) ? 0 : base) + split
             }
             let oneKeepGroup = seg.allSatisfy { keepIndex[$0] != nil && keepIndex[$0] == keepIndex[seg.first!] }
-            if first && !oneKeepGroup { return .infinity }                       // the cover gets its own slide
             var c = style.grouping == "mixed" ? (m == 2 ? 0.1 : 0.55) : (m == 2 ? 0.2 : m == 3 ? 0.05 : 0.2)
-            if !oneKeepGroup { c += 1.2 * Double(seg.filter(emphasis.contains).count) }
-            let times = seg.compactMap { context.photos[$0]?.metadata.capturedAt }
-            if times.count == m, let lo = times.min(), let hi = times.max() {
-                // Same part of the day reads as one scene; photos more than six hours apart never share a slide.
-                let hours = hi.timeIntervalSince(lo) / 3600
-                if hours > 6 { return .infinity }
-                c += 0.15 * max(0, hours - 0.5)
-            } else {
-                c += 0.3
-            }
-            let moments = seg.compactMap { context.moment[$0] }
-            if moments.count == m && Set(moments).count == 1 { c -= 0.1 }
+            if first && !oneKeepGroup { c += 0.8 }                               // a cover usually reads best alone
+            if !oneKeepGroup { c += 0.6 * Double(seg.filter(emphasis.contains).count) }
+            // How well the photos sit together: mean pairwise disharmony, 0 (they rhyme) ... ~1 (they clash).
+            let members = Array(seg)
+            var clash = 0.0, pairs = 0.0
+            for i in members.indices { for j in members.indices where j > i {
+                clash += disharmony(members[i], members[j], context); pairs += 1
+            }}
+            c += 1.6 * clash / pairs
             if Set(seg.compactMap { keepIndex[$0] }).count > 1 { c += 0.5 }
             if oneKeepGroup { c -= 0.3 }
             return c + split
@@ -390,6 +385,33 @@ public enum ComposerEngine {
             (context.triage[id]?.emotionalValue ?? 0, context.features[id]?.aestheticScore ?? 0, id.rawValue)
         }
         return key(a) < key(b)
+    }
+
+    /// How badly two photos sit side by side, 0 (they rhyme) to about 1 (they clash): colour and warmth, light and
+    /// contrast, saturation, subject (people vs scenery, shared scene labels) and shape. Photos without a colour
+    /// profile (older analysis) are judged on subject and shape only.
+    static func disharmony(_ x: AssetID, _ y: AssetID, _ context: CompositionContext) -> Double {
+        let fx = context.features[x], fy = context.features[y]
+        var total = 0.0, weight = 0.0
+        func add(_ value: Double, _ w: Double) { total += min(1, max(0, value)) * w; weight += w }
+        if let a = fx?.color, let b = fy?.color {
+            let deltaE = ((a.l - b.l) * (a.l - b.l) + (a.a - b.a) * (a.a - b.a) + (a.b - b.b) * (a.b - b.b)).squareRoot()
+            add(deltaE / 45, 1.2)                                   // overall colour cast
+            add(abs(a.warmth - b.warmth) / 0.3, 0.8)                // warm next to cool
+            add(abs(a.saturation - b.saturation) / 0.4, 0.6)        // muted next to vivid
+            add(abs(a.contrast - b.contrast) / 0.15, 0.4)           // flat next to punchy
+        }
+        if let lx = fx?.meanLuminance, let ly = fy?.meanLuminance { add(abs(lx - ly) / 0.3, 1.2) }   // night next to day
+        let peopleX = !(fx?.faces.isEmpty ?? true), peopleY = !(fy?.faces.isEmpty ?? true)
+        add(peopleX == peopleY ? 0 : 0.6, 0.5)
+        let labelsX = Set(fx?.labels.prefix(5).map(\.identifier) ?? []), labelsY = Set(fy?.labels.prefix(5).map(\.identifier) ?? [])
+        if !labelsX.isEmpty && !labelsY.isEmpty {
+            add(1 - Double(labelsX.intersection(labelsY).count) / Double(labelsX.union(labelsY).count), 0.5)
+        }
+        // Mixed orientations interlock well on a tall slide; identical extreme shapes less so.
+        let ax = aspect(x, context), ay = aspect(y, context)
+        add((ax > 1) == (ay > 1) && min(ax, 1 / ax) < 0.7 ? 0.3 : 0, 0.3)
+        return weight > 0 ? total / weight : 0.5
     }
 
     static func mood(_ p: SequenceIntent) -> String {

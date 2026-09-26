@@ -270,10 +270,8 @@ struct RunPipeline: Sendable {
             span = days <= 1 ? "a single day" : "\(days) days"
         }
 
-        var moment: [AssetID: String] = [:]
-        for c in reduction.clusters { for m in c.memberAssetIDs { moment[m] = c.clusterID } }
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
-                                             sequenceIntent: [:], moment: moment, stylePack: stylePack, maxSlides: options.slides)
+                                             sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,

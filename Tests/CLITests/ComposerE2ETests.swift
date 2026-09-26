@@ -29,7 +29,8 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     let model = FakeModel(); model.directions = count
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    let photos = Dictionary(uniqueKeysWithValues: try store.read(IngestResult.self, from: "input-index.json").photos.map { ($0.assetID, $0) })
+    // Grouping is aesthetic: every analysed photo carries a colour profile.
+    #expect(try store.read([PhotoFeatures].self, from: "cache/features.json").allSatisfy { $0.color != nil })
     let directions = d.plans.filter { !$0.isBaseline }
     let dropped = d.warnings.filter { $0.contains("dropped") }.count
     #expect(directions.count + dropped == count && directions.count >= 2, "\(d.warnings)")
@@ -52,8 +53,6 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
         }
         if style.rotation == "none" { #expect(plan.slides.allSatisfy { $0.photos.allSatisfy { $0.rotationIntent == "none" } }) }
         for slide in plan.slides where slide.photos.count > 1 {
-            let times = slide.photos.compactMap { photos[$0.assetID]?.metadata.capturedAt }
-            #expect(times.max()!.timeIntervalSince(times.min()!) <= 6 * 3600, "\(plan.id) combines distant moments")
             #expect(slide.photos.filter { $0.role == "hero" }.count == 1)
         }
     }
