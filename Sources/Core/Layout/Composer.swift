@@ -105,6 +105,18 @@ extension LayoutResolver {
         if e.cropIntent == "tight" {
             out.append(Candidate(variant: "\(kind).fill", elements: [style(frame(box.w / box.h), false)], background: "plain"))
         }
+        // Landscape on a tall canvas: an edge-to-edge band (inside any film edges) instead of a small floating photo.
+        // Scored like every other candidate; only crops of at most 20% that keep everyone in frame are offered.
+        if a > 1 {
+            for (name, bandAspect, centerY) in [("high", 1.5, 0.40), ("mid", 1.7, 0.48), ("low", 1.5, 0.58)] {
+                let h = env.content.w / bandAspect
+                let band = Box(x: env.content.x, y: min(max(centerY * env.canvas.H - h / 2, 0), env.canvas.H - h), w: env.content.w, h: h)
+                let element = env.photo(e, frame: band, z: 0)
+                guard let crop = element.crop, 1 - crop.width * crop.height <= 0.2,
+                      CropPlanner.facesFit(env.context.features[e.assetID], crop: crop) else { continue }
+                out.append(Candidate(variant: "band.\(name)", elements: [element], background: "plain"))
+            }
+        }
         return out
     }
 
@@ -153,6 +165,27 @@ extension LayoutResolver {
                     out.append(c)
                 }}
             }}}
+        }
+        // Two landscapes: the hero as a full-width band, the support narrower beneath or above it on one side.
+        if env.aspect(hero.assetID) > 1, env.aspect(sup.assetID) > 1 {
+            let gap = 0.03 * env.canvas.short, u = env.usable
+            for heroFirst in [true, false] { for left in [true, false] {
+                let heroH = env.content.w / min(env.aspect(hero.assetID), 1.9)
+                let supW = 0.62 * u.w, supH = supW / min(env.aspect(sup.assetID), 1.9)
+                let total = heroH + gap + supH
+                guard total <= env.canvas.H - 2 * u.y else { continue }
+                let y0 = u.y + (u.h - total) * 0.44
+                let heroFrame = Box(x: env.content.x, y: heroFirst ? y0 : y0 + supH + gap, w: env.content.w, h: heroH)
+                let supFrame = Box(x: left ? u.x : u.maxX - supW, y: heroFirst ? y0 + heroH + gap : y0, w: supW, h: supH)
+                let els = [env.photo(hero, frame: heroFrame, z: 0), env.photo(sup, frame: supFrame, z: 1, rotation: rotations[1])]
+                let safe = els.allSatisfy { el in
+                    guard let id = el.assetID, let crop = el.crop else { return false }
+                    return 1 - crop.width * crop.height <= 0.2 && CropPlanner.facesFit(env.context.features[id], crop: crop)
+                }
+                if safe {
+                    out.append(Candidate(variant: "bandpair.\(heroFirst ? "hero1" : "hero2").\(left ? "l" : "r")", elements: els, background: "plain"))
+                }
+            }}
         }
         return out
     }

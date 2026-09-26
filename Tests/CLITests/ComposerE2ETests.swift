@@ -78,8 +78,10 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     let store = try await run(tmp, folder: folder, model: model)
     let session = try RunSession(runDirectory: store.root)
     let plan = try #require(session.plan("c1"))
+    // Replay the plan's own stored seed: the diversity remedy may have composed it with an alternative seed.
+    let seed = try #require(plan.compositionSeed.flatMap { UInt64($0, radix: 16) })
     let again = ComposerEngine.compose(try #require(plan.direction), id: "c1", context: session.compositionContext(),
-                                       seed: ComposerEngine.layoutSeed(runID: session.runID, id: "c1"))
+                                       seed: seed, layoutSeed: ComposerEngine.layoutSeed(runID: session.runID, id: "c1"))
     #expect(again.plan == plan)
     try session.setSource(folder)
     let calls = model.stages.count

@@ -95,9 +95,45 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let lead = try #require(first.slides.first)
     #expect(lead.primitive == .hero && lead.requestedPrimitive == .fullBleed)
     #expect(lead.warnings.contains { $0.contains("landscape crop is too severe") })
-    #expect(lead.metrics?.maxCropLoss == 0)
-    let positions = Set(first.slides.compactMap { $0.variant }.filter { $0.contains("whole.") })
-    #expect(positions.count > 1, "airy whole-photo layouts should vary position: \(positions)")
+    #expect((lead.metrics?.maxCropLoss ?? 1) <= 0.2, "a landscape hero is shown whole or as a band cropped at most 20%")
+    let positions = Set(first.slides.compactMap { $0.variant }.filter { $0.contains("whole.") || $0.hasPrefix("band.") })
+    #expect(positions.count > 1, "landscape single-photo layouts should vary: \(positions)")
+}
+
+@Test func landscapeHeavyRunUsesSafeBandsAndStackedPairsDeterministically() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp)
+    let records = try await FolderIngester().ingest(folder: folder, options: IngestOptions()).photos
+    #expect(Double(records.filter { $0.orientation == .landscape }.count) / Double(records.count) >= 0.6)
+    #expect(CarouselAspect.infer(from: records) != .portrait3x4, "landscape-heavy sets never use the tallest canvas")
+
+    let store = try await run(tmp, folder: folder)
+    let d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    let m = try store.read(RunManifest.self, from: "manifest.json")
+    #expect(m.aspectRatio != .portrait3x4)
+    var sawBand = false, sawPair = false
+    for plan in d.plans {
+        for i in plan.slides.indices {
+            let slide = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", plan.id, i + 1))
+            guard let variant = slide.variant, variant.hasPrefix("band.") || variant.hasPrefix("bandpair.") else { continue }
+            sawBand = sawBand || variant.hasPrefix("band.")
+            sawPair = sawPair || variant.hasPrefix("bandpair.")
+            #expect((slide.metrics?.maxCropLoss ?? 1) <= 0.2, "\(variant) crop loss exceeds 20%")
+            #expect(!slide.warnings.contains { $0.contains("some people are cropped") }, "\(variant) cuts people")
+        }
+    }
+    // Bands compete on the same scoring as every other arrangement; on a landscape-heavy set at least one should win.
+    #expect(sawBand || sawPair, "landscape-heavy fixture never chose a band arrangement")
+    func renderedBytes() throws -> [String: Data] {
+        var bytes: [String: Data] = [:]
+        for (id, paths) in d.renderedSlides {
+            for path in paths { bytes[id + path] = try Data(contentsOf: store.url(path)) }
+        }
+        return bytes
+    }
+    let before = try renderedBytes()
+    try RerenderCommand.rerender(runDirectory: store.root, source: folder)
+    #expect(try renderedBytes() == before)
 }
 
 // MARK: - M4 review fixes
