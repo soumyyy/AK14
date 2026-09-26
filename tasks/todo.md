@@ -192,5 +192,5 @@ Owner decisions: no fixed concept types; the model decides 2-5 directions; a pho
   4. export names revealed the baseline: files are named `ak14-option<N>-NN.png` by position
   5. the decoration budget could exceed its cap: the budget is floored, and there's no paper on insets
   - also: directions must differ from the baseline (style distance ≥2 axes counts as a structural difference; the prompt asks for a cover other than the spine's); an empty direction list no longer discards a valid spine
-- [x] Live IMG run 20260926-091442-9a1… and 20260926-09xx: every direction has its own cover, all pairs are distinct, largest crop ≤40% (baseline) and ≤18% (directions), $0.0054
+- [x] Live IMG runs 20260926-091442-547052 and 20260926-091727-6a3c0b: every direction has its own cover, all pairs are distinct, largest crop ≤40% (baseline) and ≤18% (directions), $0.0054
 - [x] Merged to main and pushed
