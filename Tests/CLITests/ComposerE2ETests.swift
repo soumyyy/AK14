@@ -17,8 +17,9 @@ private func sceneFolder(_ tmp: TempDirectory, count: Int = 14) throws -> URL {
     return folder
 }
 
-private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel) async throws -> RunStore {
-    let o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
+private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: Int? = nil) async throws -> RunStore {
+    var o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
+    o.slides = slides
     return try await RunPipeline.live(options: o, client: ResponsesClient(transport: model, sleep: { _ in }), log: { _ in }).run(o)
 }
 
@@ -42,8 +43,8 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
         let decorated = plan.slides.filter { !$0.decorations.isEmpty || !$0.stamps.isEmpty }.count
         switch style.decoration {
         case "none": #expect(decorated == 0 && !plan.slides.contains { $0.primitive == .framedHero }, "\(plan.id) decorated")
-        case "light": #expect(decorated <= max(1, plan.slides.count / 5), "\(plan.id): \(decorated) decorated slides")
-        default: #expect(decorated <= max(1, plan.slides.count / 2), "\(plan.id): \(decorated) decorated slides")
+        case "light": #expect(decorated <= plan.slides.count / 5, "\(plan.id): \(decorated) decorated slides")
+        default: #expect(decorated <= plan.slides.count / 2, "\(plan.id): \(decorated) decorated slides")
         }
         if style.grouping == "single" { #expect(plan.slides.allSatisfy { $0.photos.count == 1 }, "\(plan.id) grouped photos") }
         if style.overlap == "none" {
@@ -124,4 +125,37 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     try session.select("plainDump"); try session.export("plainDump", to: tmp.url.appending(path: "out"))
     let summary = StudySummary.compute(runsDirectory: tmp.url.appending(path: "runs"))
     #expect(summary.participants.isEmpty)                                  // no study code, but the run is readable
+}
+
+@Test func recomposeKeepsIdsReplaysSeedsAndRespectsTheSlideLimit() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp)
+    let model = FakeModel(); model.directions = 4
+    let store = try await run(tmp, folder: folder, model: model, slides: 6)
+    var d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect(d.requestedSlides == 6)
+    #expect(d.plans.allSatisfy { $0.slides.count <= 6 }, "\(d.plans.map { ($0.id, $0.slides.count) })")
+    #expect(d.plans.allSatisfy { $0.compositionSeed != nil })
+
+    // A direction dropped at planning time leaves a gap (c1, c3): recomposition must keep ids, not renumber.
+    let i = try #require(d.plans.firstIndex { $0.id == "c2" })
+    d.plans[i].id = "c9"
+    d.presentationOrder = d.presentationOrder.map { $0 == "c2" ? "c9" : $0 }
+    d.renderedSlides["c9"] = d.renderedSlides.removeValue(forKey: "c2")?.map { $0.replacingOccurrences(of: "/c2/", with: "/c9/") }
+    for dir in ["slides", "layouts"] { try FileManager.default.moveItem(at: store.url("\(dir)/c2"), to: store.url("\(dir)/c9")) }
+    try store.write(d, to: "plans/director.json")
+    try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
+    let after = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect(after.plans.map(\.id) == d.plans.map(\.id))
+    for (a, b) in zip(after.plans, d.plans) where a.id != "c9" { #expect(a == b, "\(a.id) changed on recompose") }
+
+    // Studio reroll respects the limit too, and exports never name the baseline.
+    let session = try RunSession(runDirectory: store.root)
+    try session.setSource(folder)
+    for id in session.availableConcepts where !(session.plan(id)?.isBaseline ?? true) {
+        try session.reroll(id)
+        #expect((session.plan(id)?.slides.count ?? 99) <= 6)
+    }
+    let files = try session.export("baseline", to: tmp.url.appending(path: "out"))
+    #expect(files.allSatisfy { !$0.lastPathComponent.contains("baseline") })
 }

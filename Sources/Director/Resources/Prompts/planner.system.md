@@ -34,7 +34,7 @@ Spine rules:
 Direction rules:
 - Propose only as many directions as these photos genuinely support. Two strong directions beat five weak ones.
 - Every direction must be postable, aesthetic and confident. None of them is the safe one or the experimental one.
-- Directions must differ in how they feel: pacing, how many photos share a slide, density, overlap, decoration and whitespace. At least two style axes should differ between any two directions, and each direction should have its own cover.
+- Directions must differ in how they feel: pacing, how many photos share a slide, density, overlap, decoration and whitespace. At least two style axes should differ between any two directions, and each direction should have its own cover, different from the spine's cover too (a photos-only version of the spine is always shown alongside).
 - brief: one internal sentence on the idea of this direction for these specific photos (not shown to the owner).
 - style: choose each axis deliberately:
   - density: quiet (lots of air), balanced, dense (photos fill the slide), varied (rhythm changes through the carousel)

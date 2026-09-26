@@ -79,10 +79,12 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
     public var brief: String
     /// The direction this plan was composed from (nil for legacy plans); lets Studio recompose without a model call.
     public var direction: Direction?
+    /// Hex seed the composer used; with `direction` it reproduces the plan exactly (nil for legacy plans).
+    public var compositionSeed: String?
     public var slides: [SlidePlan]
 
-    public init(id: String, brief: String, direction: Direction?, slides: [SlidePlan]) {
-        self.id = id; self.brief = brief; self.direction = direction; self.slides = slides
+    public init(id: String, brief: String, direction: Direction?, compositionSeed: String? = nil, slides: [SlidePlan]) {
+        self.id = id; self.brief = brief; self.direction = direction; self.compositionSeed = compositionSeed; self.slides = slides
     }
 
     public var style: StyleVector? { direction?.style }
@@ -93,20 +95,22 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
         slides.first.flatMap { s in (s.photos.first { $0.role == "hero" } ?? s.photos.first)?.assetID }
     }
 
-    enum CodingKeys: String, CodingKey { case id, brief, direction, slides, conceptType, conceptNote }
+    enum CodingKeys: String, CodingKey { case id, brief, direction, compositionSeed, slides, conceptType, conceptNote }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? c.decode(String.self, forKey: .conceptType)
         brief = try c.decodeIfPresent(String.self, forKey: .brief) ?? c.decodeIfPresent(String.self, forKey: .conceptNote) ?? ""
         direction = try c.decodeIfPresent(Direction.self, forKey: .direction)
+        compositionSeed = try c.decodeIfPresent(String.self, forKey: .compositionSeed)
         slides = try c.decode([SlidePlan].self, forKey: .slides)
     }
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id); try c.encode(brief, forKey: .brief)
-        try c.encodeIfPresent(direction, forKey: .direction); try c.encode(slides, forKey: .slides)
+        try c.encodeIfPresent(direction, forKey: .direction); try c.encodeIfPresent(compositionSeed, forKey: .compositionSeed)
+        try c.encode(slides, forKey: .slides)
     }
 }
 

@@ -19,6 +19,8 @@ public struct ConceptsReport: Codable, Sendable {
     public var renderedSlides: [String: [String]]
     /// The order carousels are shown in (seeded shuffle, baseline unlabeled among them).
     public var presentationOrder: [String]
+    /// The user's `--slides` limit, so Studio rerolls and recomposition respect it.
+    public var requestedSlides: Int?
 
     public init(status: String, stylePackID: String, stylePackVersion: String, triage: [String: TriageScore],
                 pool: [AssetID], spine: SelectionSpine?, recommendedSlideCount: Int?, plans: [CarouselPlan],
@@ -29,6 +31,9 @@ public struct ConceptsReport: Codable, Sendable {
         self.plans = plans; self.unavailable = unavailable; self.deviations = deviations; self.diversity = diversity
         self.warnings = warnings; self.renderedSlides = renderedSlides; self.presentationOrder = presentationOrder
     }
+
+    /// 1-based position of a carousel in the presentation order (neutral label: "Option N").
+    public func position(of id: String) -> Int { (orderedPlans.firstIndex { $0.id == id } ?? 0) + 1 }
 
     /// Plans in presentation order (any plan missing from the order follows, in stored order).
     public var orderedPlans: [CarouselPlan] {
@@ -41,7 +46,7 @@ public struct ConceptsReport: Codable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case status, stylePackID, stylePackVersion, triage, pool, spine, recommendedSlideCount, plans, unavailable
-        case deviations, diversity, warnings, renderedSlides, plainSlides, presentationOrder
+        case deviations, diversity, warnings, renderedSlides, plainSlides, presentationOrder, requestedSlides
     }
 
     /// Runs written before M4 stored only `plainSlides`.
@@ -74,6 +79,7 @@ public struct ConceptsReport: Codable, Sendable {
             renderedSlides = plain.isEmpty ? [:] : ["plainDump": plain]
         }
         presentationOrder = try c.decodeIfPresent([String].self, forKey: .presentationOrder) ?? plans.map(\.id)
+        requestedSlides = try c.decodeIfPresent(Int.self, forKey: .requestedSlides)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -85,5 +91,6 @@ public struct ConceptsReport: Codable, Sendable {
         try c.encode(unavailable, forKey: .unavailable); try c.encode(deviations, forKey: .deviations)
         try c.encode(diversity, forKey: .diversity); try c.encode(warnings, forKey: .warnings)
         try c.encode(renderedSlides, forKey: .renderedSlides); try c.encode(presentationOrder, forKey: .presentationOrder)
+        try c.encodeIfPresent(requestedSlides, forKey: .requestedSlides)
     }
 }

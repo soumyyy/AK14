@@ -75,7 +75,7 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     // Select + export ordered files.
     try session.select("c1")
     let exported = try session.export("c1", to: tmp.url.appending(path: "export"))
-    #expect(exported.map(\.lastPathComponent) == (1...exported.count).map { String(format: "ak14-c1-%02d.png", $0) })
+    #expect(exported.map(\.lastPathComponent) == (1...exported.count).map { String(format: "ak14-option%d-%02d.png", session.concepts.position(of: "c1"), $0) })
     #expect(try bytes(exported) == bytes(session.slideURLs("c1")))
 
     // Originals untouched; events logged in order; a reopened session sees the edits.
@@ -162,7 +162,7 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     try session.apply(.remove(slide: single, photo: plan.slides[single].photos[0].assetID), to: "c1")
     let second = try session.export("c1", to: exportDir)
     #expect(second.count == first.count - 1)
-    #expect(try FileManager.default.contentsOfDirectory(atPath: exportDir.path).filter { $0.hasPrefix("ak14-c1-") }.count == second.count)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: exportDir.path).filter { $0.hasPrefix("ak14-option\(session.concepts.position(of: "c1"))-") }.count == second.count)
 
     // A reroll whose render fails (source photo deleted) leaves the concept exactly as it was.
     let before = try session.slideURLs("c2").map { try Data(contentsOf: $0) }

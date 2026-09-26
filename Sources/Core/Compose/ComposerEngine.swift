@@ -68,11 +68,13 @@ public enum ComposerEngine {
             let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
             var comp = compose(d, id: id, context: context, seed: seed)
             warnings += comp.warnings.map { "\(id): \($0)" }
-            if let clash = kept.first(where: { !PlanMetrics.diversity($0, comp.plan).passes }) {
+            // Every direction must also differ from the photos-only baseline, or the study comparison is empty.
+            let others = [base.plan] + kept
+            if let clash = others.first(where: { !PlanMetrics.diversity($0, comp.plan).passes }) {
                 // Recompose away from the earlier carousel: a different cover, other near-best seeds, then one axis nudge.
                 var tries: [Direction] = []
                 if clash.coverAssetID == comp.plan.coverAssetID {
-                    let usedCovers = Set(kept.compactMap(\.coverAssetID))
+                    let usedCovers = Set(others.compactMap(\.coverAssetID))
                     if let alt = d.orderedAssetIDs.filter({ !usedCovers.contains($0) && !context.flagged.contains($0) })
                         .max(by: { strengthOrder($0, $1, context) }) {
                         var moved = d; moved.coverAssetID = alt; tries.append(moved)
@@ -86,7 +88,7 @@ public enum ComposerEngine {
                     for salt in 0..<3 {
                         let alt = compose(t, id: id, context: context,
                                           seed: salt == 0 ? seed : SeededRandom.seed(runID, id, "alt\(salt)"), layoutSeed: seed)
-                        if kept.allSatisfy({ PlanMetrics.diversity($0, alt.plan).passes }) {
+                        if others.allSatisfy({ PlanMetrics.diversity($0, alt.plan).passes }) {
                             comp = alt; fixed = true
                             warnings.append("\(id): recomposed to differ from \(clash.id)")
                             break attempts
@@ -116,6 +118,15 @@ public enum ComposerEngine {
         var rng = SeededRandom(seed: SeededRandom.seed(runID, "presentation-order"))
         for i in stride(from: order.count - 1, to: 0, by: -1) { order.swapAt(i, Int(rng.next() % UInt64(i + 1))) }
         return ComposedSet(plans: plans, distances: distances, presentationOrder: order, warnings: warnings)
+    }
+
+    /// Rebuilds stored plans from their own direction and composition seed: same ids, no diversity remedies, so a
+    /// plan composed by this engine version comes back identical. Legacy plans (no direction or seed) are returned as-is.
+    public static func recompose(_ plans: [CarouselPlan], context: CompositionContext, runID: String) -> [CarouselPlan] {
+        plans.map { p in
+            guard let d = p.direction, let hex = p.compositionSeed, let seed = UInt64(hex, radix: 16) else { return p }
+            return compose(d, id: p.id, context: context, seed: seed, layoutSeed: layoutSeed(runID: runID, id: p.id)).plan
+        }
     }
 
     // MARK: - One direction
@@ -151,7 +162,9 @@ public enum ComposerEngine {
         let ranked = candidates.enumerated().sorted { ($0.element.score, $0.offset) < ($1.element.score, $1.offset) }
         let near = ranked.filter { $0.element.score <= ranked[0].element.score + 0.04 }
         let pick = near[Int(rng.next() % UInt64(near.count))].element
-        return Composition(plan: pick.plan, score: pick.score, warnings: warnings)
+        var plan = pick.plan
+        plan.compositionSeed = String(seed, radix: 16)
+        return Composition(plan: plan, score: pick.score, warnings: warnings)
     }
 
     // MARK: - Grouping
@@ -301,7 +314,9 @@ public enum ComposerEngine {
         guard style.decoration != "none", !slides.isEmpty else { return }
         let pack = Set(context.stylePack.decorationIDs)
         let rich = style.decoration == "rich"
-        let budget = max(1, Int(Double(slides.count) * (rich ? 0.5 : 0.2)))
+        // Never above the cap: a short carousel may get no decoration at all.
+        let budget = Int((Double(slides.count) * (rich ? 0.5 : 0.2)).rounded(.down))
+        guard budget > 0 else { return }
         let intensity = rich ? "medium" : "low"
         // Framed slides first (decoration reads best there), then the rest; seeded order within each.
         var order = slides.indices.map { ($0, slides[$0].primitive == .fullBleed ? 1 : 0, rng.unit()) }
@@ -312,7 +327,8 @@ public enum ComposerEngine {
             let options: [String] = switch s.primitive {
             case .hero, .framedHero: ["film-edge", "paper-warm", "date-stamp"]
             case .overlapCluster: ["tape-clear", "paper-warm"]
-            case .asymmetricPair, .inset: ["paper-warm", "grain-fine"]
+            case .asymmetricPair: ["paper-warm", "grain-fine"]
+            case .inset: ["grain-fine"]                        // an inset's main photo may cover the whole background
             case .fullBleed: ["grain-fine", "date-stamp"]
             }
             let dated = s.photos.first.flatMap { context.photos[$0.assetID]?.metadata.capturedAt } != nil

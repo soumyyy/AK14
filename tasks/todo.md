@@ -183,6 +183,14 @@ Owner decisions: no fixed concept types; the model decides 2-5 directions; a pho
 - [x] Session/Studio: ids everywhere; neutral "Option N" columns; operator-only details toggle; reroll recomposes without a model call
 - [x] Study: any selected option counts; baseline-picked rate and picked-style distribution; reroll ordering by log position (fixes a same-second timestamp bug)
 - [x] `ak14 rerender --recompose`: re-runs the engine on stored directions (free iteration)
-- [x] E2E: 46 passing (new: 2 and 5 directions with axis budgets, a partial invalid direction, determinism, legacy runs)
+- [x] E2E: 45 passing (new: 2 and 5 directions with axis budgets, a partial invalid direction, determinism, legacy runs, recompose ids and slide limit)
 - [x] Live IMG run 20260926-090257-b0667b: model chose 2 directions (style distance 0.83, distinct), $0.0048
-- [ ] Claude review, fix, merge, push
+- [x] Claude review: all 5 findings fixed
+  1. `--recompose` renumbered ids: it now replays each plan under its own id
+  2. remedied plans were not reproducible: `compositionSeed` is stored per plan; recompose skips carousels with edits or hand-offs and rewrites plans/<id>.json
+  3. `--slides` was lost after the run: `requestedSlides` is persisted and used by Studio reroll and recompose
+  4. export names revealed the baseline: files are named `ak14-option<N>-NN.png` by position
+  5. the decoration budget could exceed its cap: the budget is floored, and there's no paper on insets
+  - also: directions must differ from the baseline (style distance ≥2 axes counts as a structural difference; the prompt asks for a cover other than the spine's); an empty direction list no longer discards a valid spine
+- [x] Live IMG run 20260926-091442-9a1… and 20260926-09xx: every direction has its own cover, all pairs are distinct, largest crop ≤40% (baseline) and ≤18% (directions), $0.0054
+- [x] Merged to main and pushed

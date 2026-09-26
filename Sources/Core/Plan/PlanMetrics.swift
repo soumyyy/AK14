@@ -39,6 +39,8 @@ public enum PlanMetrics {
         if abs(multiRatio(a) - multiRatio(b)) > 0.2 { diffs.append("singleMultiRatio") }
         if a.slides.map(\.density) != b.slides.map(\.density) { diffs.append("densityRhythm") }
         if decorationProfile(a) != decorationProfile(b) { diffs.append("decorationProfile") }
+        // Style axes (whitespace, rotation, overlap…) change the look even when slides hold the same photos.
+        if let sa = a.style, let sb = b.style, sa.distance(to: sb) >= 1.0 / 3 { diffs.append("style") }
         let sameCover = a.coverAssetID == b.coverAssetID
         let order = orderAgreement(a.photoAssetIDs, b.photoAssetIDs)
         return ConceptDistance(a: a.id, b: b.id, styleDistance: a.style.flatMap { sa in b.style.map { sa.distance(to: $0) } },

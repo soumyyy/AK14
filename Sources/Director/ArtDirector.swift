@@ -198,7 +198,7 @@ public struct ArtDirector: Sendable {
 
     /// Spine validity dominates, then the number of valid directions, then fewer issues.
     static func quality(_ response: PlannerResponse, _ issues: [ValidationIssue]) -> (Int, Int, Int) {
-        let spineOK = !issues.contains { $0.direction == nil && $0.path != "spine.cover" }
+        let spineOK = !issues.contains { $0.direction == nil && $0.path.hasPrefix("spine") && $0.path != "spine.cover" }
         let broken = Set(issues.compactMap(\.direction))
         return (spineOK ? 1 : 0, response.directions.indices.filter { !broken.contains($0) }.count, -issues.count)
     }
@@ -216,7 +216,7 @@ public struct ArtDirector: Sendable {
     private func assemble(_ response: PlannerResponse?, issues: [ValidationIssue], input: DirectorInput,
                           cards: [AssetID: CandidateCard], flagged: Set<AssetID>, _ out: inout DirectorOutput) -> [Direction] {
         // A flagged cover alone is fixable locally; any other spine issue means the model's story is unusable.
-        let spineOK = response != nil && !issues.contains { $0.direction == nil && $0.path != "spine.cover" }
+        let spineOK = response != nil && !issues.contains { $0.direction == nil && $0.path.hasPrefix("spine") && $0.path != "spine.cover" }
         var spine: SelectionSpine
         if spineOK, let response {
             spine = response.spine

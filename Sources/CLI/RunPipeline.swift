@@ -163,6 +163,7 @@ struct RunPipeline: Sendable {
                 plans: output.plans, unavailable: output.unavailable, deviations: output.deviations,
                 diversity: output.diversity, warnings: output.warnings, renderedSlides: rendered,
                 presentationOrder: output.presentationOrder)
+            concepts?.requestedSlides = options.slides
             try store.write(concepts, to: "plans/director.json")
         }
 

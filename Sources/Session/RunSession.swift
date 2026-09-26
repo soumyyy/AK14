@@ -188,7 +188,8 @@ public final class RunSession: @unchecked Sendable {
             guard !slides.isEmpty else { throw Failure.nothingToExport }
             let fm = FileManager.default
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-            let prefix = "ak14-\(c)-"
+            // Named by neutral position, never by id: the file names must not reveal which option is the baseline.
+            let prefix = "ak14-option\(concepts.position(of: c))-"
             for old in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] where old.hasPrefix(prefix) && old.hasSuffix(".png") {
                 try fm.removeItem(at: folder.appending(path: old))
             }
@@ -248,7 +249,7 @@ public final class RunSession: @unchecked Sendable {
                                   flagged: Set(triage.filter { !$0.value.safety.isEmpty }.keys),
                                   sequenceIntent: Dictionary(zip(spine?.orderedAssetIDs ?? [], spine?.sequenceIntent ?? []),
                                                              uniquingKeysWith: { a, _ in a }),
-                                  moment: moment, stylePack: stylePack, maxSlides: nil)
+                                  moment: moment, stylePack: stylePack, maxSlides: concepts.requestedSlides)
     }
 
     private func verify(_ id: AssetID, in folder: URL) throws {

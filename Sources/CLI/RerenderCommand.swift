@@ -26,16 +26,24 @@ enum RerenderCommand {
         let features = try store.read([PhotoFeatures].self, from: "cache/features.json")
         var concepts = try store.read(ConceptsReport.self, from: "plans/director.json")
         guard !concepts.plans.isEmpty else { throw Failure.noPlans }
-        if recompose, let spine = concepts.spine, concepts.plans.contains(where: { $0.direction != nil }) {
+        if recompose, let spine = concepts.spine {
+            // Replays each plan's own direction and seed under its own id. Carousels already edited or handed off
+            // keep their plan, so edits, snapshots and study metrics stay comparable to the original.
+            let fm = FileManager.default
+            let touched = Set(concepts.plans.map(\.id).filter { id in
+                fm.fileExists(atPath: store.url("edits/\(id)").path)
+                    || ((try? fm.contentsOfDirectory(atPath: store.url("handoffs").path)) ?? []).contains { $0.hasPrefix("\(id)-") }
+            })
             let context = try RunSession(runDirectory: runDirectory).compositionContext()
-            let directions = concepts.plans.filter { !$0.isBaseline }.compactMap(\.direction)
-            let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: manifest.runID)
-            concepts.plans = set.plans
-            concepts.presentationOrder = set.presentationOrder
-            concepts.diversity = set.distances
-            concepts.deviations = Dictionary(uniqueKeysWithValues: set.plans.filter { !$0.isBaseline }
-                .map { ($0.id, PlanMetrics.deviation(plan: $0, spine: spine)) })
-            concepts.warnings = concepts.warnings.filter { !$0.hasPrefix("c") && !$0.hasPrefix("baseline:") } + set.warnings
+            let fresh = ComposerEngine.recompose(concepts.plans.filter { !touched.contains($0.id) }, context: context,
+                                                 runID: manifest.runID)
+            concepts.plans = concepts.plans.map { p in fresh.first { $0.id == p.id } ?? p }
+            for id in touched.sorted() { concepts.warnings.append("\(id): not recomposed (it has edits or a hand-off)") }
+            let directions = concepts.plans.filter { !$0.isBaseline }
+            concepts.diversity = directions.indices.flatMap { i in directions.indices.filter { $0 > i }.map { j in
+                PlanMetrics.diversity(directions[i], directions[j]) } }
+            concepts.deviations = Dictionary(uniqueKeysWithValues: directions.map { ($0.id, PlanMetrics.deviation(plan: $0, spine: spine)) })
+            for p in concepts.plans { try store.write(p, to: "plans/\(p.id).json") }
         }
         let photos = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) })
         let folder = source.resolvingSymlinksInPath()
