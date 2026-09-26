@@ -38,6 +38,10 @@ final class ImportReviewModel {
     var isEditingOption = false
     var successfulSaves = 0
     var storyEditors: [URL: StoryEditingService] = [:]
+    private var interactionRecorders: [URL: InteractionRecorder] = [:]
+    private var presentedRuns: Set<URL> = []
+    private var handedOffRuns: Set<URL> = []
+    private var abandonedRuns: Set<URL> = []
     var progressMessage = "Preparing…"
     var failureMessage: String?
     private var retryImport = false
@@ -206,10 +210,39 @@ final class ImportReviewModel {
         isSaving = true
         do {
             try await Self.performSave(option.slides)
+            let snapshot = try? await storyEditor(for: option).snapshotHandoff(for: option.id)
+            recorder(for: option).record("carousel_exported", conceptID: option.id,
+                                         after: ["\(option.slides.count) slides"] + (snapshot.map { ["snapshot=\($0)"] } ?? []))
+            handedOffRuns.insert(option.runDirectory.standardizedFileURL)
             alert = AlertMessage(title: "Saved to Photos", message: "Saved \(option.slides.count) slides in order.")
             successfulSaves += 1
         } catch { state = .failed("Could not save slides: \(error.localizedDescription)") }
         isSaving = false
+    }
+
+    func selectOption(_ option: StoryOption) {
+        selectedOptionID = option.id
+        recorder(for: option).record("concept_selected", conceptID: option.id)
+    }
+
+    func presentOptions(for option: StoryOption) {
+        let run = option.runDirectory.standardizedFileURL
+        guard presentedRuns.insert(run).inserted else { return }
+        recorder(for: option).record("concepts_presented")
+    }
+
+    func leaveOptions(for option: StoryOption) {
+        let run = option.runDirectory.standardizedFileURL
+        guard !handedOffRuns.contains(run), abandonedRuns.insert(run).inserted else { return }
+        recorder(for: option).record("generation_abandoned")
+    }
+
+    func shareCompleted(for option: StoryOption, activityType: UIActivity.ActivityType?) async {
+        guard let activityType else { return }
+        let snapshot = try? await storyEditor(for: option).snapshotHandoff(for: option.id)
+        recorder(for: option).record("carousel_shared", conceptID: option.id,
+                                     after: [activityType.rawValue] + (snapshot.map { ["snapshot=\($0)"] } ?? []))
+        handedOffRuns.insert(option.runDirectory.standardizedFileURL)
     }
 
     func applyEdit(_ edit: PlanEdit, to optionID: String) async -> [URL]? {
@@ -242,9 +275,18 @@ final class ImportReviewModel {
     private func storyEditor(for option: StoryOption) throws -> StoryEditingService {
         let runDirectory = option.runDirectory.standardizedFileURL
         if let cached = storyEditors[runDirectory] { return cached }
-        let editor = try StoryEditingService(runDirectory: runDirectory, sourceFolder: option.sourceFolder)
+        let editor = try StoryEditingService(runDirectory: runDirectory, sourceFolder: option.sourceFolder,
+                                             interactionRecorder: recorder(for: option))
         storyEditors[runDirectory] = editor
         return editor
+    }
+
+    private func recorder(for option: StoryOption) -> InteractionRecorder {
+        let directory = option.runDirectory.standardizedFileURL
+        if let recorder = interactionRecorders[directory] { return recorder }
+        let recorder = InteractionRecorder(runDirectory: directory)
+        interactionRecorders[directory] = recorder
+        return recorder
     }
 
     var selectedOption: StoryOption? { options.first { $0.id == selectedOptionID } }
@@ -363,7 +405,12 @@ struct ImportReviewView: View {
                     }
                 }
                 .sheet(isPresented: $model.showWorkerSettings) { workerSettings }
-                .sheet(isPresented: $model.sharePresented) { ActivityShareSheet(items: model.shareURLs) }
+                .sheet(isPresented: $model.sharePresented) {
+                    ActivityShareSheet(items: model.shareURLs) { activityType, completed in
+                        guard completed, let option = model.selectedOption else { return }
+                        Task { await model.shareCompleted(for: option, activityType: activityType) }
+                    }
+                }
                 .alert(item: $model.alert) { alert in
                     Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
                 }
@@ -856,6 +903,13 @@ private struct OptionsReviewStage: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("Options")
         .navigationBarTitleDisplayMode(.inline)
+        .overlay(alignment: .topLeading) {
+            if let option {
+                Text(option.runDirectory.appending(path: "interaction-events.jsonl").path)
+                    .font(.system(size: 1)).foregroundStyle(.clear)
+                    .accessibilityIdentifier("interactionLogPath")
+            }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) { actionFooter }
         .sensoryFeedback(.success, trigger: model.successfulSaves)
         .onChange(of: model.selectedOptionID) { _, _ in
@@ -864,7 +918,11 @@ private struct OptionsReviewStage: View {
         }
         .task(id: option?.id) {
             guard let option else { currentPlan = nil; return }
+            model.presentOptions(for: option)
             currentPlan = await model.planForOption(option.id)
+        }
+        .onDisappear {
+            if let option { model.leaveOptions(for: option) }
         }
         .sheet(isPresented: $editorPresented) {
             if let option, let currentPlan {
@@ -888,8 +946,8 @@ private struct OptionsReviewStage: View {
                 ForEach(Array(model.options.enumerated()), id: \.element.id) { index, candidate in
                     let selected = candidate.id == model.selectedOptionID
                     Button {
-                        if reduceMotion { model.selectedOptionID = candidate.id }
-                        else { withAnimation(.snappy(duration: 0.22)) { model.selectedOptionID = candidate.id } }
+                        if reduceMotion { model.selectOption(candidate) }
+                        else { withAnimation(.snappy(duration: 0.22)) { model.selectOption(candidate) } }
                     } label: {
                         Text(candidate.title.isEmpty ? "Option \(index + 1)" : candidate.title)
                             .font(.subheadline.weight(selected ? .semibold : .regular))
@@ -1137,8 +1195,13 @@ private struct SlidePreview: View {
 
 private struct ActivityShareSheet: UIViewControllerRepresentable {
     let items: [URL]
+    let onCompletion: @MainActor (UIActivity.ActivityType?, Bool) -> Void
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        controller.completionWithItemsHandler = { activityType, completed, _, _ in
+            Task { @MainActor in onCompletion(activityType, completed) }
+        }
+        return controller
     }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

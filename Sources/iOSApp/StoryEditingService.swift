@@ -36,12 +36,14 @@ actor StoryEditingService {
     private let stylePack: StylePack
     private let stylePackPin: StylePackPin
     private let originalPlans: [String: CarouselPlan]
+    private let interactionRecorder: InteractionRecorder
 
-    init(runDirectory: URL, sourceFolder: URL) throws {
+    init(runDirectory: URL, sourceFolder: URL, interactionRecorder: InteractionRecorder? = nil) throws {
         self.runDirectory = runDirectory.standardizedFileURL
         self.sourceFolder = sourceFolder.resolvingSymlinksInPath().standardizedFileURL
         store = RunStore.open(runDirectory)
         runID = runDirectory.lastPathComponent
+        self.interactionRecorder = interactionRecorder ?? InteractionRecorder(runDirectory: runDirectory)
 
         let photoList = try store.read([PhotoRecord].self, from: "input-index.json")
         photos = Dictionary(uniqueKeysWithValues: photoList.map { ($0.assetID, $0) })
@@ -148,7 +150,32 @@ actor StoryEditingService {
             }
             throw error
         }
+        let slideKey = { (plan: CarouselPlan) in plan.slides.map { $0.photos.map(\.assetID.rawValue).joined(separator: "+") } }
+        switch edit {
+        case .reorder(let from, let to):
+            interactionRecorder.record("slide_reordered", conceptID: optionID, slideIndex: to,
+                                       assetIDs: current.slides[from].photos.map(\.assetID),
+                                       before: slideKey(current), after: slideKey(edited))
+        case .swap(let slide, let old, let new):
+            interactionRecorder.record("photo_swapped", conceptID: optionID, slideIndex: slide,
+                                       assetIDs: [old, new], before: [old.rawValue], after: [new.rawValue])
+        case .remove(let slide, let id):
+            interactionRecorder.record("photo_removed", conceptID: optionID, slideIndex: slide,
+                                       assetIDs: [id], before: [id.rawValue], after: [])
+        }
+        if current.coverAssetID != edited.coverAssetID, let old = current.coverAssetID, let new = edited.coverAssetID {
+            interactionRecorder.record("cover_changed", conceptID: optionID, slideIndex: 0,
+                                       assetIDs: [old, new], before: [old.rawValue], after: [new.rawValue])
+        }
         return render.names.map { final.appending(path: "slides/\($0)") }
+    }
+
+    func snapshotHandoff(for optionID: String) throws -> String {
+        guard let plan = originalPlans[optionID] else { throw StoryEditingFailure.unavailableOption(optionID) }
+        let current = (try? store.read(CarouselPlan.self, from: "edits/\(optionID)/plan.json")) ?? plan
+        let snapshot = UUID().uuidString
+        try store.write(current, to: "handoffs/\(optionID)-\(snapshot).json")
+        return snapshot
     }
 
     private func verifySources(for plan: CarouselPlan) throws {
