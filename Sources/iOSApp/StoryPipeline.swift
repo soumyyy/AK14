@@ -29,6 +29,7 @@ struct StoryPipeline: Sendable {
     }
 
     func run(folder: URL, modelAssist: Bool, importDuration: Double = 0,
+             eventAssetIDs: Set<AssetID>? = nil, storyHint: String? = nil,
              progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> [StoryOption] {
         let clock = ContinuousClock()
         var timings: [StageTiming] = []
@@ -36,7 +37,10 @@ struct StoryPipeline: Sendable {
         let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
         timings.append(StageTiming(stage: "import", seconds: importDuration + (clock.now - stageStart).seconds))
         guard !ingest.photos.isEmpty else { throw PipelineFailure.noPhotos }
-        let photos = ingest.photos
+        let events = EventSegmenter.segment(ingest.photos)
+        let chosenEvent = eventAssetIDs.flatMap { ids in events.first { Set($0.assetIDs) == ids }?.index }
+        let photos = eventAssetIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos
+        guard !photos.isEmpty else { throw PipelineFailure.noPhotos }
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
         let support = try Self.applicationSupport()
         let cacheRoot = support.appending(path: "analysis-cache", directoryHint: .isDirectory)
@@ -131,7 +135,8 @@ struct StoryPipeline: Sendable {
             progress("Building options…")
             let output = await ArtDirector(client: client, stylePack: stylePack).direct(
                 DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
-                              shortlist: cards, selectPool: poolSelector, composition: context, runID: runID))
+                              shortlist: cards, selectPool: poolSelector, composition: context, runID: runID,
+                              storyHint: modelAssist ? storyHint : nil))
             guard !output.plans.isEmpty else { throw PipelineFailure.directorProducedNoPlans }
             providerCalls = output.calls
             reduction.planningPool = output.pool.compactMap { id in reduction.shortlist.first { $0.assetID == id } }
@@ -201,6 +206,9 @@ struct StoryPipeline: Sendable {
         timings.append(StageTiming(stage: "render", seconds: (clock.now - stageStart).seconds))
         var manifest = RunManifest(runID: runID, createdAt: Date(), sourceFolderLabel: folder.lastPathComponent)
         manifest.photoCount = photos.count
+        manifest.events = events.map(EventSegmentSummary.init)
+        manifest.chosenEvent = chosenEvent
+        manifest.storyHint = storyHint
         manifest.aspectRatio = aspect
         manifest.stageTimings = timings
         manifest.directorStatus = generationMode == .modelDirected ? "ok" : "skipped: photos only"

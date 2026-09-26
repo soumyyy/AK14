@@ -34,6 +34,15 @@ final class ImportGenerateReviewUITests: XCTestCase {
         review.tap()
         XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 60))
 
+        if app.buttons["allEventsChoice"].waitForExistence(timeout: 2) {
+            let eventChoice = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'eventChoice-'" )).firstMatch
+            XCTAssertTrue(eventChoice.exists, "The event picker should contain event rows")
+            eventChoice.tap()
+        }
+        let storyHint = app.descendants(matching: .any)["storyHintField"]
+        XCTAssertTrue(storyHint.waitForExistence(timeout: 20), "The Review stage should show the optional story field")
+        storyHint.tap()
+        storyHint.typeText("Misty hike with my cousins")
         let generate = app.buttons["Create options"]
         XCTAssertTrue(generate.waitForExistence(timeout: 20))
         generate.tap()

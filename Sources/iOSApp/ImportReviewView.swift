@@ -28,6 +28,9 @@ final class ImportReviewModel {
     var assets: [PHAsset] = []
     var selectedIDs: Set<String> = []
     var records: [PhotoRecord] = []
+    var events: [EventSegment] = []
+    var selectedEventIndex: Int?
+    var storyHint = ""
     var importedFolder: URL?
     var retainedSourceFolders: Set<URL> = []
     var alert: AlertMessage?
@@ -90,6 +93,7 @@ final class ImportReviewModel {
         assets = (0..<result.count).map { result.object(at: $0) }
         selectedIDs = Set(assets.map(\.localIdentifier))
         records = []
+        events = []
         self.options = []
         selectedOptionID = nil
         importCompleted = 0
@@ -139,6 +143,9 @@ final class ImportReviewModel {
             importedFolder = folder
             importDuration = (ContinuousClock().now - importStart).seconds
             records = result.photos
+            events = EventSegmenter.segment(result.photos)
+            selectedEventIndex = events.max(by: { $0.photoCount < $1.photoCount })?.index
+            storyHint = ""
             options = []
             selectedOptionID = nil
             if result.photos.isEmpty { throw ImportFailure.noReadablePhotos }
@@ -176,7 +183,9 @@ final class ImportReviewModel {
             }) : nil
             progressMessage = "Preparing your photos…"
             let generated = try await StoryPipeline(responsesClient: client, stylePackProvider: configProvider)
-                .run(folder: importedFolder, modelAssist: useModelAssistance, importDuration: importDuration) { [weak self] message in
+                .run(folder: importedFolder, modelAssist: useModelAssistance, importDuration: importDuration,
+                     eventAssetIDs: selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } },
+                     storyHint: storyHint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty) { [weak self] message in
                     Task { @MainActor in self?.progressMessage = message }
                 }
             options = generated
@@ -613,6 +622,62 @@ struct ImportReviewView: View {
                 .scrollIndicators(.hidden)
                 .accessibilityLabel("Selected photos")
 
+                if model.events.count > 1 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Choose an event").font(.headline)
+                        ForEach(model.events, id: \.index) { event in
+                            Button {
+                                model.selectedEventIndex = event.index
+                            } label: {
+                                HStack(spacing: 12) {
+                                    EventCover(event: event, records: model.records, folder: model.importedFolder)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(event.dateRangeLabel).font(.body)
+                                        Text("\(event.photoCount) photos").font(.subheadline).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: model.selectedEventIndex == event.index ? "largecircle.fill.circle" : "circle")
+                                        .foregroundStyle(model.selectedEventIndex == event.index ? Color.accentColor : .secondary)
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(event.dateRangeLabel), \(event.photoCount) photos")
+                            .accessibilityIdentifier("eventChoice-\(event.index)")
+                            .accessibilityAddTraits(model.selectedEventIndex == event.index ? .isSelected : [])
+                        }
+                        Button {
+                            model.selectedEventIndex = nil
+                        } label: {
+                            Label("One story across all events", systemImage: model.selectedEventIndex == nil ? "largecircle.fill.circle" : "circle")
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("allEventsChoice")
+                        .accessibilityAddTraits(model.selectedEventIndex == nil ? .isSelected : [])
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 16))
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Story hint (optional)").font(.headline)
+                    TextField("What's this post about? e.g. Munnar trip with my cousins — the misty hike is the highlight, skip the hotel shots", text: $model.storyHint, axis: .vertical)
+                        .lineLimit(3...5)
+                        .accessibilityLabel("Story hint")
+                        .accessibilityIdentifier("storyHintField")
+                        .onChange(of: model.storyHint) { _, value in
+                            if value.count > 280 { model.storyHint = String(value.prefix(280)) }
+                        }
+                    Text("\(model.storyHint.count)/280")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .accessibilityLabel("\(model.storyHint.count) of 280 characters")
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.background, in: RoundedRectangle(cornerRadius: 16))
+
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Your originals stay on this device.", systemImage: "lock.shield")
                         .font(.subheadline.weight(.semibold))
@@ -729,6 +794,35 @@ struct ImportReviewView: View {
     private func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+private extension EventSegment {
+    var dateRangeLabel: String {
+        let style: Date.FormatStyle = .dateTime.month(.abbreviated).day()
+        guard let start else { return "Undated event" }
+        guard let end, !Calendar.current.isDate(start, inSameDayAs: end) else { return start.formatted(style) }
+        return "\(start.formatted(style)) – \(end.formatted(style))"
+    }
+}
+
+private struct EventCover: View {
+    let event: EventSegment
+    let records: [PhotoRecord]
+    let folder: URL?
+    var body: some View {
+        Group {
+            if let record = records.first(where: { event.assetIDs.contains($0.assetID) }), let folder {
+                ImportedThumbnail(record: record, folder: folder)
+            } else { RoundedRectangle(cornerRadius: 8).fill(.quaternary).frame(width: 52, height: 52) }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityHidden(true)
     }
 }
 
