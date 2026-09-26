@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-public enum ElementKind: String, Codable, Sendable { case photo, tape, stamp }
+public enum ElementKind: String, Codable, Sendable, CaseIterable { case photo, tape, stamp }
 
 /// One drawable element. `frame` is canvas-normalized with a top-left origin, before rotation
 /// (rotation is about the frame centre, positive = clockwise). `crop` is source-normalized (oriented image).
@@ -17,6 +17,10 @@ public struct ResolvedElement: Codable, Sendable, Equatable {
     /// White border width as a fraction of the canvas short side (photos only).
     public var border: Double
     public var shadow: Bool
+    public var adjustments: PhotoAdjustments?
+    public init(kind: ElementKind, assetID: AssetID?, text: String?, frame: UnitRect, rotationDegrees: Double, crop: UnitRect?, zIndex: Int, opacity: Double, border: Double, shadow: Bool, adjustments: PhotoAdjustments? = nil) {
+        self.kind=kind; self.assetID=assetID; self.text=text; self.frame=frame; self.rotationDegrees=rotationDegrees; self.crop=crop; self.zIndex=zIndex; self.opacity=opacity; self.border=border; self.shadow=shadow; self.adjustments=adjustments
+    }
 }
 
 public struct ResolvedSlide: Codable, Sendable, Equatable {
@@ -33,6 +37,9 @@ public struct ResolvedSlide: Codable, Sendable, Equatable {
     /// Composer arrangement chosen for this slide (absent in layouts before layout-2).
     public var variant: String?
     public var metrics: SlideMetrics?
+    public init(index: Int, primitive: Primitive, requestedPrimitive: Primitive, background: String, grain: Double, filmEdge: Bool, elements: [ResolvedElement], warnings: [String], variant: String? = nil, metrics: SlideMetrics? = nil) {
+        self.index=index; self.primitive=primitive; self.requestedPrimitive=requestedPrimitive; self.background=background; self.grain=grain; self.filmEdge=filmEdge; self.elements=elements; self.warnings=warnings; self.variant=variant; self.metrics=metrics
+    }
 }
 
 public struct ResolvedCarousel: Codable, Sendable, Equatable {
@@ -44,6 +51,9 @@ public struct ResolvedCarousel: Codable, Sendable, Equatable {
     public var seed: String
     public var resolverVersion: String
     public var slides: [ResolvedSlide]
+    public init(id: String, aspect: CarouselAspect, seed: String, resolverVersion: String, slides: [ResolvedSlide]) {
+        self.id = id; self.aspect = aspect; self.seed = seed; self.resolverVersion = resolverVersion; self.slides = slides
+    }
 }
 
 /// Deterministic SplitMix64 generator.

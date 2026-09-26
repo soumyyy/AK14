@@ -35,6 +35,12 @@ public struct CarouselRenderer: Sendable {
 
     public func render(_ carousel: ResolvedCarousel, photos: [AssetID: PhotoRecord], sourceFolder: URL,
                        outputDirectory: URL) throws -> Outcome {
+        let document = CanvasDocument(from: carousel, photos: photos)
+        return try DocumentRenderer().render(document, photos: photos, sourceFolder: sourceFolder, outputDirectory: outputDirectory)
+    }
+
+    func legacyRender(_ carousel: ResolvedCarousel, photos: [AssetID: PhotoRecord], sourceFolder: URL,
+                      outputDirectory: URL) throws -> Outcome {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         var outcome = Outcome()
         let seed = UInt64(carousel.seed, radix: 16) ?? 0
@@ -88,7 +94,11 @@ public struct CarouselRenderer: Sendable {
                 guard let id = e.assetID, let record = photos[id] else { throw RenderError.missingPhoto(e.assetID ?? AssetID(rawValue: "?")) }
                 let source = sourceFolder.appending(path: record.sourceRelativePaths[0])
                 let crop = e.crop ?? UnitRect(x: 0, y: 0, width: 1, height: 1)
-                let image = try Self.decodeCropped(source, record: record, crop: crop, frame: rect.size)
+                var image = try Self.decodeCropped(source, record: record, crop: crop, frame: rect.size)
+                if let exposure = e.adjustments?.exposure, exposure != 0 {
+                    let input = CIImage(cgImage: image).applyingFilter("CIExposureAdjust", parameters: [kCIInputEVKey: exposure])
+                    if let adjusted = Self.washContext.createCGImage(input, from: input.extent) { image = adjusted }
+                }
                 ctx.saveGState()
                 ctx.translateBy(x: rect.midX, y: rect.midY)
                 ctx.rotate(by: -e.rotationDegrees * .pi / 180)
