@@ -81,18 +81,32 @@ public enum CandidateRanker {
         return out.sorted { $0.score == $1.score ? $0.assetID < $1.assetID : $0.score > $1.score }
     }
 
-    /// Bounded triage adjustment (spec §5.4): at most ±`triageMaxAdjustment` of the pre-triage score.
+    /// Bounded triage adjustment: emotional value moves a candidate across the full configured range;
+    /// useful imperfections and characterful tags can add a small nudge without overriding safety.
     public static func applyTriage(_ ranked: [RankedCandidate], triage: [AssetID: TriageScore],
                                    config: ReductionConfig) -> [RankedCandidate] {
         ranked.map { r in
             var r = r
             guard let t = triage[r.assetID] else { return r }
-            let imperfection = t.imperfection == "useful" ? 0.05 : t.imperfection == "accident" ? -0.2 : 0
+            let emotion = Double(min(5, max(0, t.emotionalValue)))
+            let imperfection = t.imperfection == "useful" ? 0.05 : t.imperfection == "accident" ? -0.20 : 0
+            let characterTags: Set<String> = ["candid", "characterful", "gesture", "portrait", "personality"]
+            let hasCharacterTag = !characterTags.isDisjoint(with: Set(t.tags.map { $0.lowercased() }))
+            let character = hasCharacterTag ? 0.05 : 0
             let adj = min(config.triageMaxAdjustment, max(-config.triageMaxAdjustment,
-                          0.2 * (Double(t.emotionalValue) - 2.5) / 2.5 + imperfection))
+                          config.triageMaxAdjustment * (emotion - 2.5) / 2.5 + imperfection + character))
             r.triage = t
             r.adjustedScore = r.score * (1 + adj)
             return r
         }.sorted { $0.effectiveScore == $1.effectiveScore ? $0.assetID < $1.assetID : $0.effectiveScore > $1.effectiveScore }
+    }
+
+    /// Low emotional ratings are a soft pool filter. Explicit character cues and useful imperfections
+    /// keep candid frames eligible; local junk rejection remains authoritative upstream.
+    public static func isWeakTriageCandidate(_ candidate: RankedCandidate) -> Bool {
+        guard let triage = candidate.triage, triage.emotionalValue <= 1 else { return false }
+        if triage.imperfection == "useful" { return false }
+        let cues: Set<String> = ["candid", "characterful", "gesture", "portrait", "personality"]
+        return cues.isDisjoint(with: Set(triage.tags.map { $0.lowercased() }))
     }
 }

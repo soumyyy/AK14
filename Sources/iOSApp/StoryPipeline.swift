@@ -120,9 +120,14 @@ struct StoryPipeline: Sendable {
             }
             let poolCount = min(candidates.count, max(8, min(30, candidates.count / 2)))
             let reductionConfig = reduction.config
+            let candidatePhotos = photoByID
             let poolSelector: @Sendable ([AssetID: TriageScore]) -> [AssetID] = { triage in
-                CandidateRanker.applyTriage(candidates, triage: triage, config: reductionConfig)
-                    .prefix(poolCount).map(\.assetID)
+                let adjusted = CandidateRanker.applyTriage(candidates, triage: triage, config: reductionConfig)
+                let strong = adjusted.filter { !CandidateRanker.isWeakTriageCandidate($0) }
+                let eligible = strong.count >= poolCount ? strong : strong + adjusted.filter(CandidateRanker.isWeakTriageCandidate)
+                return DiversitySelector.select(ranked: eligible, target: poolCount, photos: candidatePhotos,
+                                                features: features, distance: index.distance,
+                                                config: reductionConfig).map(\.assetID)
             }
             let dateSpan: String
             let dates = candidates.compactMap { photoByID[$0.assetID]?.metadata.capturedAt }

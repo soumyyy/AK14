@@ -67,3 +67,29 @@ import TestSupport
     #expect(burst.representativeAssetID == ids[1])
     #expect(result.clusters.first { $0.memberAssetIDs == [ids[2]] }?.kind == .single)
 }
+
+@Test func triageCanPromoteCharacterfulPeopleFramesAndKeepLowScoresSoft() throws {
+    let plainID = AssetID(rawValue: "plain")
+    let candidID = AssetID(rawValue: "hillside-candid")
+    let plain = RankedCandidate(assetID: plainID, clusterID: "plain", clusterSize: 1,
+                                components: RankComponents(penalty: 0, base: 0.72), score: 0.72)
+    let candid = RankedCandidate(assetID: candidID, clusterID: "candid", clusterSize: 1,
+                                 components: RankComponents(penalty: 0, base: 0.60), score: 0.60)
+    let scores: [AssetID: TriageScore] = [
+        plainID: TriageScore(emotionalValue: 2, imperfection: "neutral", safety: [], tags: [], confidence: "high"),
+        candidID: TriageScore(emotionalValue: 5, imperfection: "useful", safety: [], tags: ["candid", "people"], confidence: "high"),
+    ]
+    let config = ReductionConfig()
+    let adjusted = CandidateRanker.applyTriage([plain, candid], triage: scores, config: config)
+    #expect(config.triageMaxAdjustment == 0.4)
+    #expect(adjusted.first?.assetID == candidID)
+    #expect(adjusted.first?.effectiveScore ?? 0 >= 0.60 * 1.4)
+    #expect(!CandidateRanker.isWeakTriageCandidate(adjusted.first!))
+
+    let lowID = AssetID(rawValue: "low")
+    let lowScore = TriageScore(emotionalValue: 1, imperfection: "neutral", safety: [], tags: [], confidence: "high")
+    let low = CandidateRanker.applyTriage([RankedCandidate(assetID: lowID, clusterID: "low", clusterSize: 1,
+                                          components: RankComponents(penalty: 0, base: 0.8), score: 0.8)],
+                                          triage: [lowID: lowScore], config: config)[0]
+    #expect(CandidateRanker.isWeakTriageCandidate(low))
+}

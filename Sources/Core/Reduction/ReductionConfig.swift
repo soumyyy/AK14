@@ -14,7 +14,9 @@ public struct ReductionConfig: Codable, Sendable, Equatable {
     public var sharpReference = 0.15
     public var weights = Weights()
     public var explorationFraction = 0.2
-    public var triageMaxAdjustment = 0.2
+    /// Model triage can adjust the technical score by up to ±40%, enough to recover expressive frames
+    /// while keeping deterministic image quality and local junk checks in control.
+    public var triageMaxAdjustment = 0.4
     /// Distance at which two photos count as fully dissimilar for redundancy.
     public var similarityHorizon = 0.6
 

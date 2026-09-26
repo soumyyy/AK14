@@ -276,12 +276,9 @@ struct RunPipeline: Sendable {
                              ?? (planning.lowerBound + planning.upperBound) / 2)
         let selectPool: @Sendable ([AssetID: TriageScore]) -> [AssetID] = { triage in
             let adjusted = CandidateRanker.applyTriage(shortlist, triage: triage, config: config)
-            // Photos the model itself judged near-worthless (≤1/5) stay out unless flagged as useful imperfection,
-            // as long as enough others remain to fill the pool.
-            let weak: (RankedCandidate) -> Bool = { c in
-                guard let t = c.triage else { return false }
-                return t.emotionalValue <= 1 && t.imperfection != "useful"
-            }
+            // Very low emotional ratings stay out unless triage identifies a candid/characterful cue,
+            // as long as enough other candidates remain to fill the pool.
+            let weak = CandidateRanker.isWeakTriageCandidate
             let strong = adjusted.filter { !weak($0) }
             let candidates = strong.count >= poolTarget ? strong : strong + adjusted.filter(weak)
             return DiversitySelector.select(ranked: candidates, target: poolTarget, photos: photoByID, features: features,
