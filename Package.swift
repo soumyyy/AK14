@@ -12,8 +12,10 @@ let package = Package(
         .target(name: "Analysis", dependencies: ["Core"]),
         .target(name: "Director", dependencies: ["Core"], resources: [.copy("Resources/Prompts")]),
         .target(name: "Render", dependencies: ["Core"], resources: [.copy("Resources/StylePacks"), .copy("Resources/Assets")]),
-        .executableTarget(name: "CLI", dependencies: ["Core", "Analysis", "Director", "Render"]),
+        .target(name: "Session", dependencies: ["Core", "Render"]),
+        .executableTarget(name: "CLI", dependencies: ["Core", "Analysis", "Director", "Render", "Session"]),
+        .executableTarget(name: "Studio", dependencies: ["Core", "Render", "Session"]),
         .target(name: "TestSupport", path: "Tests/TestSupport"),
-        .testTarget(name: "CLITests", dependencies: ["CLI", "Analysis", "Core", "Director", "Render", "TestSupport"]),
+        .testTarget(name: "CLITests", dependencies: ["CLI", "Analysis", "Core", "Director", "Render", "Session", "TestSupport"]),
     ]
 )

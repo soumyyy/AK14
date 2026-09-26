@@ -2,6 +2,7 @@ import Analysis
 import Core
 import Foundation
 import Render
+import Session
 
 enum RerenderCommand {
     enum Failure: Error, CustomStringConvertible {

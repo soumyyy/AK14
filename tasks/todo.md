@@ -19,7 +19,7 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 - [x] M2 — Clustering, junk filter, candidate reduction
 - [x] M3 — Triage + planner (Plain first), GPT-6 Luna
 - [x] M4 — Layout resolver + renderer
-- [ ] M5 — Studio (Mac app)
+- [x] M5 — Studio (Mac app)
 - [ ] M6 — Study readiness
 
 ## Review — M1 (2026-09-26)
@@ -94,3 +94,17 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 - Overlap coverage is measured on a grid, so there's no double counting.
 - E2E: 24 tests passing.
 - Deferred minor: overlap and face checks use unrotated boxes (at most ±2°, about 15 px).
+
+## Review — M5 (2026-09-26)
+- `PlanEditor` (Core): reorder, swap, remove. Removing a slide's last photo drops the slide (no padding); a photo-count mismatch downgrades the primitive; Plain stays one photo per slide.
+- `Session` target:
+  - `ConceptRendering` moved here from CLI.
+  - `RunSession`: open, SHA-verified source folder, edits in `edits/`, reroll with a new layout seed, export of ordered PNGs, share logging.
+  - `InteractionLog`: append-only `interaction-events.jsonl`, with no paths or free text.
+- `Studio` (SwiftUI, `swift run Studio`):
+  - run picker; three concept columns with Use this / Reroll layout / Export… / Share (NSSharingServicePicker, logs the chosen service)
+  - slide inspector with move earlier/later, Swap (similar shots first) and Remove
+  - the source folder is remembered in app preferences, never in the run directory
+- Verification:
+  - 27 e2e tests passing, including Session edits, originals untouched, event order, export, invalid edits and a changed source.
+  - Snapshot mode (`AK14_STUDIO_SNAPSHOT`) rendered the real run's board off-screen: columns, slides, selection and inspector all render. Text isn't captured by off-screen caching, and a window screenshot needs Screen Recording permission, so the labels still need a check by eye with `swift run Studio`.

@@ -4,6 +4,7 @@ import CryptoKit
 import Director
 import Foundation
 import Render
+import Session
 import UniformTypeIdentifiers
 
 struct RunPipeline: Sendable {
