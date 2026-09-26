@@ -45,17 +45,35 @@ struct RunPipeline: Sendable {
         lap("ingest", start)
         log("Finding the best moments… \(ingest.photos.count) photos, \(ingest.skipped.count) skipped")
 
+        let events = EventSegmenter.segment(ingest.photos)
+        if options.event != nil && options.allEvents { throw ArgumentError.invalidValue("--event", "cannot be combined with --all-events") }
+        if let requested = options.event, !events.contains(where: { $0.index == requested }) {
+            throw ArgumentError.invalidEvent("\(requested) (found \(events.count) events)")
+        }
+        let chosenEvent: Int? = options.allEvents ? nil : (options.event ?? events.max(by: { $0.photoCount < $1.photoCount })?.index)
+        let selectedIDs = chosenEvent.flatMap { id in events.first(where: { $0.index == id })?.assetIDs }
+        let photos = selectedIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos
+        if options.event == nil && !options.allEvents && events.count > 1 {
+            log("Found \(events.count) events:")
+            for event in events {
+                let dates = event.start.map { Self.eventDate($0) } ?? "undated"
+                let end = event.end.map { Self.eventDate($0) } ?? dates
+                log("  Event \(event.index): \(dates)–\(end), \(event.photoCount) photos")
+            }
+            log("Using the largest event. Choose another with --event N, or use --all-events for one story across everything.")
+        }
+
         // 2. Analysis-tier thumbnails (cached across runs)
         start = clock.now
         let folder = options.folder.resolvingSymlinksInPath()
-        let thumbByID = try await thumbnails(ingest.photos, tier: .analysis, folder: folder, warnings: &warnings)
+        let thumbByID = try await thumbnails(photos, tier: .analysis, folder: folder, warnings: &warnings)
         lap("thumbnails", start)
 
         // 3. Vision features (cached by content digest + analyzer/thumbnailer version)
         start = clock.now
         var features: [AssetID: PhotoFeatures] = [:]
         var pending: [(PhotoRecord, URL)] = []
-        for p in ingest.photos {
+        for p in photos {
             guard let url = thumbByID[p.assetID] else { continue }
             if let cached = cache.load(sha: p.contentSHA256) { features[p.assetID] = cached } else { pending.append((p, url)) }
         }
@@ -79,7 +97,7 @@ struct RunPipeline: Sendable {
         start = clock.now
         let config = ReductionConfig()
         let index = FeaturePrintIndex(cacheRoot: options.cacheDirectory, features: features)
-        var reduction = ReductionResult.reduce(photos: ingest.photos, features: features, distance: index.distance, config: config)
+        var reduction = ReductionResult.reduce(photos: photos, features: features, distance: index.distance, config: config)
         lap("reduction", start)
         log("Reduced to \(reduction.shortlist.count) candidates from \(reduction.funnel.representatives) distinct moments")
 
@@ -93,7 +111,7 @@ struct RunPipeline: Sendable {
             try FileManager.default.copyItem(at: url, to: target)
             thumbRel[id] = rel
         }
-        let aspect = options.aspect ?? CarouselAspect.infer(from: ingest.photos)
+        let aspect = options.aspect ?? CarouselAspect.infer(from: photos)
         // Written immediately (completedAt = nil) so an interrupted run is visible as incomplete, never counted.
         var early = RunManifest(runID: store.root.lastPathComponent, createdAt: now, sourceFolderLabel: options.folder.lastPathComponent)
         early.studyCode = options.studyCode
@@ -118,7 +136,7 @@ struct RunPipeline: Sendable {
         } else {
             start = clock.now
             let stylePack = try StylePackLoader.load()
-            let output = try await direct(reduction: reduction, photos: ingest.photos, features: features,
+            let output = try await direct(reduction: reduction, photos: photos, features: features,
                                                    index: index, folder: folder, options: options, stylePack: stylePack,
                                                    aspect: aspect, runID: store.root.lastPathComponent, warnings: &warnings)
             lap("director", start)
@@ -147,7 +165,7 @@ struct RunPipeline: Sendable {
             do {
                 let result = try ConceptRendering.renderAll(
                     output.plans, runID: store.root.lastPathComponent, aspect: aspect,
-                    photos: Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) }),
+                    photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
                     features: features, stylePack: stylePack, sourceFolder: folder, into: store.root)
                 rendered = result.slides
                 warnings += result.warnings
@@ -171,7 +189,10 @@ struct RunPipeline: Sendable {
         var manifest = RunManifest(runID: store.root.lastPathComponent, createdAt: now,
                                    sourceFolderLabel: options.folder.lastPathComponent)
         manifest.inputDigest = Self.inputDigest(ingest.photos)
-        manifest.photoCount = ingest.photos.count
+        manifest.photoCount = photos.count
+        manifest.events = events.map(EventSegmentSummary.init)
+        manifest.chosenEvent = chosenEvent
+        manifest.storyHint = options.story
         manifest.skippedCount = ingest.skipped.count
         manifest.aspectRatio = aspect
         manifest.aspectOverridden = options.aspect != nil
@@ -193,9 +214,9 @@ struct RunPipeline: Sendable {
         manifest.warnings = warnings
         manifest.completedAt = Date()
 
-        let redacted = IngestResult(photos: ingest.photos.map { $0.redactingLocation() }, skipped: ingest.skipped)
+        let redacted = IngestResult(photos: photos.map { $0.redactingLocation() }, skipped: ingest.skipped)
         try store.write(redacted, to: "input-index.json")
-        try store.write(ingest.photos.compactMap { features[$0.assetID] }, to: "cache/features.json")
+        try store.write(photos.compactMap { features[$0.assetID] }, to: "cache/features.json")
         try store.write(reduction, to: "cache/reduction.json")
         try store.write(manifest, to: "manifest.json")
         try store.writeText(ReportBuilder.html(ReportInput(manifest: manifest, photos: redacted.photos, skipped: ingest.skipped,
@@ -206,6 +227,10 @@ struct RunPipeline: Sendable {
         log(String(format: "Director: %@ · %d model calls · est. $%.4f", directorStatus, calls.count, manifest.totalEstimatedCost))
         log("Report: \(store.url("report.html").path)")
         return store
+    }
+
+    private static func eventDate(_ date: Date) -> String {
+        date.formatted(.dateTime.year().month(.abbreviated).day())
     }
 
     // MARK: - Stages
@@ -275,7 +300,7 @@ struct RunPipeline: Sendable {
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,
-                                                   composition: composition, runID: runID))
+                                                   composition: composition, runID: runID, storyHint: options.story))
     }
 
     /// Updates rank scores with triage, records the planning pool and funnel counts.

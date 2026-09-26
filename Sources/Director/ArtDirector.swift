@@ -21,6 +21,7 @@ public struct DirectorInput: Sendable {
     public var storyLabel: String
     public var dateSpan: String
     public var requestedSlides: Int?
+    public var storyHint: String?
     /// Shortlist in rank order.
     public var shortlist: [CandidateCard]
     /// Given triage scores, returns the planning pool ordered by adjusted rank.
@@ -33,9 +34,10 @@ public struct DirectorInput: Sendable {
     public var runID: String
     public init(storyLabel: String, dateSpan: String, requestedSlides: Int?, shortlist: [CandidateCard],
                 selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID], composition: CompositionContext,
-                runID: String) {
+                runID: String, storyHint: String? = nil) {
         self.storyLabel = storyLabel; self.dateSpan = dateSpan; self.requestedSlides = requestedSlides
         self.shortlist = shortlist; self.selectPool = selectPool; self.composition = composition; self.runID = runID
+        self.storyHint = storyHint
     }
 }
 
@@ -148,7 +150,9 @@ public struct ArtDirector: Sendable {
         var result: [AssetID: TriageScore] = [:]
         var pending = input.shortlist.filter { $0.triageJPEG != nil }
         for attempt in 0..<2 where !pending.isEmpty {
-            var content: [ContentPart] = [.text("Event: \(input.storyLabel) (\(input.dateSpan)). \(pending.count) candidate photos follow.")]
+            var content: [ContentPart] = []
+            if let hint = input.storyHint { content.append(.text("The owner describes this post as: \"\(hint)\". Treat it as the primary brief: what the post is about, who and what matters, and anything they want left out.")) }
+            content.append(.text("Event: \(input.storyLabel) (\(input.dateSpan)). \(pending.count) candidate photos follow."))
             for c in pending {
                 content.append(.text("id \(c.assetID.rawValue): \(c.summary)"))
                 content.append(.image(jpeg: c.triageJPEG!, assetID: c.assetID, detail: "low"))
@@ -182,6 +186,9 @@ public struct ArtDirector: Sendable {
         Available decorationIDs: \(stylePack.decorationIDs.joined(separator: ", ")).
         Style hints: \(stylePack.promptHints.joined(separator: " "))
         """)]
+        if let hint = input.storyHint {
+            content.insert(.text("The owner describes this post as: \"\(hint)\". Treat it as the primary brief: what the post is about, who and what matters, and anything they want left out."), at: 0)
+        }
         for (i, id) in pool.enumerated() {
             guard let card = cards[id] else { continue }
             var line = "id \(id.rawValue): \(card.summary)"

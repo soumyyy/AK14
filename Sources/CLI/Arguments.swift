@@ -16,6 +16,9 @@ struct RunOptions: Equatable, Sendable {
     var consent: Bool = false
     /// --yes given: skip the interactive consent prompt.
     var assumeYes: Bool = false
+    var event: Int? = nil
+    var allEvents: Bool = false
+    var story: String? = nil
 }
 
 enum Command: Equatable {
@@ -38,6 +41,7 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
     case unknownCommand(String), missingFolder, missingRunDirectory, missingSource
     case missingValue(String), unknownOption(String), invalidAspect(String), invalidSlides(String), invalidSeed(String)
     case invalidStudyCode(String), invalidValue(String, String)
+    case invalidStory(String), invalidEvent(String)
 
     var description: String {
         switch self {
@@ -48,6 +52,8 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
         case .invalidSlides(let s): "invalid --slides '\(s)' (use 5...20)"
         case .invalidSeed(let s): "invalid --seed '\(s)' (hex)"
         case .invalidValue(let f, let v): "invalid value '\(v)' for \(f)"
+        case .invalidStory: "--story must be at most 280 characters"
+        case .invalidEvent(let v): "invalid --event '\(v)' (use a positive event number)"
         case .invalidStudyCode(let s): "invalid --study-code '\(s)' (1-16 letters, digits, - or _; never a name)"
         case .missingValue(let o): "\(o) needs a value"
         case .unknownOption(let o): "unknown option '\(o)'"
@@ -59,7 +65,7 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
 enum Arguments {
     static let usage = """
     usage:
-      ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--runs DIR] [--cache DIR]
+      ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--event N | --all-events] [--story TEXT] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
       ak14 rerender <runDir> --source <folder> [--seed HEX] [--recompose]
       ak14 followup <runDir> --posted yes|no [--posted-days N] [--platform instagram|other] [--reused-another-event yes|no] [--link-seen yes|no]
@@ -200,6 +206,15 @@ enum Arguments {
                 }
                 switch flag {
                 case "--recursive": o.recursive = true
+                case "--all-events": o.allEvents = true
+                case "--event":
+                    let v = try value()
+                    guard let n = Int(v), n > 0 else { throw ArgumentError.invalidEvent(v) }
+                    o.event = n
+                case "--story":
+                    let v = try value()
+                    guard v.count <= 280 else { throw ArgumentError.invalidStory(v) }
+                    o.story = v
                 case "--no-llm": o.noLLM = true
                 case "--yes": o.assumeYes = true; o.consent = true
                 case "--study-code":
@@ -220,6 +235,7 @@ enum Arguments {
                 default: throw ArgumentError.unknownOption(flag)
                 }
             }
+            if o.event != nil && o.allEvents { throw ArgumentError.invalidValue("--event", "cannot be combined with --all-events") }
             return .run(o)
         default:
             throw ArgumentError.unknownCommand(command)

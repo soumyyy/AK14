@@ -36,6 +36,9 @@ public struct RunManifest: Codable, Sendable, Equatable {
     public var studyCode: String?
     /// Set when the participant/operator acknowledged the provider disclosure.
     public var consent: Consent?
+    public var events: [EventSegmentSummary] = []
+    public var chosenEvent: Int?
+    public var storyHint: String?
 
     public init(runID: String, createdAt: Date, sourceFolderLabel: String) {
         self.runID = runID; self.createdAt = createdAt; self.sourceFolderLabel = sourceFolderLabel
@@ -65,5 +68,18 @@ public struct RunManifest: Codable, Sendable, Equatable {
         totalEstimatedCost = try c.decodeIfPresent(Double.self, forKey: .totalEstimatedCost) ?? 0
         studyCode = try c.decodeIfPresent(String.self, forKey: .studyCode)
         consent = try c.decodeIfPresent(Consent.self, forKey: .consent)
+        events = try c.decodeIfPresent([EventSegmentSummary].self, forKey: .events) ?? []
+        chosenEvent = try c.decodeIfPresent(Int.self, forKey: .chosenEvent)
+        storyHint = try c.decodeIfPresent(String.self, forKey: .storyHint)
+    }
+}
+
+public struct EventSegmentSummary: Codable, Sendable, Equatable {
+    public let index: Int
+    public let start: Date?
+    public let end: Date?
+    public let photoCount: Int
+    public init(_ segment: EventSegment) {
+        index = segment.index; start = segment.start; end = segment.end; photoCount = segment.photoCount
     }
 }

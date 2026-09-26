@@ -144,7 +144,7 @@ public enum ComposerEngine {
         guard limit > 0 else { return [] }
         let generated = generate(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
         return generated.ranked.reduce(into: [Composition]()) { result, candidate in
-            guard result.count < limit, !result.contains(where: { $0.plan == candidate.plan }) else { return }
+            guard result.count < limit, !result.contains(where: { $0.plan.slides == candidate.plan.slides }) else { return }
             let layout = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: layoutSeed ?? seed))
             guard !layout.slides.contains(where: { slide in
