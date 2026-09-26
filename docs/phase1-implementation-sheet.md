@@ -43,9 +43,20 @@ Status: active (2026-09-27). The local iOS flow previously passed a simulator UI
 | 6 | W5-D Staged evaluation (split, selection, cover, layout, "neither") | — | eval harness | after the judge rewrite | Queued |
 | 6 | W6-A AI planning default and one-time Worker setup | `w6-ai-default` | iOS app settings and secure token storage | AI planning starts enabled when configured; missing setup is explicit; user may opt out | Merged; scoped invite provisioned, device model run pending |
 | 6 | W6-B Photo-first layouts inspired by 17V28 | `w6-design` | Core layout and renderer | Fewer pale mats; purposeful photo backdrops, scale and layering; safe faces and crops | Merged; real six-photo preview reviewed; taste on full IMG set and owner device pending |
+| 7 | CS-1 CanvasDocument model + document renderer | `w7-document` | new `Core/Document/*`, `Render` document renderer, conversion from `ResolvedCarousel` | Converted layouts render byte-identical to today; documents round-trip; e2e | Running |
+| 7 | CS-2 Exact photo sets (engine and Mac) | `w7-exact` | `RunOptions`/`Arguments` (`--exact`, `--keep-order`), `RunPipeline`, Director (`exactSet`, prompt rules), composer | Every selected photo appears exactly once; no event split or pool drop; `--keep-order` fixes the order; e2e | Running |
+| 7 | CS-3 iOS exact mode + Share Extension | — | iOS | after CS-2 | Queued |
+| 7 | CS-4 Asset kit v1 (first-party stickers, textures, film frames; OFL fonts) | — | Render + Resources | after CS-1 | Queued |
+| 7 | CS-5 Recipes v1 + recipe filler; `seamless` and `titleIdea` direction fields | — | Core + Director + StylePack | after CS-1, CS-4 | Queued |
+| 7 | CS-6 Seamless panorama | — | Core + Render | after CS-5 | Queued |
+| 7 | CS-7 iOS canvas editor v1 | — | iOS | after CS-1, CS-4 | Queued |
+| 7 | CS-8 Photo looks and carousel grade | — | Render + editor | after CS-7 | Queued |
+| 7 | CS-9 Quality gate: Sol review against 17V28-style references, and eval pairs | — | Review | after CS-5, CS-6 | Queued |
 | 5 | TE-6 Preference memory, TE-7 references on iOS (TE-8 trend refresh deferred per the Sol review) | see spec §10 | see spec §10 | see spec §10 | After TE-3/4/5 |
 | 2 | Model-assisted flow on device through the deployed Worker | — | iOS settings and Worker URL | Configure a scoped invite in the app and complete an end-to-end device run | Pending device smoke |
 | 2 | Taste calibration from the owner's picks on 2–3 events | — | Composer weights | Needs the owner's picks | Blocked on owner |
+
+Creative studio (wave 7): [spec](superpowers/specs/2026-09-27-creative-studio-design.md): 17V28-level automatic output, a canvas editor, and exact photo sets.
 
 Reviews: [GPT-6 Sol taste review](reviews/2026-09-26-gpt6-sol-taste-review.md) drives wave 5.
 
