@@ -38,7 +38,7 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let plain1 = try #require(session.plan(.plainDump))
     #expect(plain1.photoAssetIDs[2] == plain0.photoAssetIDs[0] && plain1.slides.allSatisfy { $0.photos.count == 1 })
     #expect(session.slideURLs(.plainDump).count == plain1.slides.count)
-    #expect(session.slideURLs(.plainDump).allSatisfy { $0.path.contains("/edits/slides/plainDump/") })
+    #expect(session.slideURLs(.plainDump).allSatisfy { $0.path.contains("/edits/plainDump/slides/") })
 
     // Swap on Designed with a real candidate; candidates never include photos already used.
     let designed = try #require(session.plan(.designed))
@@ -80,7 +80,7 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     #expect(try Data(contentsOf: store.url("plans/director.json")) == originalPlans)
     #expect(try bytes(try RunSession(runDirectory: store.root).slideURLs(.designed)) == bytes(session.slideURLs(.designed)))
     let events = session.log.read().map(\.event)
-    #expect(Array(events.prefix(4)) == ["concepts_presented", "slide_reordered", "photo_swapped", "photo_removed"])
+    #expect(Array(events.prefix(6)) == ["concepts_presented", "slide_reordered", "cover_changed", "photo_swapped", "cover_changed", "photo_removed"])
     #expect(events.suffix(3) == ["concept_rerolled", "concept_selected", "carousel_exported"])
     #expect(session.log.read().allSatisfy { $0.runID == session.runID && $0.source == "operator" })
     let raw = try String(contentsOf: session.log.url, encoding: .utf8)
@@ -110,4 +110,78 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), noLLM: true)
     let store = try await RunPipeline.live(options: o, log: { _ in }).run(o)
     #expect(throws: (any Error).self) { _ = try RunSession(runDirectory: store.root) }
+}
+
+
+// MARK: - M5 review fixes
+
+@Test func reportShowsStudioEditsAndEvents() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (store, folder) = try await makeRun(tmp)
+    let session = try RunSession(runDirectory: store.root)
+    try session.setSource(folder)
+    try session.apply(.reorder(from: 0, to: 1), to: .designed)
+    try session.select(.designed)
+    let html = try String(contentsOf: store.url("report.html"), encoding: .utf8)
+    #expect(html.contains("Studio edits") && html.contains("designed (edited)"))
+    #expect(html.contains("edits/designed/slides/slide-01.png"))
+    #expect(html.contains("slide_reordered") && html.contains("concept_selected"))
+}
+
+@Test func concurrentEditsAreSerializedAndLogConsistently() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (store, folder) = try await makeRun(tmp)
+    let session = try RunSession(runDirectory: store.root)
+    try session.setSource(folder)
+    let original = try #require(session.plan(.plainDump)).photoAssetIDs
+    // Two "Move later" clicks on the first slide fired at once must both apply, in sequence.
+    async let a: Void = Task.detached { try session.apply(.reorder(from: 0, to: 1), to: .plainDump) }.value
+    async let b: Void = Task.detached { try session.reroll(.wildcard) }.value
+    async let c: Void = Task.detached { try session.apply(.reorder(from: 1, to: 2), to: .plainDump) }.value
+    _ = try await (a, b, c)
+    let final = try #require(session.plan(.plainDump)).photoAssetIDs
+    #expect(Set(final) == Set(original) && final != original)
+    #expect(session.log.read().filter { $0.event == "slide_reordered" }.count == 2)
+    #expect(session.slideURLs(.plainDump).count == original.count)
+    let leftovers = (try? FileManager.default.contentsOfDirectory(atPath: store.url("edits/.staging").path)) ?? []
+    #expect(leftovers.isEmpty)
+}
+
+@Test func failedRerollKeepsPreviousSlidesAndExportCleansOldFiles() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (store, folder) = try await makeRun(tmp)
+    let session = try RunSession(runDirectory: store.root)
+    try session.setSource(folder)
+    let exportDir = tmp.url.appending(path: "export")
+    let first = try session.export(.designed, to: exportDir)
+    // Remove a whole slide, export again into the same folder: no stale extra file survives.
+    let plan = try #require(session.plan(.designed))
+    let single = try #require(plan.slides.firstIndex { $0.photos.count == 1 && $0 != plan.slides[0] })
+    try session.apply(.remove(slide: single, photo: plan.slides[single].photos[0].assetID), to: .designed)
+    let second = try session.export(.designed, to: exportDir)
+    #expect(second.count == first.count - 1)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: exportDir.path).filter { $0.hasPrefix("ak14-designed-") }.count == second.count)
+
+    // A reroll whose render fails (source photo deleted) leaves the concept exactly as it was.
+    let before = try session.slideURLs(.wildcard).map { try Data(contentsOf: $0) }
+    let wildPlan = try #require(session.plan(.wildcard))
+    let victim = try #require(session.photos[wildPlan.photoAssetIDs[0]]).sourceRelativePaths[0]
+    try FileManager.default.removeItem(at: folder.appending(path: victim))
+    #expect(throws: (any Error).self) { try session.reroll(.wildcard) }
+    #expect(!session.isEdited(.wildcard))
+    #expect(try session.slideURLs(.wildcard).map { try Data(contentsOf: $0) } == before)
+    #expect(!session.log.read().contains { $0.event == "concept_rerolled" })
+}
+
+@Test func swapToAnUnverifiedChangedPhotoIsRefused() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (store, folder) = try await makeRun(tmp)
+    let session = try RunSession(runDirectory: store.root)
+    try session.setSource(folder)
+    let plan = try #require(session.plan(.designed))
+    let old = plan.slides[0].photos[0].assetID
+    let candidate = try #require(session.swapCandidates(.designed, photo: old).first)
+    try FixtureFactory.writeScene(to: folder.appending(path: session.photos[candidate]!.sourceRelativePaths[0]), scene: 4242)
+    #expect(throws: (any Error).self) { try session.apply(.swap(slide: 0, photo: old, with: candidate), to: .designed) }
+    #expect(session.plan(.designed) == plan)
 }

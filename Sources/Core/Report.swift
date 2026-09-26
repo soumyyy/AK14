@@ -16,6 +16,13 @@ public func htmlEscape(_ s: String) -> String {
     return out
 }
 
+/// A concept as edited in Studio: working plan plus run-relative edited slide paths.
+public struct EditedConcept: Sendable {
+    public let plan: CarouselPlan
+    public let slides: [String]
+    public init(plan: CarouselPlan, slides: [String]) { self.plan = plan; self.slides = slides }
+}
+
 public struct ReportInput: Sendable {
     public let manifest: RunManifest
     public let photos: [PhotoRecord]
@@ -25,13 +32,16 @@ public struct ReportInput: Sendable {
     public let thumbnails: [AssetID: String]
     public let reduction: ReductionResult?
     public let concepts: ConceptsReport?
+    public let edits: [ConceptType: EditedConcept]
+    public let events: [InteractionEvent]
 
     public init(manifest: RunManifest, photos: [PhotoRecord], skipped: [SkippedFile],
                 features: [AssetID: PhotoFeatures], thumbnails: [AssetID: String],
-                reduction: ReductionResult? = nil, concepts: ConceptsReport? = nil) {
+                reduction: ReductionResult? = nil, concepts: ConceptsReport? = nil,
+                edits: [ConceptType: EditedConcept] = [:], events: [InteractionEvent] = []) {
         self.manifest = manifest; self.photos = photos; self.skipped = skipped
         self.features = features; self.thumbnails = thumbnails
-        self.reduction = reduction; self.concepts = concepts
+        self.reduction = reduction; self.concepts = concepts; self.edits = edits; self.events = events
     }
 }
 
@@ -58,6 +68,7 @@ public enum ReportBuilder {
 
         if let status = m.directorStatus { h += "<p>Director: <b>\(e(status))</b></p>\n" }
         if let c = input.concepts { h += conceptsSection(c, input: input) }
+        if !input.edits.isEmpty || !input.events.isEmpty { h += studioSection(input) }
         if !m.providerCalls.isEmpty { h += costSection(m) }
         if let r = input.reduction { h += reductionSection(r, input: input) }
 
@@ -201,6 +212,32 @@ public enum ReportBuilder {
             h += "same cover \(d.sameCover), structural differences: \(e(d.structuralDiffs.joined(separator: ", ")))</p>\n"
         }
         return h
+    }
+
+    private static func studioSection(_ input: ReportInput) -> String {
+        let e = htmlEscape
+        var h = "<h2>Studio edits</h2>\n"
+        for c in ConceptType.allCases {
+            guard let edit = input.edits[c] else { continue }
+            let original = input.concepts?.plans.first { $0.conceptType == c }
+            let before = Set(original?.photoAssetIDs ?? []), after = Set(edit.plan.photoAssetIDs)
+            h += "<h3>\(e(c.rawValue)) (edited) · \(edit.plan.slides.count) slides</h3>\n"
+            h += "<p>vs original: \(original?.slides.count ?? 0) → \(edit.plan.slides.count) slides, "
+            h += "+\(after.subtracting(before).count) / −\(before.subtracting(after).count) photos, "
+            h += "cover \(original?.coverAssetID == edit.plan.coverAssetID ? "same" : "changed")</p>\n"
+            h += "<div class=\"strip\">" + edit.slides.map { "<img class=\"slide\" src=\"\(e($0))\">" }.joined() + "</div>\n"
+        }
+        h += "<h2>Interaction events (\(input.events.count))</h2>\n"
+        if input.events.isEmpty { return h + "<p>None yet.</p>\n" }
+        h += "<table><tr><th>time</th><th>event</th><th>concept</th><th>slide</th><th>detail</th><th>source</th></tr>\n"
+        for ev in input.events {
+            var detail: [String] = []
+            if let ids = ev.assetIDs, !ids.isEmpty { detail.append(ids.map(\.rawValue).joined(separator: " → ")) }
+            if let after = ev.after, ev.event == "carousel_exported" || ev.event == "carousel_shared" { detail += after }
+            h += "<tr><td>\(e(iso(ev.timestamp)))</td><td>\(e(ev.event))</td><td>\(e(ev.conceptID ?? ""))</td>"
+            h += "<td>\(ev.slideIndex.map { "\($0 + 1)" } ?? "")</td><td>\(e(detail.joined(separator: "; ")))</td><td>\(e(ev.source))</td></tr>\n"
+        }
+        return h + "</table>\n"
     }
 
     private static func costSection(_ m: RunManifest) -> String {

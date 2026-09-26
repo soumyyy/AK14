@@ -1,4 +1,3 @@
-import Core
 import Foundation
 
 /// One behavioural event (spec §9.5). No image content, no free text.
@@ -14,11 +13,19 @@ public struct InteractionEvent: Codable, Sendable, Equatable {
     public var after: [String]?
     /// "operator" or "participant".
     public var source: String
+
+    public init(eventID: String, runID: String, timestamp: Date, event: String, conceptID: String?, slideIndex: Int?,
+                assetIDs: [AssetID]?, before: [String]?, after: [String]?, source: String) {
+        self.eventID = eventID; self.runID = runID; self.timestamp = timestamp; self.event = event
+        self.conceptID = conceptID; self.slideIndex = slideIndex; self.assetIDs = assetIDs
+        self.before = before; self.after = after; self.source = source
+    }
 }
 
 /// Append-only `interaction-events.jsonl` in the run directory.
 public struct InteractionLog: Sendable {
     public let url: URL
+    public init(url: URL) { self.url = url }
 
     public func append(_ e: InteractionEvent) throws {
         let encoder = JSONEncoder()

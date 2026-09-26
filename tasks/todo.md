@@ -108,3 +108,14 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 - Verification:
   - 27 e2e tests passing, including Session edits, originals untouched, event order, export, invalid edits and a changed source.
   - Snapshot mode (`AK14_STUDIO_SNAPSHOT`) rendered the real run's board off-screen: columns, slides, selection and inspector all render. Text isn't captured by off-screen caching, and a window screenshot needs Screen Recording permission, so the labels still need a check by eye with `swift run Studio`.
+
+### M5 review fixes (all 11 findings)
+- report.html now shows Studio edits (edited strips and the change against the original) and the full interaction event log. `ReportCommand` moved to `Session.RunReport`, and it's rebuilt after every Studio operation.
+- Mutating operations are serialized in `RunSession`. Studio refuses a new edit while one is running and disables edit buttons. Selection follows a move only after it succeeds.
+- Each edit renders into a private staging folder, and `edits/<concept>/` (plan, seed, slides, layouts) is swapped in with one rename. Memory is updated last; a failed reroll leaves everything unchanged.
+- Export clears any earlier export of the same concept in the folder, and refuses to export zero slides.
+- Swapped-in photos are hash-verified. Source verification runs off the main thread and explains why a remembered folder was rejected.
+- Select and Share log without needing a source folder.
+- Events: `slide_reordered` carries the moved photos, and `cover_changed` is logged when the cover changes.
+- Slide images are cached and only reloaded after a render.
+- E2E: 31 tests passing.

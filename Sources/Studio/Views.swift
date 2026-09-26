@@ -64,18 +64,18 @@ struct ConceptColumn: View {
             if let plan = session.plan(concept) {
                 Text(plan.conceptNote).font(.caption).foregroundStyle(.secondary).lineLimit(3).frame(width: 260, alignment: .leading)
                 HStack {
-                    Button("Use this") { model.perform("Saving…") { try $0.select(concept) } }
-                    Button("Reroll layout") { model.perform { try $0.reroll(concept) } }
-                    Button("Export…") { model.export(concept) }
+                    Button("Use this") { model.record { try $0.select(concept) } }
+                    Button("Reroll layout") { model.perform({ try $0.reroll(concept) }) }.disabled(model.busy != nil)
+                    Button("Export…") { model.export(concept) }.disabled(model.busy != nil)
                     ShareButton(urls: session.slideURLs(concept)) { service in
-                        model.perform("Saving…") { try $0.shared(concept, service: service) }
+                        model.record { try $0.shared(concept, service: service) }
                     }.frame(width: 28, height: 22)
                 }.controlSize(.small)
                 ScrollView(.vertical) {
                     LazyVStack(spacing: 10) {
                         ForEach(Array(session.slideURLs(concept).enumerated()), id: \.offset) { i, url in
                             let selected = model.selection == SlideRef(concept: concept, index: i)
-                            SlideImage(url: url, revision: model.revision)
+                            SlideImage(url: url)
                                 .frame(width: 260)
                                 .overlay(RoundedRectangle(cornerRadius: 2).stroke(selected ? Color.accentColor : .clear, lineWidth: 3))
                                 .overlay(alignment: .topLeading) {
@@ -95,11 +95,12 @@ struct ConceptColumn: View {
 }
 
 struct SlideImage: View {
+    @Environment(StudioModel.self) private var model
     let url: URL
-    let revision: Int
     var body: some View {
-        if let image = NSImage(contentsOf: url) {
-            Image(nsImage: image).resizable().scaledToFit().id("\(url.path)#\(revision)")
+        let _ = model.revision   // re-read after renders
+        if let image = model.image(url) {
+            Image(nsImage: image).resizable().scaledToFit()
         } else {
             Rectangle().fill(.quaternary).aspectRatio(0.75, contentMode: .fit)
         }
@@ -122,11 +123,11 @@ struct SlideInspector: View {
                     let slide = plan.slides[ref.index]
                     Text("Slide \(ref.index + 1) of \(plan.slides.count)").font(.headline)
                     Text("\(slide.primitive.rawValue) · \(slide.density) · \(slide.mood)").font(.caption).foregroundStyle(.secondary)
-                    if slides.indices.contains(ref.index) { SlideImage(url: slides[ref.index], revision: model.revision) }
+                    if slides.indices.contains(ref.index) { SlideImage(url: slides[ref.index]) }
                     HStack {
                         Button("Move earlier", systemImage: "arrow.up") { move(-1, count: plan.slides.count) }.disabled(ref.index == 0)
                         Button("Move later", systemImage: "arrow.down") { move(1, count: plan.slides.count) }.disabled(ref.index == plan.slides.count - 1)
-                    }.controlSize(.small)
+                    }.controlSize(.small).disabled(model.busy != nil)
                     Divider()
                     Text("Photos").font(.subheadline.bold())
                     ForEach(slide.photos, id: \.assetID) { p in
@@ -138,17 +139,11 @@ struct SlideInspector: View {
                                     .popover(isPresented: Binding(get: { swapping == p.assetID }, set: { if !$0 { swapping = nil } })) {
                                         SwapPicker(session: session, concept: ref.concept, photo: p.assetID) { new in
                                             swapping = nil
-                                            let i = ref.index, c = ref.concept, old = p.assetID
-                                            model.perform { try $0.apply(.swap(slide: i, photo: old, with: new), to: c) }
+                                            swap(p.assetID, with: new)
                                         }
                                     }
-                                Button("Remove", role: .destructive) {
-                                    let i = ref.index, c = ref.concept, id = p.assetID
-                                    let dropsSlide = slide.photos.count == 1
-                                    model.perform { try $0.apply(.remove(slide: i, photo: id), to: c) }
-                                    if dropsSlide { model.selection = nil }
-                                }
-                            }.controlSize(.small)
+                                Button("Remove", role: .destructive) { remove(p.assetID, dropsSlide: slide.photos.count == 1) }
+                            }.controlSize(.small).disabled(model.busy != nil)
                         }
                     }
                 } else {
@@ -158,10 +153,23 @@ struct SlideInspector: View {
         }
     }
 
+    func swap(_ old: AssetID, with new: AssetID) {
+        let i = ref.index, c = ref.concept
+        model.perform({ try $0.apply(.swap(slide: i, photo: old, with: new), to: c) })
+    }
+
+    func remove(_ id: AssetID, dropsSlide: Bool) {
+        let i = ref.index, c = ref.concept
+        model.perform({ try $0.apply(.remove(slide: i, photo: id), to: c) }, done: {
+            if dropsSlide { model.selection = nil }
+        })
+    }
+
     func move(_ delta: Int, count: Int) {
         let from = ref.index, to = ref.index + delta, c = ref.concept
-        model.perform { try $0.apply(.reorder(from: from, to: to), to: c) }
-        model.selection = SlideRef(concept: c, index: to)
+        model.perform({ try $0.apply(.reorder(from: from, to: to), to: c) }, done: {
+            model.selection = SlideRef(concept: c, index: to)   // follow the slide only once the move has happened
+        })
     }
 }
 

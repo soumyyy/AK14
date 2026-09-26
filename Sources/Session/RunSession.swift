@@ -4,10 +4,14 @@ import Foundation
 import Render
 
 /// Everything Studio does to a run: load it, apply the allowed edits, re-render, export, and log behaviour.
-/// Edits live in `edits/`; the run's original `plans/` and `slides/` are never modified.
+///
+/// - Edits live in `edits/<concept>/` (`plan.json`, `seed.txt`, `slides/`, `layouts/`), swapped in as one directory
+///   rename, so a concept's plan and images always match. The run's `plans/` and `slides/` are never modified.
+/// - Mutating operations are serialized: a second edit waits for the first, so plans and the event log agree.
+/// - The report is rebuilt after every operation, so edits and events show up in report.html.
 public final class RunSession: @unchecked Sendable {
     public enum Failure: Error, CustomStringConvertible {
-        case noConcepts, noSource, sourceChanged(String), unavailable(String), render([String])
+        case noConcepts, noSource, sourceChanged(String), unavailable(String), render([String]), nothingToExport
         public var description: String {
             switch self {
             case .noConcepts: "this run has no concepts (it was made with --no-llm or the model was skipped)"
@@ -15,6 +19,7 @@ public final class RunSession: @unchecked Sendable {
             case .sourceChanged(let p): "source photo changed or is missing: \(p)"
             case .unavailable(let c): "\(c) is not available in this run"
             case .render(let f): "render failed: \(f.prefix(3).joined(separator: "; "))"
+            case .nothingToExport: "this concept has no rendered slides to export"
             }
         }
     }
@@ -27,11 +32,14 @@ public final class RunSession: @unchecked Sendable {
     public let reduction: ReductionResult?
     public let stylePack: StylePack
     public let log: InteractionLog
-    public private(set) var sourceFolder: URL?
-    private var working: [ConceptType: CarouselPlan] = [:]
-    private var seeds: [String: String] = [:]
-    private let lock = NSLock()
     private let store: RunStore
+    /// Guards the mutable state below (short, never held across rendering).
+    private let state = NSLock()
+    /// Serializes whole mutating operations (render + commit + log).
+    private let operation = NSLock()
+    private var _sourceFolder: URL?
+    private var working: [ConceptType: CarouselPlan] = [:]
+    private var seeds: [ConceptType: UInt64] = [:]
 
     public init(runDirectory: URL) throws {
         root = runDirectory
@@ -46,37 +54,36 @@ public final class RunSession: @unchecked Sendable {
         log = InteractionLog(url: runDirectory.appending(path: "interaction-events.jsonl"))
         for type in ConceptType.allCases {
             if let p = try? store.read(CarouselPlan.self, from: "edits/\(type.rawValue)/plan.json") { working[type] = p }
+            if let text = try? String(contentsOf: store.url("edits/\(type.rawValue)/seed.txt"), encoding: .utf8),
+               let s = UInt64(text.trimmingCharacters(in: .whitespacesAndNewlines), radix: 16) { seeds[type] = s }
         }
-        seeds = (try? store.read([String: String].self, from: "edits/seeds.json")) ?? [:]
+        try? FileManager.default.removeItem(at: store.url("edits/.staging"))   // leftovers from an interrupted edit
     }
 
     public var runID: String { manifest.runID }
     public var availableConcepts: [ConceptType] { concepts.plans.map(\.conceptType) }
+    public var sourceFolder: URL? { state.withLock { _sourceFolder } }
 
-    /// Verifies every photo used by any concept (or the candidate pool) against its recorded content hash.
+    /// Verifies the photos used by any concept and the candidate pool against their recorded content hashes.
+    /// Swap alternates outside that set are verified individually when chosen.
     public func setSource(_ folder: URL) throws {
         let folder = folder.resolvingSymlinksInPath()
-        let ids = Set(concepts.plans.flatMap(\.photoAssetIDs) + concepts.pool)
-        for id in ids {
-            guard let p = photos[id] else { continue }
-            let url = folder.appending(path: p.sourceRelativePaths[0])
-            guard let sha = try? Self.sha256(url), sha == p.contentSHA256 else { throw Failure.sourceChanged(p.sourceRelativePaths[0]) }
-        }
-        lock.withLock { sourceFolder = folder }
+        for id in Set(concepts.plans.flatMap(\.photoAssetIDs) + concepts.pool) { try verify(id, in: folder) }
+        state.withLock { _sourceFolder = folder }
     }
 
     // MARK: - Reading
 
     public func plan(_ c: ConceptType) -> CarouselPlan? {
-        lock.withLock { working[c] } ?? concepts.plans.first { $0.conceptType == c }
+        state.withLock { working[c] } ?? concepts.plans.first { $0.conceptType == c }
     }
 
-    public func isEdited(_ c: ConceptType) -> Bool { lock.withLock { working[c] != nil || seeds[c.rawValue] != nil } }
+    public func isEdited(_ c: ConceptType) -> Bool { state.withLock { working[c] != nil } }
 
     /// Current slide images: edited output when present, else the run's original render.
     public func slideURLs(_ c: ConceptType) -> [URL] {
         if isEdited(c) {
-            let dir = root.appending(path: "edits/slides/\(c.rawValue)")
+            let dir = root.appending(path: "edits/\(c.rawValue)/slides")
             let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".png") }.sorted()) ?? []
             return names.map { dir.appending(path: $0) }
         }
@@ -86,7 +93,7 @@ public final class RunSession: @unchecked Sendable {
     public func thumbnailURL(_ id: AssetID) -> URL { root.appending(path: "cache/thumbnails/analysis/\(id.rawValue).jpg") }
 
     /// Swap candidates: the photo's own shot-cluster alternates first, then the planning pool,
-    /// excluding photos already in the concept.
+    /// excluding photos already in the concept and junk rejects.
     public func swapCandidates(_ c: ConceptType, photo: AssetID) -> [AssetID] {
         let used = Set(plan(c)?.photoAssetIDs ?? [])
         let cluster = reduction?.clusters.first { $0.memberAssetIDs.contains(photo) }?.memberAssetIDs ?? []
@@ -98,81 +105,118 @@ public final class RunSession: @unchecked Sendable {
         return out
     }
 
-    // MARK: - Edits
+    // MARK: - Edits (serialized)
 
     public func apply(_ edit: PlanEdit, to c: ConceptType, source: String = "operator") throws {
-        guard let current = plan(c) else { throw Failure.unavailable(c.rawValue) }
-        var edited = try PlanEditor.apply(edit, to: current)
-        if c == .plainDump {
-            edited.slides = edited.slides.map { var s = $0; s.decorations = []; s.stamps = []; return s }
-        }
-        try render(edited, c)
-        lock.withLock { working[c] = edited }
-        try store.write(edited, to: "edits/\(c.rawValue)/plan.json")
-        switch edit {
-        case .reorder(let from, let to):
-            try record("slide_reordered", c, slide: to, before: current.slides.map { $0.photos.map(\.assetID.rawValue).joined(separator: "+") },
-                       after: edited.slides.map { $0.photos.map(\.assetID.rawValue).joined(separator: "+") }, source: source)
-            _ = from  // the before/after orders carry the move
-        case .swap(let s, let old, let new):
-            try record("photo_swapped", c, slide: s, assets: [old, new], before: [old.rawValue], after: [new.rawValue], source: source)
-        case .remove(let s, let id):
-            try record("photo_removed", c, slide: s, assets: [id], before: [id.rawValue], after: [], source: source)
+        try operation.withLock {
+            guard let current = plan(c) else { throw Failure.unavailable(c.rawValue) }
+            var edited = try PlanEditor.apply(edit, to: current)
+            if c == .plainDump { edited.slides = edited.slides.map { var s = $0; s.decorations = []; s.stamps = []; return s } }
+            if case .swap(_, _, let new) = edit, let folder = sourceFolder { try verify(new, in: folder) }
+            try commit(edited, c, seed: state.withLock { seeds[c] })
+
+            let slideKey = { (p: CarouselPlan) in p.slides.map { $0.photos.map(\.assetID.rawValue).joined(separator: "+") } }
+            switch edit {
+            case .reorder(let from, let to):
+                try record("slide_reordered", c, slide: to, assets: current.slides[from].photos.map(\.assetID),
+                           before: slideKey(current), after: slideKey(edited), source: source)
+            case .swap(let s, let old, let new):
+                try record("photo_swapped", c, slide: s, assets: [old, new], before: [old.rawValue], after: [new.rawValue], source: source)
+            case .remove(let s, let id):
+                try record("photo_removed", c, slide: s, assets: [id], before: [id.rawValue], after: [], source: source)
+            }
+            if current.coverAssetID != edited.coverAssetID, let old = current.coverAssetID, let new = edited.coverAssetID {
+                try record("cover_changed", c, slide: 0, assets: [old, new], before: [old.rawValue], after: [new.rawValue], source: source)
+            }
+            try? RunReport.rebuild(runDirectory: root)
         }
     }
 
-    /// New layout seed for the concept (no model call).
+    /// New layout seed for the concept (no model call). The seed is only kept if the render succeeds.
     public func reroll(_ c: ConceptType, source: String = "operator") throws {
-        guard let current = plan(c) else { throw Failure.unavailable(c.rawValue) }
-        let seed = SeededRandom.seed(runID, c.rawValue, UUID().uuidString)
-        lock.withLock { seeds[c.rawValue] = String(seed, radix: 16) }
-        try render(current, c)
-        try store.write(lock.withLock { seeds }, to: "edits/seeds.json")
-        try record("concept_rerolled", c, source: source)
+        try operation.withLock {
+            guard let current = plan(c) else { throw Failure.unavailable(c.rawValue) }
+            try commit(current, c, seed: SeededRandom.seed(runID, c.rawValue, UUID().uuidString))
+            try record("concept_rerolled", c, source: source)
+            try? RunReport.rebuild(runDirectory: root)
+        }
     }
 
-    public func select(_ c: ConceptType, source: String = "operator") throws { try record("concept_selected", c, source: source) }
-    public func presented(source: String = "operator") throws { try record("concepts_presented", nil, source: source) }
+    // MARK: - Behaviour logging (no source folder needed)
+
+    public func select(_ c: ConceptType, source: String = "operator") throws {
+        try operation.withLock { try record("concept_selected", c, source: source); try? RunReport.rebuild(runDirectory: root) }
+    }
+    public func presented(source: String = "operator") throws {
+        try operation.withLock { try record("concepts_presented", nil, source: source) }
+    }
     public func shared(_ c: ConceptType, service: String, source: String = "operator") throws {
-        try record("carousel_shared", c, after: [service], source: source)
+        try operation.withLock {
+            try record("carousel_shared", c, after: [service], source: source); try? RunReport.rebuild(runDirectory: root)
+        }
     }
 
-    /// Copies the concept's current slides, in order, to `folder`. Returns the written files.
+    /// Copies the concept's current slides, in order, to `folder`, replacing any earlier export of this concept there.
     @discardableResult
     public func export(_ c: ConceptType, to folder: URL, source: String = "operator") throws -> [URL] {
-        let slides = slideURLs(c)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        var out: [URL] = []
-        for (i, url) in slides.enumerated() {
-            let target = folder.appending(path: String(format: "ak14-%@-%02d.png", c.rawValue, i + 1))
-            try? FileManager.default.removeItem(at: target)
-            try FileManager.default.copyItem(at: url, to: target)
-            out.append(target)
+        try operation.withLock {
+            let slides = slideURLs(c)
+            guard !slides.isEmpty else { throw Failure.nothingToExport }
+            let fm = FileManager.default
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+            let prefix = "ak14-\(c.rawValue)-"
+            for old in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] where old.hasPrefix(prefix) && old.hasSuffix(".png") {
+                try fm.removeItem(at: folder.appending(path: old))
+            }
+            var out: [URL] = []
+            for (i, url) in slides.enumerated() {
+                let target = folder.appending(path: String(format: "%@%02d.png", prefix, i + 1))
+                try fm.copyItem(at: url, to: target)
+                out.append(target)
+            }
+            try record("carousel_exported", c, after: ["\(out.count) slides"], source: source)
+            try? RunReport.rebuild(runDirectory: root)
+            return out
         }
-        try record("carousel_exported", c, after: ["\(out.count) slides"], source: source)
-        return out
     }
 
     // MARK: - Internals
 
-    private func render(_ plan: CarouselPlan, _ c: ConceptType) throws {
-        guard let folder = lock.withLock({ sourceFolder }) else { throw Failure.noSource }
-        let editsRoot = root.appending(path: "edits")
-        let staging = root.appending(path: ".edits-render")
+    /// Renders `plan` into a private staging directory, then swaps `edits/<concept>/` in with one rename
+    /// and only then updates in-memory state. A failure leaves the previous edit (or original) untouched.
+    private func commit(_ plan: CarouselPlan, _ c: ConceptType, seed: UInt64?) throws {
+        guard let folder = sourceFolder else { throw Failure.noSource }
         let fm = FileManager.default
-        try? fm.removeItem(at: staging)
-        let seed = lock.withLock { seeds[c.rawValue] }.flatMap { UInt64($0, radix: 16) }
+        let stagingRoot = root.appending(path: "edits/.staging/\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: stagingRoot) }
         let result = try ConceptRendering.renderAll([plan], runID: runID, aspect: manifest.aspectRatio, photos: photos,
                                                     features: features, stylePack: stylePack, sourceFolder: folder,
-                                                    into: staging, seedOverride: seed)
-        guard !result.failed else { try? fm.removeItem(at: staging); throw Failure.render(result.warnings) }
-        for dir in ["slides", "layouts"] {
-            let final = editsRoot.appending(path: "\(dir)/\(c.rawValue)")
-            try fm.createDirectory(at: final.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? fm.removeItem(at: final)
-            try fm.moveItem(at: staging.appending(path: "\(dir)/\(c.rawValue)"), to: final)
+                                                    into: stagingRoot, seedOverride: seed)
+        guard !result.failed else { throw Failure.render(result.warnings) }
+        let concept = stagingRoot.appending(path: "concept")
+        try fm.createDirectory(at: concept, withIntermediateDirectories: true)
+        try fm.moveItem(at: stagingRoot.appending(path: "slides/\(c.rawValue)"), to: concept.appending(path: "slides"))
+        try fm.moveItem(at: stagingRoot.appending(path: "layouts/\(c.rawValue)"), to: concept.appending(path: "layouts"))
+        try JSONCoding.encoder.encode(plan).write(to: concept.appending(path: "plan.json"))
+        if let seed { try Data(String(seed, radix: 16).utf8).write(to: concept.appending(path: "seed.txt")) }
+
+        let final = root.appending(path: "edits/\(c.rawValue)")
+        let backup = stagingRoot.appending(path: "previous")
+        if fm.fileExists(atPath: final.path) { try fm.moveItem(at: final, to: backup) }
+        do { try fm.moveItem(at: concept, to: final) } catch {
+            if fm.fileExists(atPath: backup.path) { try? fm.moveItem(at: backup, to: final) }
+            throw error
         }
-        try? fm.removeItem(at: staging)
+        state.withLock {
+            working[c] = plan
+            if let seed { seeds[c] = seed }
+        }
+    }
+
+    private func verify(_ id: AssetID, in folder: URL) throws {
+        guard let p = photos[id] else { return }
+        let url = folder.appending(path: p.sourceRelativePaths[0])
+        guard let sha = try? Self.sha256(url), sha == p.contentSHA256 else { throw Failure.sourceChanged(p.sourceRelativePaths[0]) }
     }
 
     private func record(_ event: String, _ c: ConceptType?, slide: Int? = nil, assets: [AssetID]? = nil,

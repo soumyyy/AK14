@@ -55,42 +55,85 @@ final class StudioModel {
     }
 
     func open(_ run: RunSummary) {
+        guard busy == nil else { return }
         do {
             let s = try RunSession(runDirectory: run.url)
-            if let saved = UserDefaults.standard.url(forKey: "source.\(s.runID)") { try? s.setSource(saved) }
             session = s
             selection = nil
-            try s.presented()
-            if s.sourceFolder == nil { chooseSource() }
+            images.removeAll()
+            record { try $0.presented() }
+            if let saved = UserDefaults.standard.url(forKey: "source.\(s.runID)") {
+                verifySource(saved, remembered: true)
+            } else {
+                chooseSource()
+            }
         } catch { self.error = "\(error)" }
     }
 
     /// The source photo folder is remembered in app preferences, never inside the run directory.
     func chooseSource() {
-        guard let s = session else { return }
+        guard let s = session, busy == nil else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.message = "Choose the photo folder this run was made from (\(s.manifest.sourceFolderLabel))"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try s.setSource(url)
-            UserDefaults.standard.set(url, forKey: "source.\(s.runID)")
-        } catch { self.error = "\(error)" }
+        verifySource(url, remembered: false)
     }
 
-    /// Runs a session operation off the main thread with the spec's progress wording.
-    func perform(_ label: String = "Rendering your options…", _ work: @escaping @Sendable (RunSession) throws -> Void) {
+    /// Hashing originals can take seconds; do it off the main thread and say why a folder was rejected.
+    private func verifySource(_ url: URL, remembered: Bool) {
         guard let s = session else { return }
-        if s.sourceFolder == nil { chooseSource(); if s.sourceFolder == nil { return } }
+        busy = "Checking photos…"
+        Task.detached {
+            do {
+                try s.setSource(url)
+                await MainActor.run {
+                    self.busy = nil
+                    UserDefaults.standard.set(url, forKey: "source.\(s.runID)")
+                }
+            } catch {
+                await MainActor.run {
+                    self.busy = nil
+                    self.error = (remembered ? "The remembered photo folder no longer matches this run: " : "") + "\(error)"
+                }
+            }
+        }
+    }
+
+    /// Runs one mutating operation at a time, off the main thread, with the spec's progress wording.
+    /// `done` runs on the main thread only if the operation succeeded.
+    func perform(_ work: @escaping @Sendable (RunSession) throws -> Void, label: String = "Rendering your options…",
+                 done: (@MainActor () -> Void)? = nil) {
+        guard let s = session, busy == nil else { return }
+        guard s.sourceFolder != nil else { chooseSource(); return }
         busy = label
         Task.detached {
             do {
                 try work(s)
-                await MainActor.run { self.busy = nil; self.revision += 1 }
+                await MainActor.run { self.busy = nil; self.images.removeAll(); self.revision += 1; done?() }
             } catch {
                 await MainActor.run { self.busy = nil; self.error = "\(error)" }
             }
         }
+    }
+
+    /// Behaviour logging (select, share, presented) needs no source folder and never blocks editing state.
+    func record(_ work: @escaping @Sendable (RunSession) throws -> Void) {
+        guard let s = session else { return }
+        Task.detached {
+            do { try work(s) } catch { await MainActor.run { self.error = "\(error)" } }
+        }
+    }
+
+    // MARK: - Image cache (slides re-decode only after a render)
+
+    @ObservationIgnored private var images: [URL: NSImage] = [:]
+
+    func image(_ url: URL) -> NSImage? {
+        if let cached = images[url] { return cached }
+        let image = NSImage(contentsOf: url)
+        images[url] = image
+        return image
     }
 
     func export(_ concept: ConceptType) {
@@ -99,6 +142,6 @@ final class StudioModel {
         panel.prompt = "Export"
         panel.message = "Choose where to save the slides, in order"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        perform("Exporting…") { try $0.export(concept, to: url) }
+        perform({ try $0.export(concept, to: url) }, label: "Exporting…")
     }
 }
