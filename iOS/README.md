@@ -2,7 +2,7 @@
 
 Open `iOS/AK14iOS.xcodeproj` in Xcode. The project is generated from `iOS/Project.yml` with XcodeGen; regenerate it after changing target settings.
 
-The app targets iOS 26 or newer. Its current installed flow imports selected Photos originals into app storage, analyzes them locally, creates a photos-only carousel, and lets you review, reorder, remove, save, or share slides. AI-assisted planning can be enabled in Story settings after configuring the deployed HTTPS AK14 Worker URL and an invite token. The Worker is deployed, but its model-assisted flow has not yet been verified on an iPhone. The invite token stays in memory for the current app session.
+The app targets iOS 26 or newer. It imports selected Photos originals into app storage, analyzes them locally, and lets you review, reorder, remove, save, or share generated slides. AI-assisted planning starts on and needs a one-time invite token in Story settings; the HTTPS Worker URL is prefilled. The token is stored in the device Keychain, and the app explains that small thumbnails and short descriptions are sent for planning. Full-resolution originals stay on the device. The Worker is deployed, but its model-assisted flow has not yet been verified on an iPhone.
 
 For an iPhone development install, sign in to Xcode with the Apple ID for your development team. Select that team for the `AK14iOS` target or pass `DEVELOPMENT_TEAM` to `xcodebuild`; Xcode must create a development provisioning profile for the bundle ID. The device must have Developer Mode enabled.
 

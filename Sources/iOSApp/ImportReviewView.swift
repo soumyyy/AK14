@@ -881,11 +881,12 @@ struct ImportReviewView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                Button("Done") {
-                    model.showWorkerSettings = false
-                    guard model.modelAssist, model.hasWorkerConfig, !model.records.isEmpty else { return }
-                    Task { await model.prepareOccasionChoices(useModel: true) }
-                }
+                    Button("Done") {
+                        model.showWorkerSettings = false
+                        guard model.modelAssist, model.hasWorkerConfig, !model.records.isEmpty else { return }
+                        model.isPreparingOccasions = true
+                        Task { await model.prepareOccasionChoices(useModel: true) }
+                    }
                 }
             }
         }
