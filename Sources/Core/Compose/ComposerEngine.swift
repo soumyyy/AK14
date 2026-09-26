@@ -12,12 +12,16 @@ public struct CompositionContext: Sendable {
     public var stylePack: StylePack
     /// The user's requested slide count, if any.
     public var maxSlides: Int?
+    public var exactSet: Bool
+    public var keepOrder: Bool
 
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
                 triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
-                stylePack: StylePack, maxSlides: Int?) {
+                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
         self.sequenceIntent = sequenceIntent; self.stylePack = stylePack; self.maxSlides = maxSlides
+        self.exactSet = exactSet
+        self.keepOrder = keepOrder
     }
 }
 
@@ -186,19 +190,25 @@ public enum ComposerEngine {
                                     warnings: ["no usable photos"])
             return ([], d, warnings, rng, empty)
         }
-        if !ids.contains(d.coverAssetID) || (context.flagged.contains(d.coverAssetID) && ids.contains { !context.flagged.contains($0) }) {
+        if context.keepOrder { d.coverAssetID = ids[0] }
+        if !ids.contains(d.coverAssetID) || (!context.keepOrder && context.flagged.contains(d.coverAssetID) && ids.contains { !context.flagged.contains($0) }) {
             let replacement = ids.filter { !context.flagged.contains($0) }.max { strengthOrder($0, $1, context) } ?? ids[0]
             warnings.append("cover \(d.coverAssetID) replaced by \(replacement) (missing or flagged)")
             d.coverAssetID = replacement
         }
-        ids.removeAll { $0 == d.coverAssetID }
-        ids.insert(d.coverAssetID, at: 0)
+        if !context.keepOrder {
+            ids.removeAll { $0 == d.coverAssetID }
+            ids.insert(d.coverAssetID, at: 0)
+        }
         d.orderedAssetIDs = ids
 
         var candidates: [(plan: CarouselPlan, score: Double)] = []
         for k in 0..<candidateCount {
             let (groups, dropped) = group(ids, direction: d, context: context, noise: k == 0 ? 0 : 0.15, rng: &rng)
             if k == 0 && !dropped.isEmpty { warnings.append("\(dropped.count) photos left out to fit \(context.maxSlides ?? 20) slides") }
+            if k == 0 && context.exactSet && context.maxSlides.map({ ids.count > $0 }) == true {
+                warnings.append("grouped exact photos to honor the requested slide limit")
+            }
             let plan = build(groups, id: id, direction: d, context: context, rng: &rng)
             candidates.append((plan, evaluate(plan, context: context, seed: layoutSeed ?? seed)))
         }
@@ -216,7 +226,7 @@ public enum ComposerEngine {
     static func group(_ ids: [AssetID], direction d: Direction, context: CompositionContext, noise: Double,
                       rng: inout SeededRandom) -> ([[AssetID]], [AssetID]) {
         let style = d.style
-        let maxSize = style.grouping == "single" ? 1 : style.overlap == "none" ? 2 : style.grouping == "mixed" ? 3 : 4
+        let maxSize = context.exactSet ? 4 : style.grouping == "single" ? 1 : style.overlap == "none" ? 2 : style.grouping == "mixed" ? 3 : 4
         let maxSlides = max(1, min(context.maxSlides ?? 20, 20))
         var keepIndex: [AssetID: Int] = [:]
         for (g, members) in d.keepTogether.enumerated() { for m in members { keepIndex[m] = g } }
@@ -235,7 +245,7 @@ public enum ComposerEngine {
             let oneKeepGroup = seg.allSatisfy { keepIndex[$0] != nil && keepIndex[$0] == keepIndex[seg.first!] }
             // Colour can make two unrelated photos look compatible, but it cannot explain why
             // they share a slide. Require scene evidence or a close, people-bearing moment.
-            if !oneKeepGroup && !pairHasStoryLink(members: Array(seg), context: context) { return 2.5 + split }
+            if !context.exactSet && !oneKeepGroup && !pairHasStoryLink(members: Array(seg), context: context) { return 2.5 + split }
             var c = style.grouping == "mixed" ? (m == 2 ? 0.1 : 0.55) : (m == 2 ? 0.2 : m == 3 ? 0.05 : 0.2)
             if first && !oneKeepGroup { c += 0.8 }                               // a cover usually reads best alone
             if !oneKeepGroup { c += 0.6 * Double(seg.filter(emphasis.contains).count) }
@@ -272,7 +282,7 @@ public enum ComposerEngine {
                 return (groups, dropped)
             }
             // Too many photos for the slide limit: drop the weakest non-cover photo and try again.
-            guard photos.count > 1, let weakest = photos.dropFirst().min(by: { strengthOrder($0, $1, context) }) else {
+            guard !context.exactSet, photos.count > 1, let weakest = photos.dropFirst().min(by: { strengthOrder($0, $1, context) }) else {
                 return (photos.map { [$0] }, dropped)
             }
             photos.removeAll { $0 == weakest }
@@ -289,7 +299,8 @@ public enum ComposerEngine {
         var slides: [SlidePlan] = []
         for (k, g) in groups.enumerated() {
             let hero = k == 0 ? d.coverAssetID : g.max { strengthOrder($0, $1, context) }!
-            let others = g.filter { $0 != hero }.sorted { strengthOrder($1, $0, context) }
+            let unsortedOthers = g.filter { $0 != hero }
+            let others = context.keepOrder ? unsortedOthers : unsortedOthers.sorted { strengthOrder($1, $0, context) }
             let position: SequenceIntent = k == 0 ? .opener : k == n - 1 ? .closer : context.sequenceIntent[hero] ?? .build
             let density: String = switch style.density {
             case "varied":
@@ -307,7 +318,7 @@ public enum ComposerEngine {
                                     rotationIntent: rotates ? (rng.bool() ? "slightLeft" : "slightRight") : "none")
             }
             slides.append(SlidePlan(primitive: primitive, mood: mood(position), density: density,
-                                    photos: [element(hero, hero: true)] + others.map { element($0, hero: false) },
+                                    photos: context.keepOrder ? g.map { element($0, hero: $0 == hero) } : [element(hero, hero: true)] + others.map { element($0, hero: false) },
                                     decorations: [], stamps: []))
         }
         decorate(&slides, style: style, context: context, rng: &rng)

@@ -23,6 +23,8 @@ public struct DirectorInput: Sendable {
     public var requestedSlides: Int?
     public var storyHint: String?
     public var allowMultiEventRecap: Bool
+    public var exactSet: Bool
+    public var keepOrder: Bool
     /// Shortlist in rank order.
     public var shortlist: [CandidateCard]
     /// Given triage scores, returns the planning pool ordered by adjusted rank.
@@ -35,11 +37,13 @@ public struct DirectorInput: Sendable {
     public var runID: String
     public init(storyLabel: String, dateSpan: String, requestedSlides: Int?, shortlist: [CandidateCard],
                 selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID], composition: CompositionContext,
-                runID: String, storyHint: String? = nil, allowMultiEventRecap: Bool = false) {
+                runID: String, storyHint: String? = nil, allowMultiEventRecap: Bool = false,
+                exactSet: Bool = false, keepOrder: Bool = false) {
         self.storyLabel = storyLabel; self.dateSpan = dateSpan; self.requestedSlides = requestedSlides
         self.shortlist = shortlist; self.selectPool = selectPool; self.composition = composition; self.runID = runID
         self.storyHint = storyHint
         self.allowMultiEventRecap = allowMultiEventRecap
+        self.exactSet = exactSet; self.keepOrder = keepOrder
     }
 }
 
@@ -99,14 +103,14 @@ public struct ArtDirector: Sendable {
 
         let requested = input.requestedSlides
         func consider(_ text: String) {
-            let (r, i) = decode(text, pool: out.pool, flagged: flagged, requested: requested)
+            let (r, i) = decode(text, pool: out.pool, flagged: flagged, requested: requested, exactSet: input.exactSet, keepOrder: input.keepOrder)
             if let r, response.map({ Self.quality(r, i) > Self.quality($0, issues) }) ?? true { (response, issues) = (r, i) }
         }
         if let prompt {
             let first = await call("planner", prompt, content, schema, reasoning: "medium", &out)
             if let first {
                 consider(first)
-                if response == nil { issues = decode(first, pool: out.pool, flagged: flagged, requested: requested).1 }
+                if response == nil { issues = decode(first, pool: out.pool, flagged: flagged, requested: requested, exactSet: input.exactSet, keepOrder: input.keepOrder).1 }
                 if !issues.isEmpty, let repair = load("repair.system", &out) {
                     let repairContent: [ContentPart] = [
                         .text("Candidate ids: \(out.pool.map(\.rawValue).joined(separator: ", "))"),
@@ -177,8 +181,9 @@ public struct ArtDirector: Sendable {
 
     private func plannerContent(_ input: DirectorInput, pool: [AssetID], cards: [AssetID: CandidateCard],
                                 triage: [AssetID: TriageScore]) -> [ContentPart] {
-        let target = input.requestedSlides.map { "Target exactly \($0) photos in the spine unless fewer strong photos exist." }
-            ?? "Choose the length yourself: usually 8-12, fewer if the pool is weak."
+        let target = input.exactSet ? "The requested slide count is handled by grouping during composition; keep every candidate in the spine."
+            : input.requestedSlides.map { "Target exactly \($0) photos in the spine unless fewer strong photos exist." }
+                ?? "Choose the length yourself: usually 8-12, fewer if the pool is weak."
         let constitution = stylePack.constitution ?? Self.defaultConstitution
         var content: [ContentPart] = [.text("""
         Event: \(input.storyLabel) (\(input.dateSpan)). \(pool.count) candidates, listed best-first by a local ranking (which is only a hint).
@@ -188,6 +193,9 @@ public struct ArtDirector: Sendable {
         Available decorationIDs: \(stylePack.decorationIDs.joined(separator: ", ")).
         Style hints: \(stylePack.promptHints.joined(separator: " "))
         """)]
+        if input.exactSet {
+            content.insert(.text("The owner selected this exact set: use every candidate exactly once in the spine and every direction. Decide their order, cover and directions." + (input.keepOrder ? " Preserve the listed input order in the spine and every direction; choose only the cover and styles." : "")), at: 0)
+        }
         if input.allowMultiEventRecap {
             content.insert(.text("The owner explicitly chose one story across all detected occasions. A multi-event recap is allowed; keep transitions honest and include only photos that support that recap."), at: 0)
         }
@@ -251,15 +259,16 @@ public struct ArtDirector: Sendable {
         var spine: SelectionSpine
         if spineOK, let response {
             spine = response.spine
+            if input.keepOrder { spine.orderedAssetIDs = out.pool; spine.sequenceIntent = out.pool.map { _ in response.spine.sequenceIntent.first ?? .build } }
         } else {
-            let n = min(input.requestedSlides ?? 10, out.pool.count)
-            let ids = Array(out.pool.prefix(n)).sorted {
+            let n = input.exactSet ? out.pool.count : min(input.requestedSlides ?? 10, out.pool.count)
+            let ids = input.exactSet && input.keepOrder ? Array(out.pool.prefix(n)) : Array(out.pool.prefix(n)).sorted {
                 (cards[$0]?.capturedAt ?? .distantFuture, $0) < (cards[$1]?.capturedAt ?? .distantFuture, $1)
             }
             spine = SelectionSpine(orderedAssetIDs: ids, sequenceIntent: ids.map { _ in .build }, rationale: [])
             out.warnings.append("used deterministic fallback spine (top-ranked photos in time order)")
         }
-        spine = Self.safeCover(spine, flagged: flagged)
+        if !input.keepOrder { spine = Self.safeCover(spine, flagged: flagged) }
         out.spine = spine
         out.recommendedSlideCount = spine.orderedAssetIDs.count
 
@@ -321,11 +330,16 @@ public struct ArtDirector: Sendable {
         }
     }
 
-    private func decode(_ text: String, pool: [AssetID], flagged: Set<AssetID>, requested: Int?) -> (PlannerResponse?, [ValidationIssue]) {
+    private func decode(_ text: String, pool: [AssetID], flagged: Set<AssetID>, requested: Int?, exactSet: Bool, keepOrder: Bool) -> (PlannerResponse?, [ValidationIssue]) {
         do {
             var r = try JSONDecoder().decode(PlannerResponse.self, from: Data(text.utf8))
             r.recommendedSlideCount = r.spine.orderedAssetIDs.count
-            return (r, PlanValidator.validate(r, pool: pool, flagged: flagged, requestedSlides: requested))
+            if keepOrder {
+                r.spine.orderedAssetIDs = pool
+                r.spine.sequenceIntent = pool.map { _ in r.spine.sequenceIntent.first ?? .build }
+                for i in r.directions.indices { r.directions[i].orderedAssetIDs = pool }
+            }
+            return (r, PlanValidator.validate(r, pool: pool, flagged: flagged, requestedSlides: requested, exactSet: exactSet, keepOrder: keepOrder))
         } catch {
             return (nil, [ValidationIssue(path: "json", message: "could not decode: \(error)")])
         }

@@ -14,13 +14,16 @@ public struct ValidationIssue: Codable, Sendable, Equatable, CustomStringConvert
 /// Semantic validation of a planner response (spec §6.4). Schema shape is enforced by strict JSON schema + decoding.
 public enum PlanValidator {
     public static func validate(_ r: PlannerResponse, pool: [AssetID],
-                                flagged: Set<AssetID>, requestedSlides: Int? = nil) -> [ValidationIssue] {
+                                flagged: Set<AssetID>, requestedSlides: Int? = nil,
+                                exactSet: Bool = false, keepOrder: Bool = false) -> [ValidationIssue] {
         var issues: [ValidationIssue] = []
         let poolSet = Set(pool)
         let minSlides = min(5, pool.count)
 
         // Spine
         let spine = r.spine.orderedAssetIDs
+        if exactSet && (Set(spine) != poolSet || spine.count != pool.count) { issues.append(.init(path: "spine.orderedAssetIDs", message: "must contain every exact photo exactly once")) }
+        if keepOrder && spine != pool { issues.append(.init(path: "spine.orderedAssetIDs", message: "must preserve the exact input order")) }
         if Set(spine).count != spine.count { issues.append(.init(path: "spine.orderedAssetIDs", message: "duplicate asset IDs")) }
         for id in spine where !poolSet.contains(id) {
             issues.append(.init(path: "spine.orderedAssetIDs", message: "\(id) is not a candidate"))
@@ -28,7 +31,7 @@ public enum PlanValidator {
         if !(minSlides...20).contains(spine.count) {
             issues.append(.init(path: "spine.orderedAssetIDs", message: "has \(spine.count) photos; need \(minSlides)...20"))
         }
-        if let n = requestedSlides, spine.count > n {
+        if !exactSet, let n = requestedSlides, spine.count > n {
             issues.append(.init(path: "spine.orderedAssetIDs", message: "has \(spine.count) photos; the user asked for at most \(n)"))
         }
         if let cover = spine.first, flagged.contains(cover), spine.contains(where: { !flagged.contains($0) }) {
@@ -43,10 +46,12 @@ public enum PlanValidator {
         for (i, d) in r.directions.enumerated() {
             func add(_ path: String, _ msg: String) { issues.append(.init(direction: i, path: "directions[\(i)].\(path)", message: msg)) }
             let ids = d.orderedAssetIDs, set = Set(ids)
+            if exactSet && (set != poolSet || ids.count != pool.count) { add("orderedAssetIDs", "must contain every exact photo exactly once") }
+            if keepOrder && ids != pool { add("orderedAssetIDs", "must preserve the exact input order") }
             if set.count != ids.count { add("orderedAssetIDs", "duplicate asset IDs") }
             for id in ids where !poolSet.contains(id) { add("orderedAssetIDs", "\(id) is not a candidate") }
             if !(minSlides...20).contains(ids.count) { add("orderedAssetIDs", "has \(ids.count) photos; need \(minSlides)...20") }
-            if let n = requestedSlides, d.style.grouping == "single", ids.count > n {
+            if !exactSet, let n = requestedSlides, d.style.grouping == "single", ids.count > n {
                 add("orderedAssetIDs", "has \(ids.count) photos, one per slide; the user asked for at most \(n) slides")
             }
             if !set.contains(d.coverAssetID) { add("coverAssetID", "\(d.coverAssetID) is not in this direction's photos") }

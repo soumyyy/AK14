@@ -39,6 +39,7 @@ public struct RunManifest: Codable, Sendable, Equatable {
     public var events: [EventSegmentSummary] = []
     public var chosenEvent: Int?
     public var storyHint: String?
+    public var exactSet: Bool = false
 
     public init(runID: String, createdAt: Date, sourceFolderLabel: String) {
         self.runID = runID; self.createdAt = createdAt; self.sourceFolderLabel = sourceFolderLabel
@@ -71,6 +72,7 @@ public struct RunManifest: Codable, Sendable, Equatable {
         events = try c.decodeIfPresent([EventSegmentSummary].self, forKey: .events) ?? []
         chosenEvent = try c.decodeIfPresent(Int.self, forKey: .chosenEvent)
         storyHint = try c.decodeIfPresent(String.self, forKey: .storyHint)
+        exactSet = try c.decodeIfPresent(Bool.self, forKey: .exactSet) ?? false
     }
 }
 

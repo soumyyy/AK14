@@ -8,7 +8,7 @@ import TestSupport
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
 final class FakeModel: ResponsesTransport, @unchecked Sendable {
-    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed }
+    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed, omitExact }
     /// How many directions the planner proposes (2-5).
     var directions = 3
     private let lock = NSLock()
@@ -66,8 +66,10 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             text = #"{"groups":[\#(outputGroups.map { "[\($0.map { "\"\($0)\"" }.joined(separator: ","))]" }.joined(separator: ","))]}"#
         default:
             let first = lock.withLock { flagged }
+            let exact = request["input"]?.arrayValue?.flatMap { $0["content"]?.arrayValue ?? [] }
+                .contains { $0["text"]?.stringValue?.contains("exact set") == true } == true
             text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first, directions: directions,
-                                badDirection: behaviour == .badDirection)
+                                badDirection: behaviour == .badDirection, useAll: exact && behaviour != .omitExact)
         }
         let envelope: JSONValue = .object([
             ("id", .string("resp_test")), ("status", .string(behaviour == .incomplete ? "incomplete" : "completed")),
@@ -104,10 +106,10 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     ]
 
     static func planner(_ schema: JSONValue, duplicate: Bool, first: [String] = [], directions: Int = 3,
-                        badDirection: Bool = false) -> String {
+                        badDirection: Bool = false, useAll: Bool = false) -> String {
         let pool = enumValues(schema["properties"]?["spine"]?["properties"]?["orderedAssetIDs"]?["items"])
         let ids = pool.filter { first.contains($0) } + pool.filter { !first.contains($0) }
-        let spine = Array(ids.prefix(6))
+        let spine = Array(ids.prefix(useAll ? ids.count : 6))
         let quoted = { (list: [String]) in "[" + list.map { "\"\($0)\"" }.joined(separator: ",") + "]" }
         let items = (0..<directions).map { k -> String in
             // Each direction tells the story from a different opening photo, with one or two extra candidates.
