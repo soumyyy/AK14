@@ -78,9 +78,20 @@ public enum ComposerEngine {
                         var moved = d; moved.coverAssetID = alt; tries.append(moved)
                     }
                 }
-                var nudged = tries.last ?? d
-                nudged.style.grouping = d.style.grouping == "single" ? "mixed" : d.style.grouping == "mixed" ? "collage" : "mixed"
-                tries.append(nudged)
+                var groupingNudge = tries.last ?? d
+                groupingNudge.style.grouping = d.style.grouping == "single" ? "mixed" : d.style.grouping == "mixed" ? "collage" : "mixed"
+                tries.append(groupingNudge)
+                // If relation constraints send every group to separate slides, grouping alone
+                // cannot distinguish the direction. Try coherent adjacent style axes before
+                // dropping an otherwise valid option.
+                var airyNudge = groupingNudge
+                airyNudge.style.whitespace = d.style.whitespace == "airy" ? "tight" : "airy"
+                airyNudge.style.density = d.style.density == "dense" ? "quiet" : "dense"
+                tries.append(airyNudge)
+                var finishNudge = airyNudge
+                finishNudge.style.decoration = d.style.decoration == "rich" ? "none" : "rich"
+                finishNudge.style.rotation = d.style.rotation == "some" ? "none" : "some"
+                tries.append(finishNudge)
                 var fixed = false
                 attempts: for t in tries {
                     for salt in 0..<3 {
@@ -222,6 +233,9 @@ public enum ComposerEngine {
                 return (first || emphasis.contains(seg.first!) ? 0 : base) + split
             }
             let oneKeepGroup = seg.allSatisfy { keepIndex[$0] != nil && keepIndex[$0] == keepIndex[seg.first!] }
+            // Colour can make two unrelated photos look compatible, but it cannot explain why
+            // they share a slide. Require scene evidence or a close, people-bearing moment.
+            if !oneKeepGroup && !pairHasStoryLink(members: Array(seg), context: context) { return 2.5 + split }
             var c = style.grouping == "mixed" ? (m == 2 ? 0.1 : 0.55) : (m == 2 ? 0.2 : m == 3 ? 0.05 : 0.2)
             if first && !oneKeepGroup { c += 0.8 }                               // a cover usually reads best alone
             if !oneKeepGroup { c += 0.6 * Double(seg.filter(emphasis.contains).count) }
@@ -443,6 +457,34 @@ public enum ComposerEngine {
         let ax = aspect(x, context), ay = aspect(y, context)
         add((ax > 1) == (ay > 1) && min(ax, 1 / ax) < 0.7 ? 0.3 : 0, 0.3)
         return weight > 0 ? total / weight : 0.5
+    }
+
+    /// True when analysis can explain a pairing without relying on colour alone.
+    /// Shared labels must be reasonably specific; generic labels such as "outdoor" are ignored.
+    static func pairHasStoryLink(members: [AssetID], context: CompositionContext) -> Bool {
+        guard members.count >= 2 else { return true }
+        for i in members.indices { for j in members.indices where j > i {
+            let x = members[i], y = members[j]
+            let rawX = Set((context.features[x]?.labels ?? []).filter { $0.confidence >= 0.3 }.map { $0.identifier.lowercased() })
+            let rawY = Set((context.features[y]?.labels ?? []).filter { $0.confidence >= 0.3 }.map { $0.identifier.lowercased() })
+            let shared = rawX.intersection(rawY)
+            let generic: Set<String> = ["outdoor", "indoor", "person", "people", "human", "adult", "child",
+                                        "nature", "landscape", "sky", "land", "ground", "grass", "tree", "vegetation"]
+            if !shared.subtracting(generic).isEmpty { continue }
+            let hasCredibleFace: (AssetID) -> Bool = { id in
+                (context.features[id]?.faces ?? []).contains { face in
+                    face.box.width >= 0.025 && face.box.height >= 0.025
+                        && (face.captureQuality == nil || face.captureQuality! >= 0.2)
+                }
+            }
+            if let a = context.photos[x]?.metadata.capturedAt, let b = context.photos[y]?.metadata.capturedAt,
+               abs(a.timeIntervalSince(b)) <= 60 * 60, hasCredibleFace(x), hasCredibleFace(y) {
+                // Nearby people-bearing frames plausibly show the same group or moment.
+                continue
+            }
+            return false
+        }}
+        return true
     }
 
     static func mood(_ p: SequenceIntent) -> String {

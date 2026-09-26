@@ -5,6 +5,7 @@ import TestSupport
 @testable import Core
 @testable import Director
 @testable import Session
+@testable import Render
 
 private func sceneFolder(_ tmp: TempDirectory, count: Int = 14) throws -> URL {
     let folder = try tmp.sub("trip")
@@ -21,6 +22,37 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     var o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
     o.slides = slides
     return try await RunPipeline.live(options: o, client: ResponsesClient(transport: model, sleep: { _ in }), log: { _ in }).run(o)
+}
+
+@Test func slidePairingNeedsSceneOrClosePeopleMomentEvidence() throws {
+    let a = AssetID(rawValue: "a"), b = AssetID(rawValue: "b")
+    func record(_ id: AssetID, _ date: Date?) -> PhotoRecord {
+        PhotoRecord(assetID: id, contentSHA256: id.rawValue, sourceRelativePaths: [], byteCount: 1,
+                    fileType: "public.jpeg", pixelWidth: 1600, pixelHeight: 1200, exifOrientation: 1,
+                    metadata: CaptureMetadata(capturedAt: date))
+    }
+    var fa = PhotoFeatures(assetID: a, analyzerVersion: "test")
+    var fb = PhotoFeatures(assetID: b, analyzerVersion: "test")
+    fa.color = ColorProfile(l: 50, a: 5, b: 4, saturation: 0.4, warmth: 0.1, contrast: 0.2)
+    fb.color = fa.color
+    let style = try StylePackLoader.load()
+    func context(_ photos: [AssetID: PhotoRecord], _ features: [AssetID: PhotoFeatures]) -> CompositionContext {
+        CompositionContext(aspect: .portrait4x5, photos: photos, features: features, triage: [:], flagged: [],
+                           sequenceIntent: [:], stylePack: style, maxSlides: nil)
+    }
+    #expect(!ComposerEngine.pairHasStoryLink(members: [a, b], context: context([a: record(a, nil), b: record(b, nil)], [a: fa, b: fb])),
+            "matching color alone should not justify a pair")
+    fa.labels = [SceneLabel(identifier: "tea_hill", confidence: 0.8)]
+    fb.labels = [SceneLabel(identifier: "tea_hill", confidence: 0.7)]
+    #expect(ComposerEngine.pairHasStoryLink(members: [a, b], context: context([a: record(a, nil), b: record(b, nil)], [a: fa, b: fb])))
+    fa.labels = []; fb.labels = []
+    let moment = Date(timeIntervalSince1970: 1_800_000_000)
+    #expect(!ComposerEngine.pairHasStoryLink(members: [a, b], context: context(
+        [a: record(a, moment), b: record(b, moment.addingTimeInterval(8 * 60))], [a: fa, b: fb])),
+        "same-hour personless photos need shared scene evidence")
+    fa.faces = [FaceRegion(box: UnitRect(x: 0.2, y: 0.2, width: 0.2, height: 0.2), captureQuality: 0.8)]
+    fb.faces = fa.faces
+    #expect(ComposerEngine.pairHasStoryLink(members: [a, b], context: context([a: record(a, moment), b: record(b, moment.addingTimeInterval(8 * 60))], [a: fa, b: fb])))
 }
 
 @Test(arguments: [2, 5])
