@@ -34,7 +34,7 @@ enum Command: Equatable {
     case evalPairs(runDirectories: [URL], out: URL, seed: UInt64)
     case evalLabel(directory: URL, rater: String)
     case evalImport(directory: URL, labels: URL)
-    case evalScore(directory: URL)
+    case evalScore(directory: URL, stage: EvalPair.Stage?)
     case versions
     case help
 }
@@ -78,7 +78,7 @@ enum Arguments {
       ak14 eval pairs <runDir>… --out <evalDir> [--seed HEX]
       ak14 eval label <evalDir> --rater <name>
       ak14 eval import <evalDir> <labels.json>
-      ak14 eval score <evalDir>
+      ak14 eval score <evalDir> [--stage split|selection|cover|layout]
     """
 
     static func parse(_ args: [String], cwd: URL) throws -> Command {
@@ -134,8 +134,13 @@ enum Arguments {
                 guard rest.count == 2 else { throw ArgumentError.missingRunDirectory }
                 return .evalImport(directory: path(rest[0]), labels: path(rest[1]))
             case "score":
-                guard rest.count == 1 else { throw ArgumentError.missingRunDirectory }
-                return .evalScore(directory: path(rest[0]))
+                guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
+                rest.removeFirst()
+                let f = try flags(["--stage"])
+                let stage: EvalPair.Stage?
+                if let raw = f["--stage"] { guard let parsed = EvalPair.Stage(rawValue: raw) else { throw ArgumentError.invalidValue("--stage", raw) }; stage = parsed }
+                else { stage = nil }
+                return .evalScore(directory: path(dir), stage: stage)
             default: throw ArgumentError.unknownCommand("eval \(action)")
             }
         case "versions":

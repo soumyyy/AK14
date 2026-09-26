@@ -49,7 +49,7 @@ struct AK14Command {
             case .evalImport(let dir, let labels):
                 try EvalCommand.importLabels(evalDirectory: dir, file: labels)
                 print("labels imported")
-            case .evalScore(let dir): print(try EvalCommand.score(evalDirectory: dir))
+            case .evalScore(let dir, let stage): print(try EvalCommand.score(evalDirectory: dir, stage: stage))
             case .report(let dir):
                 try ReportCommand.rebuild(runDirectory: dir)
                 print(dir.appending(path: "report.html").path)
