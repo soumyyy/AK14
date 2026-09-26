@@ -155,3 +155,21 @@ Audit: Cursor/GPT-5.6 Sol, findings verified against runs/20260926-050016-e91f0c
 3. Crops protect people, not just faces: significant people (≥20% of height) may lose at most 12% of their width per side, must keep their head, and must keep 60% of their height. Otherwise the photo is shown whole where the slide has a background; full-bleed falls back to a whole-photo hero. Live check: the outstretched arms in Plain slide 1 are kept.
 6. Photos triaged ≤1/5 (and not flagged useful) stay out of the planning pool when enough others remain. Live check: 0 weak photos in the pool.
 - Seen during verification: two-photo slides use fixed box shapes, so a landscape hero shown whole floats small. This feeds into #5.
+
+## #5 Placement engine (2026-09-26)
+Principle (user): every concept must be postable and aesthetic. Wildcard is bolder in character, never lower in quality.
+- [x] Composer: each multi-photo and single-photo primitive generates candidate arrangements (variants), whose box shapes follow the photo aspect (exact, or 35% toward square)
+- [x] Score: crop loss, people safety, overlap/face safety, hero share (pair/inset ≥1.6×, cluster ≥1.25×), density target (quiet/balanced/dense), balance, carousel rhythm (no same family twice in a row)
+- [x] Choose among the near-best candidates by seed (deterministic, not templated)
+- [x] Clusters: several anchor sets plus mirrors, the hero 1.2× larger, and size set by density
+- [x] Slide `variant` and `metrics` (coverage, heroShare, maxCropLoss) in layouts and the report
+- [x] Prompt: Wildcard is "bold, not chaotic", and every slide must be postable on its own
+- [x] E2E updated. Rerender the latest IMG run (no model cost), inspect montages, compare metrics before and after
+- [ ] Claude subagent review, then fix, merge and push
+- Live rerender of runs/20260926-081711-fee7af (no model cost), layout-1 → layout-2:
+  - largest crop on framed slides: 55% → 10% (Designed), 55% → 18% (Wildcard)
+  - hero share: Designed 1.38× → 1.7×+; Wildcard cluster hero 0.6× → 1.2×
+  - two-photo slides: stacked, aspect-matched boxes (the landscape hero no longer floats small)
+  - average coverage on framed slides is about 50% (was 56%, but that was from 55% crops). The remaining whitespace is landscape group shots that can't be cropped without cutting people.
+  - consecutive repeated arrangements: 0
+- E2E: 40 tests passing (new: composer hierarchy, crop, coverage and rhythm)

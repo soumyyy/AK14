@@ -16,7 +16,10 @@ public struct LayoutContext: Sendable {
 public enum LayoutResolver {
     public static func resolve(_ plan: CarouselPlan, context: LayoutContext) -> ResolvedCarousel {
         var rng = SeededRandom(seed: context.seed)
-        let slides = plan.slides.enumerated().map { i, s in resolveSlide(s, index: i, context: context, rng: &rng) }
+        var history: [String] = []
+        let slides = plan.slides.enumerated().map { i, s in
+            resolveSlide(s, index: i, plan: plan, context: context, history: &history, rng: &rng)
+        }
         return ResolvedCarousel(conceptType: plan.conceptType, aspect: context.aspect,
                                 seed: String(context.seed, radix: 16), resolverVersion: ResolvedCarousel.resolverVersion,
                                 slides: slides)
@@ -29,7 +32,8 @@ public enum LayoutResolver {
         var short: Double { min(W, H) }
     }
 
-    static func resolveSlide(_ slide: SlidePlan, index: Int, context: LayoutContext, rng: inout SeededRandom) -> ResolvedSlide {
+    static func resolveSlide(_ slide: SlidePlan, index: Int, plan: CarouselPlan, context: LayoutContext, history: inout [String],
+                             rng: inout SeededRandom) -> ResolvedSlide {
         let c = Canvas(W: Double(context.aspect.exportWidth), H: Double(context.aspect.exportHeight))
         let spacing = context.stylePack.spacingRanges
         // A film edge draws bands down both sides; reserve them so nothing important sits underneath.
@@ -79,10 +83,8 @@ public enum LayoutResolver {
         var background = "plain"
         let usable = Box(x: margin, y: margin, w: c.W - 2 * margin, h: c.H - 2 * margin)
 
-        func aspect(_ id: AssetID) -> Double {
-            let p = context.photos[id]!
-            return Double(p.pixelWidth) / Double(max(1, p.pixelHeight))
-        }
+        let env = SlideEnv(canvas: c, usable: usable, content: content, context: context,
+                           density: plan.conceptType == .plainDump ? "balanced" : slide.density, minVisible: minVisible)
         func rotation(_ e: PhotoElement) -> Double {
             let magnitude = rng.range(0.6, maxPhotoRot)
             switch e.rotationIntent {
@@ -91,179 +93,45 @@ public enum LayoutResolver {
             default: return 0
             }
         }
-        func contain(_ id: AssetID, in box: Box) -> Box {
-            let a = aspect(id)
-            let (w, h) = a > box.w / box.h ? (box.w, box.w / a) : (box.h * a, box.h)
-            return Box(x: box.midX - w / 2, y: box.midY - h / 2, w: w, h: h)
-        }
-        /// Cover-crops into `frame`; if that would cut faces or people, shows the whole photo inside the frame instead
-        /// (only where the slide has a background to show around it).
-        func photoElement(_ e: PhotoElement, frame: Box, z: Int, border: Double = 0, shadow: Bool = false,
-                          rotation: Double = 0, fitWholePhoto: Bool = false, allowContain: Bool = true) -> ResolvedElement {
-            var frame = frame
-            var crop = fitWholePhoto ? UnitRect(x: 0, y: 0, width: 1, height: 1)
-                : CropPlanner.cover(imageAspect: aspect(e.assetID), boxAspect: frame.w / frame.h,
-                                    features: context.features[e.assetID], cropIntent: e.cropIntent, anchorIntent: e.anchorIntent)
-            if !fitWholePhoto && !CropPlanner.facesFit(context.features[e.assetID], crop: crop) {
-                if allowContain {
-                    frame = contain(e.assetID, in: frame)
-                    crop = UnitRect(x: 0, y: 0, width: 1, height: 1)
-                    warnings.append("\(e.assetID) shown whole: a crop would cut people")
-                } else {
-                    warnings.append("\(e.assetID): some people are cropped")
-                }
-            }
-            return ResolvedElement(kind: .photo, assetID: e.assetID, text: nil, frame: frame.unit(canvasW: c.W, canvasH: c.H),
-                                   rotationDegrees: rotation, crop: crop, zIndex: z, opacity: 1, border: border, shadow: shadow)
-        }
 
-        switch primitive {
-        case .fullBleed:
+        var variant = "bleed"
+        if primitive == .fullBleed {
             background = filmBand > 0 ? "plain" : "none"
-            elements.append(photoElement(ranked[0], frame: content, z: 0, allowContain: false))
-
-        case .hero:
-            let e = ranked[0]
-            if e.cropIntent == "tight" {
-                elements.append(photoElement(e, frame: usable, z: 0))
-            } else if aspect(e.assetID) > 1.15 * usable.w / usable.h,
-                      CropPlanner.facesFit(context.features[e.assetID],
-                                           crop: CropPlanner.cover(imageAspect: aspect(e.assetID),
-                                                                   boxAspect: max(usable.w / usable.h, min(aspect(e.assetID), 1.0)),
-                                                                   features: context.features[e.assetID])) {
-                // A landscape photo would float small on a tall canvas: crop it toward square (face-safe) instead.
-                let target = max(usable.w / usable.h, min(aspect(e.assetID), 1.0))
-                let w = usable.w, h = min(usable.h, w / target)
-                elements.append(photoElement(e, frame: Box(x: usable.x, y: usable.midY - h / 2, w: w, h: h), z: 0))
-            } else {
-                elements.append(photoElement(e, frame: contain(e.assetID, in: usable), z: 0, fitWholePhoto: true))
+            let e = env.photo(ranked[0], frame: content, z: 0)
+            if !CropPlanner.facesFit(context.features[ranked[0].assetID], crop: e.crop!) { warnings.append("\(ranked[0].assetID): some people are cropped") }
+            elements = [e]
+        } else {
+            let rotations = ranked.map { rotation($0) }
+            let candidates: [Candidate] = switch primitive {
+            case .hero, .framedHero: singleCandidates(ranked[0], framed: primitive == .framedHero, rotation: rotations[0], env: env)
+            case .inset: insetCandidates(ranked[0], ranked[1], rotation: rotations[1], filmBand: filmBand > 0, env: env)
+            case .asymmetricPair: pairCandidates(ranked[0], ranked[1], rotations: rotations, env: env)
+            default: clusterCandidates(ranked, maxRot: maxPhotoRot, env: env, rng: &rng)
             }
-
-        case .framedHero:
-            let e = ranked[0]
-            let box = usable.inset(0.04 * c.short)
-            if aspect(e.assetID) > 1.15 * box.w / box.h {
-                let h = min(box.h, box.w / max(box.w / box.h, min(aspect(e.assetID), 1.0)))
-                elements.append(photoElement(e, frame: Box(x: box.x, y: box.midY - h / 2, w: box.w, h: h), z: 0,
-                                             border: 0.025, shadow: true, rotation: rotation(e)))
-            } else {
-                elements.append(photoElement(e, frame: contain(e.assetID, in: box), z: 0, border: 0.025, shadow: true,
-                                             rotation: rotation(e), fitWholePhoto: true))
+            let chosen = choose(candidates, primitive: primitive, heroID: ranked[0].assetID, env: env, history: history, rng: &rng)
+            variant = chosen.variant
+            elements = chosen.elements
+            background = chosen.background
+            warnings += chosen.notes
+            for e in elements where e.crop.map({ $0.width * $0.height < 0.999 }) == true
+                && !CropPlanner.facesFit(context.features[e.assetID!], crop: e.crop!) {
+                warnings.append("\(e.assetID!.rawValue): some people are cropped")
             }
-
-        case .inset:
-            background = filmBand > 0 ? "plain" : "none"
-            let main = ranked[0], small = ranked[1]
-            let mainEl = photoElement(main, frame: content, z: 0, allowContain: false)
-            elements.append(mainEl)
-            let a = aspect(small.assetID)
-            var w = 0.36 * c.W, h = w / a
-            if h > 0.42 * c.H { h = 0.42 * c.H; w = h * a }
-            let faces = CropPlanner.facesOnCanvas(context.features[main.assetID], crop: mainEl.crop!, frame: content)
-            let corners: [String: Box] = [
-                "TL": Box(x: margin, y: margin, w: w, h: h), "TR": Box(x: c.W - margin - w, y: margin, w: w, h: h),
-                "BL": Box(x: margin, y: c.H - margin - h, w: w, h: h), "BR": Box(x: c.W - margin - w, y: c.H - margin - h, w: w, h: h),
-            ]
-            let preference: [String] = switch small.anchorIntent {
-            case "top": ["TR", "TL", "BR", "BL"]
-            case "bottom": ["BR", "BL", "TR", "TL"]
-            case "left": ["TL", "BL", "TR", "BR"]
-            case "right": ["TR", "BR", "TL", "BL"]
-            default: ["BR", "TR", "BL", "TL"]
+            if elements.count > 1 && overlapPenalty(elements, canvas: c, context: context, minVisible: minVisible) > 0 {
+                warnings.append("\(primitive.rawValue) could not fully satisfy visibility/face constraints")
             }
-            let covered = { (b: Box) in faces.reduce(0) { $0 + b.intersection($1).area } }
-            let corner = preference.first { covered(corners[$0]!) == 0 } ?? preference.min { covered(corners[$0]!) < covered(corners[$1]!) }!
-            if covered(corners[corner]!) > 0 { warnings.append("inset covers part of a face; no clear corner") }
-            elements.append(photoElement(small, frame: corners[corner]!, z: 1, border: 0.018, shadow: true, rotation: rotation(small)))
-
-        case .asymmetricPair:
-            let dom = ranked[0], sec = ranked[1]
-            let mirror = rng.bool()
-            var d = Box(x: usable.x, y: usable.y, w: 0.66 * usable.w, h: 0.58 * usable.h)
-            var s = Box(x: usable.maxX - 0.46 * usable.w, y: usable.maxY - 0.40 * usable.h, w: 0.46 * usable.w, h: 0.40 * usable.h)
-            let pull = sec.overlapIntent == "strong" ? 0.16 : sec.overlapIntent == "slight" ? 0.08 : 0
-            s.y -= pull * usable.h; s.x -= pull * usable.w * 0.5
-            if mirror {
-                d.x = usable.maxX - d.w
-                s.x = usable.x + pull * usable.w * 0.5
-            }
-            var domEl = photoElement(dom, frame: d, z: 0, rotation: rotation(dom))
-            var secEl = photoElement(sec, frame: s, z: 1, border: pull > 0 ? 0.012 : 0, shadow: pull > 0, rotation: rotation(sec))
-            // Never let the overlapping photo cover the dominant photo's faces.
-            if pull > 0 {
-                let faces = CropPlanner.facesOnCanvas(context.features[dom.assetID], crop: domEl.crop!, frame: d)
-                if faces.contains(where: { $0.intersects(s) }) {
-                    s.y += pull * usable.h
-                    s.x += mirror ? -pull * usable.w * 0.5 : pull * usable.w * 0.5
-                    secEl = photoElement(sec, frame: s, z: 1, rotation: rotation(sec))
-                    warnings.append("overlap removed to keep faces visible")
-                }
-            }
-            domEl.zIndex = 0
-            elements += [domEl, secEl]
-
-        case .overlapCluster:
-            elements += cluster(ranked, usable: usable, canvas: c, context: context, minVisible: minVisible,
-                                maxRot: maxPhotoRot, rng: &rng, warnings: &warnings)
         }
+        history.append(Candidate(variant: variant, elements: [], background: "").family)
 
         var slideOut = ResolvedSlide(index: index, primitive: primitive, requestedPrimitive: slide.primitive,
                                      background: background, grain: 0, filmEdge: false, elements: elements, warnings: warnings)
+        slideOut.variant = variant
+        slideOut.metrics = metrics(elements, heroID: ranked[0].assetID, env: env)
         decorate(&slideOut, slide: slide, canvas: c, context: context, rng: &rng)
         return slideOut
     }
 
-    // MARK: - Overlap cluster
-
-    static func cluster(_ photos: [PhotoElement], usable: Box, canvas c: Canvas, context: LayoutContext, minVisible: Double,
-                        maxRot: Double, rng: inout SeededRandom, warnings: inout [String]) -> [ResolvedElement] {
-        let n = photos.count
-        let anchors: [(Double, Double)] = switch n {
-        case 2: [(0.36, 0.34), (0.64, 0.68)]
-        case 3: [(0.34, 0.28), (0.66, 0.47), (0.40, 0.75)]
-        default: [(0.31, 0.27), (0.69, 0.31), (0.33, 0.73), (0.69, 0.74)]
-        }
-        let baseWidth = n == 2 ? 0.62 : n == 3 ? 0.55 : 0.50
-        // Least important at the bottom, most important on top.
-        let order = Array(photos.enumerated().reversed())
-
-        func layout(spread: Double, scale: Double, rng: inout SeededRandom) -> [ResolvedElement] {
-            var out: [ResolvedElement] = []
-            for (z, (slot, e)) in order.enumerated() {
-                let p = context.photos[e.assetID]!
-                let a = Double(p.pixelWidth) / Double(max(1, p.pixelHeight))
-                var w = baseWidth * scale * usable.w, h = w / a
-                if h > 0.55 * scale * usable.h { h = 0.55 * scale * usable.h; w = h * a }
-                let (ax, ay) = anchors[slot]
-                var cx = usable.x + (ax + rng.range(-spread, spread)) * usable.w
-                var cy = usable.y + (ay + rng.range(-spread, spread)) * usable.h
-                cx = min(max(cx, usable.x + w / 2), usable.maxX - w / 2)
-                cy = min(max(cy, usable.y + h / 2), usable.maxY - h / 2)
-                let frame = Box(x: cx - w / 2, y: cy - h / 2, w: w, h: h)
-                let rot: Double = switch e.rotationIntent {
-                case "slightLeft": -rng.range(0.6, maxRot)
-                case "slightRight": rng.range(0.6, maxRot)
-                default: rng.range(-maxRot, maxRot)
-                }
-                out.append(ResolvedElement(kind: .photo, assetID: e.assetID, text: nil, frame: frame.unit(canvasW: c.W, canvasH: c.H),
-                                           rotationDegrees: rot, crop: UnitRect(x: 0, y: 0, width: 1, height: 1), zIndex: z,
-                                           opacity: 1, border: 0.02, shadow: true))
-            }
-            return out
-        }
-
-        var best: [ResolvedElement] = [], bestPenalty = Double.infinity
-        attempts: for scale in [1.0, 0.9, 0.8] {
-            for attempt in 0..<24 {
-                let candidate = layout(spread: 0.04 + 0.005 * Double(attempt), scale: scale, rng: &rng)
-                let penalty = overlapPenalty(candidate, canvas: c, context: context, minVisible: minVisible)
-                if penalty < bestPenalty { best = candidate; bestPenalty = penalty }
-                if penalty == 0 { break attempts }
-            }
-        }
-        if bestPenalty > 0 { warnings.append("overlap cluster could not fully satisfy visibility/face constraints") }
-        return best
-    }
+    // MARK: - Overlap safety
 
     /// Sum of visibility shortfalls below `minVisible` plus face-coverage fractions, over all photos.
     public static func overlapPenalty(_ elements: [ResolvedElement], canvasW: Double, canvasH: Double,

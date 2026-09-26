@@ -197,7 +197,8 @@ struct RunPipeline: Sendable {
         try store.write(manifest, to: "manifest.json")
         try store.writeText(ReportBuilder.html(ReportInput(manifest: manifest, photos: redacted.photos, skipped: ingest.skipped,
                                                            features: features, thumbnails: thumbRel,
-                                                           reduction: reduction, concepts: concepts)),
+                                                           reduction: reduction, concepts: concepts,
+                                                           layouts: store.layouts(concepts))),
                             to: "report.html")
         log(String(format: "Director: %@ · %d model calls · est. $%.4f", directorStatus, calls.count, manifest.totalEstimatedCost))
         log("Report: \(store.url("report.html").path)")

@@ -30,10 +30,13 @@ public struct ResolvedSlide: Codable, Sendable, Equatable {
     public var filmEdge: Bool
     public var elements: [ResolvedElement]
     public var warnings: [String]
+    /// Composer arrangement chosen for this slide (absent in layouts before layout-2).
+    public var variant: String?
+    public var metrics: SlideMetrics?
 }
 
 public struct ResolvedCarousel: Codable, Sendable, Equatable {
-    public static let resolverVersion = "layout-1"
+    public static let resolverVersion = "layout-2"
     public var conceptType: ConceptType
     public var aspect: CarouselAspect
     /// Hex seed (string to survive JSON number precision).

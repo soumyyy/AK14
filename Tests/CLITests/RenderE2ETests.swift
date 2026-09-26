@@ -28,7 +28,7 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     let m = try store.read(RunManifest.self, from: "manifest.json")
     let features = Dictionary(uniqueKeysWithValues: try store.read([PhotoFeatures].self, from: "cache/features.json").map { ($0.assetID, $0) })
-    #expect(m.versions["renderer"] == "render-1" && m.versions["resolver"] == "layout-1")
+    #expect(m.versions["renderer"] == "render-1" && m.versions["resolver"] == "layout-2")
 
     for plan in d.plans {
         let concept = plan.conceptType.rawValue
@@ -113,4 +113,34 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(slide.elements.isEmpty && slide.warnings.contains { $0.contains("no usable photos") })
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender-backup").path))
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender").path))
+}
+
+// MARK: - Placement engine (layout-2)
+
+@Test func composerKeepsHierarchyCropsAndRhythmPostable() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp)
+    let store = try await run(tmp, folder: folder)
+    let d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    var report: [String] = []
+    for plan in d.plans where plan.conceptType != .plainDump {
+        let concept = plan.conceptType.rawValue
+        var families: [String] = []
+        for i in plan.slides.indices {
+            let s = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", concept, i + 1))
+            let m = try #require(s.metrics, "\(concept) slide \(i + 1) has no metrics")
+            let variant = try #require(s.variant)
+            report.append("\(concept) \(i + 1) \(variant) cov \(m.coverage) hero \(m.heroShare ?? 0) loss \(m.maxCropLoss)")
+            if s.primitive == .asymmetricPair || s.primitive == .inset {
+                #expect((m.heroShare ?? 0) >= 1.5, "\(concept) slide \(i + 1): hero only \(m.heroShare ?? 0)× the support")
+            }
+            if s.primitive == .overlapCluster { #expect((m.heroShare ?? 0) >= 1.0, "\(concept) slide \(i + 1): cluster hero smaller than a support") }
+            if s.primitive != .fullBleed { #expect(m.maxCropLoss <= 0.5, "\(concept) slide \(i + 1) crops \(m.maxCropLoss) of a photo") }
+            #expect(m.coverage >= 0.2, "\(concept) slide \(i + 1): photos cover only \(m.coverage) of the slide")
+            families.append(variant.split(separator: ".").prefix(2).joined(separator: "."))
+        }
+        let repeats = zip(families, families.dropFirst()).filter { $0 == $1 && $0 != "bleed" }.count
+        #expect(repeats <= 1, "\(concept) repeats an arrangement on consecutive slides \(repeats)×: \(families)")
+    }
+    print(report.joined(separator: "\n"))
 }

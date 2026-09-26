@@ -44,3 +44,16 @@ public struct RunStore: Sendable {
         try data.write(to: target, options: .atomic)
     }
 }
+
+extension RunStore {
+    /// Resolved slides under `layouts/<concept>/`, for every concept that rendered.
+    public func layouts(_ concepts: ConceptsReport?) -> [String: [ResolvedSlide]] {
+        var out: [String: [ResolvedSlide]] = [:]
+        for (concept, slides) in concepts?.renderedSlides ?? [:] {
+            out[concept] = slides.indices.compactMap {
+                try? read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", concept, $0 + 1))
+            }
+        }
+        return out
+    }
+}

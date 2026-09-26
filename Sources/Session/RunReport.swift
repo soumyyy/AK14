@@ -27,7 +27,8 @@ public enum RunReport {
         let html = ReportBuilder.html(ReportInput(
             manifest: manifest, photos: ingest.photos, skipped: ingest.skipped,
             features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }), thumbnails: thumbs,
-            reduction: reduction, concepts: concepts, edits: edits, events: events))
+            reduction: reduction, concepts: concepts, edits: edits, events: events,
+            layouts: store.layouts(concepts)))
         try store.writeText(html, to: "report.html")
     }
 }

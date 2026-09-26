@@ -34,14 +34,18 @@ public struct ReportInput: Sendable {
     public let concepts: ConceptsReport?
     public let edits: [ConceptType: EditedConcept]
     public let events: [InteractionEvent]
+    /// Concept → resolved slides, for the layout metrics.
+    public let layouts: [String: [ResolvedSlide]]
 
     public init(manifest: RunManifest, photos: [PhotoRecord], skipped: [SkippedFile],
                 features: [AssetID: PhotoFeatures], thumbnails: [AssetID: String],
                 reduction: ReductionResult? = nil, concepts: ConceptsReport? = nil,
-                edits: [ConceptType: EditedConcept] = [:], events: [InteractionEvent] = []) {
+                edits: [ConceptType: EditedConcept] = [:], events: [InteractionEvent] = [],
+                layouts: [String: [ResolvedSlide]] = [:]) {
         self.manifest = manifest; self.photos = photos; self.skipped = skipped
         self.features = features; self.thumbnails = thumbnails
         self.reduction = reduction; self.concepts = concepts; self.edits = edits; self.events = events
+        self.layouts = layouts
     }
 }
 
@@ -196,6 +200,7 @@ public enum ReportBuilder {
             if let slides = c.renderedSlides[plan.conceptType.rawValue], !slides.isEmpty {
                 h += "<div class=\"strip\">" + slides.map { "<img class=\"slide\" src=\"\(e($0))\">" }.joined() + "</div>\n"
             }
+            h += layoutMetrics(input.layouts[plan.conceptType.rawValue] ?? [])
             if plan.conceptType == .plainDump { continue }
             h += "<details><summary>Slide plan</summary><div class=\"strip\">"
             for (i, s) in plan.slides.enumerated() {
@@ -212,6 +217,27 @@ public enum ReportBuilder {
             h += "same cover \(d.sameCover), structural differences: \(e(d.structuralDiffs.joined(separator: ", ")))</p>\n"
         }
         return h
+    }
+
+    /// One line per concept plus a per-slide table: photo coverage, hero share, largest crop and arrangement.
+    private static func layoutMetrics(_ slides: [ResolvedSlide]) -> String {
+        let rows = slides.compactMap { s in s.metrics.map { (s, $0) } }
+        guard !rows.isEmpty else { return "" }
+        let e = htmlEscape, pct = { (v: Double) in String(format: "%.0f%%", v * 100) }
+        let designed = rows.filter { $0.0.primitive != .fullBleed }
+        let families = slides.compactMap { $0.variant?.split(separator: ".").prefix(2).joined(separator: ".") }
+        let repeats = zip(families, families.dropFirst()).filter { $0 == $1 && $0 != "bleed" }.count
+        var h = "<p class=\"metrics\">Layout: photo coverage "
+        h += designed.isEmpty ? "full-bleed only" : pct(designed.map(\.1.coverage).reduce(0, +) / Double(designed.count)) + " avg on framed slides"
+        h += " · largest crop \(pct(rows.map(\.1.maxCropLoss).max() ?? 0))"
+        if let minShare = rows.compactMap(\.1.heroShare).min() { h += " · smallest hero share \(String(format: "%.1f×", minShare))" }
+        h += " · consecutive repeated arrangements \(repeats)</p>\n"
+        h += "<details><summary>Layout per slide</summary><table><tr><th>slide</th><th>arrangement</th><th>coverage</th><th>hero share</th><th>largest crop</th></tr>"
+        for (s, m) in rows {
+            h += "<tr><td>\(s.index + 1)</td><td>\(e(s.variant ?? s.primitive.rawValue))</td><td>\(pct(m.coverage))</td>"
+            h += "<td>\(m.heroShare.map { String(format: "%.1f×", $0) } ?? "—")</td><td>\(pct(m.maxCropLoss))</td></tr>"
+        }
+        return h + "</table></details>\n"
     }
 
     private static func studioSection(_ input: ReportInput) -> String {
