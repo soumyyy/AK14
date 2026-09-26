@@ -101,6 +101,18 @@ export function createHandler(fetchUpstream = fetch) {
       if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: { etag } });
       return json(styleConfig, 200, { etag, "cache-control": "public, max-age=300" });
     }
+    const assetMatch = url.pathname.match(/^\/v1\/assets\/([a-f0-9]{64})$/);
+    if (request.method === "GET" && assetMatch) {
+      if (!env.AK14_ASSETS) return json({ error: "not found" }, 404);
+      const bytes = await env.AK14_ASSETS.get(assetMatch[1], "arrayBuffer");
+      if (bytes === null) return json({ error: "not found" }, 404);
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+      const hash = [...digest].map(byte => byte.toString(16).padStart(2, "0")).join("");
+      if (hash !== assetMatch[1]) return json({ error: "asset integrity check failed" }, 500);
+      return new Response(bytes, { headers: {
+        "content-type": "image/jpeg", "cache-control": "public, max-age=31536000, immutable",
+      } });
+    }
     if (url.pathname !== "/v1/responses") return json({ error: "not found" }, 404);
     if (request.method !== "POST") return json({ error: "method not allowed" }, 405, { allow: "POST" });
     if (!env.OPENAI_API_KEY) return json({ error: "server is not configured" }, 503);

@@ -2,7 +2,10 @@
   "name": "ak14-api",
   "main": "src/index.js",
   "compatibility_date": "2026-09-26",
-  "kv_namespaces": [{ "binding": "AK14_USAGE", "id": "2b16fea07a8b4b4eb6fe0067ad51bd0b" }],
+  "kv_namespaces": [
+    { "binding": "AK14_USAGE", "id": "2b16fea07a8b4b4eb6fe0067ad51bd0b" },
+    { "binding": "AK14_ASSETS", "id": "a3d8464870584ce7a0c66ac9d770dedc" }
+  ],
   "vars": {
     "DAILY_REQUEST_CAP": "30",
     "DAILY_SPEND_CAP_USD": "1.00",
