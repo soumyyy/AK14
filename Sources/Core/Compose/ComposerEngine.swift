@@ -131,6 +131,39 @@ public enum ComposerEngine {
 
     public static func compose(_ direction: Direction, id: String, context: CompositionContext, seed: UInt64,
                                layoutSeed: UInt64? = nil) -> Composition {
+        var generated = generate(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
+        guard !generated.ranked.isEmpty else { return generated.empty }
+        let near = generated.ranked.filter { $0.score <= generated.ranked[0].score + 0.04 }
+        let pick = near[Int(generated.rng.next() % UInt64(near.count))]
+        return composition(pick, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings)
+    }
+
+    /// Returns distinct, safe whole-carousel candidates ranked by composer score.
+    public static func candidates(_ direction: Direction, id: String, context: CompositionContext, seed: UInt64,
+                                  layoutSeed: UInt64? = nil, limit: Int = 6) -> [Composition] {
+        guard limit > 0 else { return [] }
+        let generated = generate(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
+        return generated.ranked.reduce(into: [Composition]()) { result, candidate in
+            guard result.count < limit, !result.contains(where: { $0.plan == candidate.plan }) else { return }
+            let layout = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+                features: context.features, stylePack: context.stylePack, seed: layoutSeed ?? seed))
+            guard !layout.slides.contains(where: { slide in
+                slide.warnings.contains { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }
+            }) else { return }
+            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings))
+        }
+    }
+
+    private static func composition(_ candidate: (plan: CarouselPlan, score: Double), direction: Direction, id: String,
+                                    seed: UInt64, warnings: [String]) -> Composition {
+        var plan = candidate.plan
+        plan.compositionSeed = String(seed, radix: 16)
+        return Composition(plan: plan, score: candidate.score, warnings: warnings)
+    }
+
+    private static func generate(_ direction: Direction, id: String, context: CompositionContext, seed: UInt64,
+                                 layoutSeed: UInt64?) -> (ranked: [(plan: CarouselPlan, score: Double)], direction: Direction,
+                                                          warnings: [String], rng: SeededRandom, empty: Composition) {
         var rng = SeededRandom(seed: seed)
         var warnings: [String] = []
         var d = direction
@@ -138,8 +171,9 @@ public enum ComposerEngine {
         var seen = Set<AssetID>()
         var ids = d.orderedAssetIDs.filter { context.photos[$0] != nil && seen.insert($0).inserted }
         guard !ids.isEmpty else {
-            return Composition(plan: CarouselPlan(id: id, brief: d.brief, direction: d, slides: []), score: .infinity,
-                               warnings: ["no usable photos"])
+            let empty = Composition(plan: CarouselPlan(id: id, brief: d.brief, direction: d, slides: []), score: .infinity,
+                                    warnings: ["no usable photos"])
+            return ([], d, warnings, rng, empty)
         }
         if !ids.contains(d.coverAssetID) || (context.flagged.contains(d.coverAssetID) && ids.contains { !context.flagged.contains($0) }) {
             let replacement = ids.filter { !context.flagged.contains($0) }.max { strengthOrder($0, $1, context) } ?? ids[0]
@@ -158,11 +192,8 @@ public enum ComposerEngine {
             candidates.append((plan, evaluate(plan, context: context, seed: layoutSeed ?? seed)))
         }
         let ranked = candidates.enumerated().sorted { ($0.element.score, $0.offset) < ($1.element.score, $1.offset) }
-        let near = ranked.filter { $0.element.score <= ranked[0].element.score + 0.04 }
-        let pick = near[Int(rng.next() % UInt64(near.count))].element
-        var plan = pick.plan
-        plan.compositionSeed = String(seed, radix: 16)
-        return Composition(plan: plan, score: pick.score, warnings: warnings)
+        return (ranked.map { $0.element }, d, warnings, rng,
+                Composition(plan: ranked[0].element.plan, score: ranked[0].element.score, warnings: warnings))
     }
 
     // MARK: - Grouping
