@@ -1,8 +1,6 @@
 import Core
 import Foundation
-import ImageIO
-import CoreGraphics
-import UniformTypeIdentifiers
+import Render
 
 enum EvalCommand {
     static func pairs(runDirectories: [URL], out: URL, seed: UInt64 = 14) throws {
@@ -20,7 +18,8 @@ enum EvalCommand {
             for plan in plans {
                 guard let paths = run.report.renderedSlides[plan.id], !paths.isEmpty else { continue }
                 let filename = "\(run.id)-\(plan.id).jpg"
-                try makeStrip(paths.map { run.root.appending(path: $0) }, to: out.appending(path: "strips/\(filename)"))
+                let data = try StripRenderer().strip(slides: paths.map { run.root.appending(path: $0) }, quality: 0.75)
+                try data.write(to: out.appending(path: "strips/\(filename)"), options: .atomic)
                 stripMap["\(run.id)/\(plan.id)"] = "strips/\(filename)"
             }
             let candidates = plans.filter { stripMap["\(run.id)/\($0.id)"] != nil }
@@ -154,23 +153,7 @@ enum EvalCommand {
         return total
     }
 
-    private static func makeStrip(_ paths: [URL], to url: URL) throws {
-        let images = try paths.map { path -> CGImage in
-            guard let source = CGImageSourceCreateWithURL(path as CFURL, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw EvalError.image(path.path) }
-            return image
-        }
-        let widths = images.map { max(1, Int((Double($0.width) * 96 / Double($0.height)).rounded())) }
-        let width = widths.reduce(0, +) + max(0, images.count - 1) * 4
-        guard let ctx = CGContext(data: nil, width: width, height: 96, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { throw EvalError.image(url.path) }
-        ctx.setFillColor(CGColor(gray: 0.94, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: width, height: 96))
-        var x = 0
-        for (image, w) in zip(images, widths) { ctx.interpolationQuality = .high; ctx.draw(image, in: CGRect(x: x, y: 0, width: w, height: 96)); x += w + 4 }
-        guard let result = ctx.makeImage(), let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.jpeg.identifier as CFString, 1, nil) else { throw EvalError.image(url.path) }
-        CGImageDestinationAddImage(dest, result, [kCGImageDestinationLossyCompressionQuality: 0.75] as CFDictionary)
-        guard CGImageDestinationFinalize(dest) else { throw EvalError.image(url.path) }
-    }
-
     private static func readSet(_ dir: URL) throws -> EvalSet { try JSONCoding.decoder.decode(EvalSet.self, from: Data(contentsOf: dir.appending(path: "evalset.json"))) }
     private static func fmExists(_ url: URL) -> Bool { FileManager.default.fileExists(atPath: url.path) }
-    enum EvalError: Error { case invalidLabels, image(String) }
+    enum EvalError: Error { case invalidLabels }
 }
