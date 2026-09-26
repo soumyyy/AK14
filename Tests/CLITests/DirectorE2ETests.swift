@@ -72,15 +72,16 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             #"{"assetID":"\#(ids[i])","role":"\#(role)","importance":2,"cropIntent":"balanced","anchorIntent":"center","overlapIntent":"none","rotationIntent":"none"}"#
         }
         func slide(_ primitive: String, _ density: String, _ photos: [Int], deco: Bool = false) -> String {
-            let d = deco ? #"[{"decorationID":"\#(decos[0])","intensity":"low"}]"# : "[]"
-            return #"{"primitive":"\#(primitive)","mood":"warm","density":"\#(density)","photos":[\#(photos.enumerated().map { photo($1, $0 == 0 ? "hero" : "support") }.joined(separator: ","))],"decorations":\#(d),"stamps":[]}"#
+            let d = deco ? "[" + decos.map { #"{"decorationID":"\#($0)","intensity":"medium"}"# }.joined(separator: ",") + "]" : "[]"
+            let stamps = deco ? #"[{"kind":"date","placement":"bottomRight"},{"kind":"location","placement":"topLeft"}]"# : "[]"
+            return #"{"primitive":"\#(primitive)","mood":"warm","density":"\#(density)","photos":[\#(photos.enumerated().map { photo($1, $0 == 0 ? "hero" : "support") }.joined(separator: ","))],"decorations":\#(d),"stamps":\#(stamps)}"#
         }
         let spine = Array(0..<6)
         let plain = spine.map { slide("full_bleed", "quiet", [$0]) }
         let designed = [slide("hero", "quiet", [0], deco: true), slide("asymmetric_pair", "balanced", [1, 2]),
                         slide("full_bleed", "quiet", [3]), slide("full_bleed", "quiet", [4]),
                         slide("full_bleed", "quiet", duplicate ? [0] : [5])]
-        let wildcard = [slide("overlap_cluster", "dense", [7, 6]), slide("full_bleed", "balanced", [5]),
+        let wildcard = [slide("overlap_cluster", "dense", [7, 6], deco: true), slide("full_bleed", "balanced", [5]),
                         slide("hero", "dense", [4]), slide("full_bleed", "balanced", [3]), slide("inset", "dense", [2, 1])]
         func plan(_ type: String, _ slides: [String]) -> String {
             #"{"conceptType":"\#(type)","conceptNote":"test","slides":[\#(slides.joined(separator: ","))]}"#

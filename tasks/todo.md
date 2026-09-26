@@ -18,7 +18,7 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
 ## Later milestones
 - [x] M2 — Clustering, junk filter, candidate reduction
 - [x] M3 — Triage + planner (Plain first), GPT-6 Luna
-- [ ] M4 — Layout resolver + renderer
+- [x] M4 — Layout resolver + renderer
 - [ ] M5 — Studio (Mac app)
 - [ ] M6 — Study readiness
 
@@ -68,3 +68,16 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
   - Diversity passes with 3+ structural differences and a different cover, regardless of photo overlap. Cost if wrong: concepts could share most photos, but structure still differs.
   - The API timeout drops from 240 s to 180 s.
 - Deferred minor: task cancellation is not propagated during retry backoff.
+
+## Review — M4 (2026-09-26)
+- `LayoutResolver` (Core, seeded, deterministic): all 6 primitives, face-safe crops, face-aware inset corners and pair overlap, overlap-cluster search (24 placements × 3 scales) for ≥55% visibility and uncovered faces, tape/grain/paper/film-edge placement, DSEG7 date stamps.
+- `CarouselRenderer` (Render): procedural style layer, bundled OFL font, per-slide failure isolation. It replaces `PlainRenderer`.
+- Every concept renders to `slides/<concept>/` with layouts in `layouts/<concept>/`.
+- `rerender --source <folder> [--seed HEX]` re-renders all concepts atomically, with no model calls.
+- E2E: 22 tests passing, covering rendered counts, bounds, visibility/face constraints, byte-identical rerender, seed change, undated stamps and location-stamp omission.
+- Real run on IMG/: 2 calls, $0.0046, render 2.6 s for 23 slides.
+- Fixed after visual review: landscape heroes now crop toward square (face-safe) instead of floating small; the paper texture is smoothed and subtler.
+- Rulings:
+  - Location stamps are omitted: they would need a network geocoder, which Phase 0 privacy excludes.
+  - Core uses CryptoKit for seed hashing (not an imaging framework).
+  - Decorations are procedural instead of downloaded assets, so there are no licensing issues.

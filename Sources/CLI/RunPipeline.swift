@@ -119,7 +119,8 @@ struct RunPipeline: Sendable {
             versions["pricing"] = Pricing.version
             versions["model"] = client!.model
             versions["stylePack"] = "\(stylePack.id)@\(stylePack.version)"
-            versions["planRenderer"] = PlainRenderer.version
+            versions["resolver"] = ResolvedCarousel.resolverVersion
+            versions["renderer"] = CarouselRenderer.version
             for (name, v) in output.promptVersions { versions["prompt:\(name)"] = v }
 
             // Persist raw exchanges (images redacted to thumbnail references) and plans.
@@ -130,21 +131,19 @@ struct RunPipeline: Sendable {
             if let spine = output.spine { try store.write(spine, to: "plans/selection-spine.json") }
             for p in output.plans { try store.write(p, to: "plans/\(p.conceptType.rawValue).json") }
 
-            // Plain render
+            // Resolve + render every concept
             start = clock.now
-            var plainSlides: [String] = []
-            if let plain = output.plans.first(where: { $0.conceptType == .plainDump }) {
-                log("Rendering your options…")
-                do {
-                    let outcome = try PlainRenderer().render(plan: plain, aspect: aspect,
-                                                             photos: Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) }),
-                                                             features: features, sourceFolder: folder,
-                                                             outputDirectory: store.url("slides/plainDump"))
-                    plainSlides = outcome.names.map { "slides/plainDump/\($0)" }
-                    warnings += outcome.failures.map { "plain render: \($0)" }
-                } catch {
-                    warnings.append("plain render failed: \(error)")
-                }
+            log("Rendering your options…")
+            var rendered: [String: [String]] = [:]
+            do {
+                let result = try ConceptRendering.renderAll(
+                    output.plans, runID: store.root.lastPathComponent, aspect: aspect,
+                    photos: Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) }),
+                    features: features, stylePack: stylePack, sourceFolder: folder, into: store.root)
+                rendered = result.slides
+                warnings += result.warnings
+            } catch {
+                warnings.append("render failed: \(error)")
             }
             lap("render", start)
             warnings += output.warnings
@@ -153,7 +152,7 @@ struct RunPipeline: Sendable {
                 triage: Dictionary(uniqueKeysWithValues: output.triage.map { ($0.key.rawValue, $0.value) }),
                 pool: output.pool, spine: output.spine, recommendedSlideCount: output.recommendedSlideCount,
                 plans: output.plans, unavailable: output.unavailable, deviations: output.deviations,
-                diversity: output.diversity, warnings: output.warnings, plainSlides: plainSlides)
+                diversity: output.diversity, warnings: output.warnings, renderedSlides: rendered)
             try store.write(concepts, to: "plans/director.json")
         }
 

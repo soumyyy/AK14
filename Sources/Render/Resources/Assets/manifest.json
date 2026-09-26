@@ -1,0 +1,24 @@
+{
+  "assets": [
+    {
+      "assetID": "font-dseg7-classic-bold",
+      "relativePath": "fonts/DSEG7Classic-Bold.ttf",
+      "assetType": "font",
+      "sha256": "d16181c4eeae29e695ca547ee9be437d01d4909ac1f8f349f04176dc6858873b",
+      "licenseName": "SIL Open Font License 1.1",
+      "licenseURL": "https://openfontlicense.org",
+      "author": "keshikan",
+      "sourceURL": "https://github.com/keshikan/DSEG/releases/tag/v0.46",
+      "attributionText": "DSEG by keshikan, SIL OFL 1.1 (license text in fonts/DSEG-LICENSE.txt)",
+      "commercialUseAllowed": true,
+      "modificationAllowed": true,
+      "redistributionAllowed": true,
+      "acquiredAt": "2026-09-26",
+      "fontPostScriptName": "DSEG7Classic-Bold"
+    },
+    { "assetID": "grain-fine", "assetType": "procedural", "author": "AK14", "licenseName": "original work", "notes": "seeded noise overlay generated at render time" },
+    { "assetID": "paper-warm", "assetType": "procedural", "author": "AK14", "licenseName": "original work", "notes": "seeded paper texture generated at render time" },
+    { "assetID": "tape-clear", "assetType": "procedural", "author": "AK14", "licenseName": "original work", "notes": "translucent tape strip with torn ends drawn with Core Graphics" },
+    { "assetID": "film-edge", "assetType": "procedural", "author": "AK14", "licenseName": "original work", "notes": "film strip borders with sprocket holes drawn with Core Graphics" }
+  ]
+}

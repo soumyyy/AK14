@@ -182,12 +182,11 @@ public enum ReportBuilder {
                 h += "<p>vs spine: +\(d.added.count) / −\(d.removed.count) photos, cover \(d.coverChanged ? "changed" : "same"), "
                 h += "order agreement \(String(format: "%.2f", d.orderSimilarity))</p>\n"
             }
-            if plan.conceptType == .plainDump && !c.plainSlides.isEmpty {
-                h += "<div class=\"strip\">" + c.plainSlides.map { "<img class=\"slide\" src=\"\(e($0))\">" }.joined() + "</div>\n"
-                continue
+            if let slides = c.renderedSlides[plan.conceptType.rawValue], !slides.isEmpty {
+                h += "<div class=\"strip\">" + slides.map { "<img class=\"slide\" src=\"\(e($0))\">" }.joined() + "</div>\n"
             }
-            if plan.conceptType != .plainDump { h += "<p class=\"note\">Plan only; designed rendering arrives in M4.</p>\n" }
-            h += "<div class=\"strip\">"
+            if plan.conceptType == .plainDump { continue }
+            h += "<details><summary>Slide plan</summary><div class=\"strip\">"
             for (i, s) in plan.slides.enumerated() {
                 h += "<div class=\"slideplan\"><b>\(i + 1)</b> \(e(s.primitive.rawValue)) · \(e(s.density)) · \(e(s.mood))<br>"
                 h += s.photos.map { img($0.assetID, input) + "<small>\(e($0.role))</small>" }.joined()
@@ -195,7 +194,7 @@ public enum ReportBuilder {
                 if !s.stamps.isEmpty { h += "<br><small>stamps: \(e(s.stamps.map { "\($0.kind)@\($0.placement)" }.joined(separator: ", ")))</small>" }
                 h += "</div>"
             }
-            h += "</div>\n"
+            h += "</div></details>\n"
         }
         if let d = c.diversity {
             h += "<p>Designed vs Wildcard: \(d.passes ? "distinct" : "too similar") — photo overlap \(String(format: "%.2f", d.jaccard)), "

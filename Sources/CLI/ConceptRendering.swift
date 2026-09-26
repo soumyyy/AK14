@@ -1,0 +1,40 @@
+import Core
+import Foundation
+import Render
+
+/// Resolves and renders every concept into `<root>/layouts/<concept>/` and `<root>/slides/<concept>/`.
+enum ConceptRendering {
+    struct Result {
+        /// Concept → run-relative PNG paths, in slide order.
+        var slides: [String: [String]] = [:]
+        var warnings: [String] = []
+        var failed = false
+    }
+
+    static func seed(runID: String, concept: ConceptType) -> UInt64 {
+        SeededRandom.seed(runID, concept.rawValue, ResolvedCarousel.resolverVersion)
+    }
+
+    static func renderAll(_ plans: [CarouselPlan], runID: String, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
+                          features: [AssetID: PhotoFeatures], stylePack: StylePack, sourceFolder: URL, into root: URL,
+                          seedOverride: UInt64? = nil) throws -> Result {
+        var result = Result()
+        let store = RunStore.open(root)
+        for plan in plans {
+            let concept = plan.conceptType.rawValue
+            let context = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
+                                        seed: seedOverride ?? seed(runID: runID, concept: plan.conceptType))
+            let carousel = LayoutResolver.resolve(plan, context: context)
+            for slide in carousel.slides {
+                try store.write(slide, to: String(format: "layouts/%@/slide-%02d.json", concept, slide.index + 1))
+                result.warnings += slide.warnings.map { "\(concept) slide \(slide.index + 1): \($0)" }
+            }
+            let outcome = try CarouselRenderer().render(carousel, photos: photos, sourceFolder: sourceFolder,
+                                                        outputDirectory: store.url("slides/\(concept)"))
+            result.slides[concept] = outcome.names.map { "slides/\(concept)/\($0)" }
+            result.warnings += outcome.failures.map { "\(concept) render: \($0)" }
+            if !outcome.failures.isEmpty { result.failed = true }
+        }
+        return result
+    }
+}

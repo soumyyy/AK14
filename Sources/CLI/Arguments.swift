@@ -16,13 +16,13 @@ struct RunOptions: Equatable, Sendable {
 enum Command: Equatable {
     case run(RunOptions)
     case report(runDirectory: URL)
-    case rerender(runDirectory: URL, source: URL)
+    case rerender(runDirectory: URL, source: URL, seed: UInt64?)
     case help
 }
 
 enum ArgumentError: Error, Equatable, CustomStringConvertible {
     case unknownCommand(String), missingFolder, missingRunDirectory, missingSource
-    case missingValue(String), unknownOption(String), invalidAspect(String), invalidSlides(String)
+    case missingValue(String), unknownOption(String), invalidAspect(String), invalidSlides(String), invalidSeed(String)
 
     var description: String {
         switch self {
@@ -31,6 +31,7 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
         case .missingRunDirectory: "report/rerender needs a run directory"
         case .missingSource: "rerender needs --source <folder>"
         case .invalidSlides(let s): "invalid --slides '\(s)' (use 5...20)"
+        case .invalidSeed(let s): "invalid --seed '\(s)' (hex)"
         case .missingValue(let o): "\(o) needs a value"
         case .unknownOption(let o): "unknown option '\(o)'"
         case .invalidAspect(let a): "invalid aspect '\(a)' (use auto, 3:4, 1:1, 4:5)"
@@ -43,7 +44,7 @@ enum Arguments {
     usage:
       ak14 run <folder> [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
-      ak14 rerender <runDir> --source <folder>
+      ak14 rerender <runDir> --source <folder> [--seed HEX]
     """
 
     static func parse(_ args: [String], cwd: URL) throws -> Command {
@@ -61,8 +62,21 @@ enum Arguments {
         case "rerender":
             guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
             rest.removeFirst()
-            guard rest.count == 2, rest[0] == "--source" else { throw ArgumentError.missingSource }
-            return .rerender(runDirectory: path(dir), source: path(rest[1]))
+            var source: URL?, seed: UInt64?
+            while !rest.isEmpty {
+                let flag = rest.removeFirst()
+                guard !rest.isEmpty else { throw ArgumentError.missingValue(flag) }
+                let v = rest.removeFirst()
+                switch flag {
+                case "--source": source = path(v)
+                case "--seed":
+                    guard let s = UInt64(v, radix: 16) else { throw ArgumentError.invalidSeed(v) }
+                    seed = s
+                default: throw ArgumentError.unknownOption(flag)
+                }
+            }
+            guard let source else { throw ArgumentError.missingSource }
+            return .rerender(runDirectory: path(dir), source: source, seed: seed)
         case "run":
             guard let folder = rest.first, !folder.hasPrefix("--") else { throw ArgumentError.missingFolder }
             rest.removeFirst()

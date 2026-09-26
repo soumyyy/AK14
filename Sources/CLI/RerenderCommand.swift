@@ -5,43 +5,51 @@ import Render
 
 enum RerenderCommand {
     enum Failure: Error, CustomStringConvertible {
-        case noPlan, changed(String), render([String])
+        case noPlans, changed(String), render([String])
         var description: String {
             switch self {
-            case .noPlan: "run has no Plain Dump plan to render"
+            case .noPlans: "run has no concept plans to render"
             case .changed(let p): "source photo changed since the run: \(p)"
-            case .render(let f): "rerender failed; previous slides kept: \(f.joined(separator: "; "))"
+            case .render(let f): "rerender failed; previous slides kept: \(f.prefix(5).joined(separator: "; "))"
             }
         }
     }
 
-    /// Re-renders the Plain Dump from saved plans and the source folder. Never calls the model.
-    static func rerender(runDirectory: URL, source: URL) throws {
+    /// Re-resolves and re-renders every concept from saved plans and the source folder. Never calls the model.
+    /// Renders into a staging directory and swaps only if every slide succeeded, so a failure keeps the old output.
+    static func rerender(runDirectory: URL, source: URL, seed: UInt64? = nil) throws {
         let store = RunStore.open(runDirectory)
         let manifest = try store.read(RunManifest.self, from: "manifest.json")
         let ingest = try store.read(IngestResult.self, from: "input-index.json")
         let features = try store.read([PhotoFeatures].self, from: "cache/features.json")
-        guard let plain = try? store.read(CarouselPlan.self, from: "plans/plainDump.json") else { throw Failure.noPlan }
+        var concepts = try store.read(ConceptsReport.self, from: "plans/director.json")
+        guard !concepts.plans.isEmpty else { throw Failure.noPlans }
         let photos = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) })
         let folder = source.resolvingSymlinksInPath()
-        for id in plain.photoAssetIDs {
+        for id in Set(concepts.plans.flatMap(\.photoAssetIDs)) {
             guard let p = photos[id] else { throw Failure.changed(id.rawValue) }
             let sha = try FileHasher.sha256Hex(of: folder.appending(path: p.sourceRelativePaths[0]))
             if sha != p.contentSHA256 { throw Failure.changed(p.sourceRelativePaths[0]) }
         }
-        // Render into a temp directory and swap only when every slide succeeded, so a failure keeps the old slides.
         let fm = FileManager.default
-        let staging = store.url("slides/.plainDump-rerender")
+        let staging = store.url(".rerender")
         try? fm.removeItem(at: staging)
-        let outcome = try PlainRenderer().render(plan: plain, aspect: manifest.aspectRatio, photos: photos,
-                                                 features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }),
-                                                 sourceFolder: folder, outputDirectory: staging)
-        guard outcome.failures.isEmpty else {
+        let result = try ConceptRendering.renderAll(
+            concepts.plans, runID: manifest.runID, aspect: manifest.aspectRatio, photos: photos,
+            features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }),
+            stylePack: try StylePackLoader.load(id: concepts.stylePackID), sourceFolder: folder, into: staging,
+            seedOverride: seed)
+        guard !result.failed else {
             try? fm.removeItem(at: staging)
-            throw Failure.render(outcome.failures)
+            throw Failure.render(result.warnings)
         }
-        let final = store.url("slides/plainDump")
-        if fm.fileExists(atPath: final.path) { _ = try fm.replaceItemAt(final, withItemAt: staging) }
-        else { try fm.moveItem(at: staging, to: final) }
+        for dir in ["slides", "layouts"] {
+            let final = store.url(dir), staged = staging.appending(path: dir)
+            if fm.fileExists(atPath: final.path) { _ = try fm.replaceItemAt(final, withItemAt: staged) }
+            else { try fm.moveItem(at: staged, to: final) }
+        }
+        try? fm.removeItem(at: staging)
+        concepts.renderedSlides = result.slides
+        try store.write(concepts, to: "plans/director.json")
     }
 }
