@@ -1,30 +1,29 @@
-# AK14 Worker (local Phase 1 backend)
+# AK14 Worker
 
-This Worker proxies the exact Responses request shape used by AK14 and serves a versioned StylePack config. It has not been deployed. The iOS app uses `WorkerTransport`; the OpenAI key remains a Worker secret.
+The Worker proxies AK14 Responses requests and serves the versioned StylePack config. The OpenAI key stays in a Worker secret. `POST /v1/responses` requires a random invite token whose SHA-256 hash is configured in `INVITE_TOKEN_HASHES`.
 
-## Local setup
+## Local development
 
 ```bash
 cd backend/worker
 npm install
 cp .dev.vars.example .dev.vars
-# Fill in local secrets in .dev.vars; never commit that file.
-npm run check
-npm run dev
+node scripts/issue-invite.js
 ```
 
-The local API is `http://127.0.0.1:8787`; `GET /health` and `GET /v1/config` do not need an invite. `POST /v1/responses` requires `Authorization: Bearer <invite>`. Issue a short-lived, pseudonymous invite locally with:
+The helper prints a plaintext invite once and its SHA-256 hash. Put the plaintext token in the app during development, and put the hash in `.dev.vars` as `INVITE_TOKEN_HASHES=<hash>`. Configure `DAILY_REQUEST_CAP` and `DAILY_SPEND_CAP_USD` there as well. Keep `.dev.vars` private. `npm run check` runs the Worker end-to-end checks; `npm run dev` starts the local Worker at `http://127.0.0.1:8787`.
 
-```bash
-INVITE_SIGNING_KEY='<the same 32+ byte secret>' node scripts/issue-invite.js P01 7
-```
+## Deploy
 
-Paste that invite into the development app. Never embed a shared invite or the signing key in the app bundle. The Worker only accepts `gpt-6-luna`, AK14's schema names, text/JPEG inputs, `store: false`, and bounded request/output sizes. The per-invite rate limit is five requests per minute through the Cloudflare binding. That limit is per Cloudflare location and is not a hard spending cap. Before distributing the app, add a global per-invite quota and an invite provisioning/revocation workflow.
+Run these from `backend/worker`:
 
-The StylePack in `src/style-config.json` is currently a remote copy of the bundled `starter-editorial` pack. A test checks that the two match. A change to a StylePack must change its version and the config ETag, and old run snapshots must keep their pinned version.
+1. Authenticate Wrangler: `npx wrangler login`.
+2. Create a KV namespace if needed: `npx wrangler kv namespace create AK14_USAGE`. The production namespace is already created and its binding is recorded in `wrangler.jsonc`.
+3. Set the provider secret: `npx wrangler secret put OPENAI_API_KEY`.
+4. Generate an invite with `node scripts/issue-invite.js`. Give the printed plaintext token to its intended user once. Add only its SHA-256 hash to the comma-separated `INVITE_TOKEN_HASHES` value in `wrangler.jsonc` `vars`, then deploy. Configure `DAILY_REQUEST_CAP` and `DAILY_SPEND_CAP_USD` in the same vars section before deploying.
+5. Deploy: `npm run deploy`.
+6. Copy the deployed Worker URL into the iOS app's Worker URL setting. Enter the invite plaintext token in the app's invite setting.
 
-## Deploy preparation
+To add an invite, generate another token and add its hash to `INVITE_TOKEN_HASHES`, separated by commas, then deploy the updated configuration. To revoke one, remove its hash and deploy. Existing KV counters are keyed by the token hash and UTC date and expire after two days. Each successful upstream response logs one structured JSON line with the token hash, model, input/cached/output token counts, and estimated cost. Request content and images are never logged. Cost uses gpt-6-luna rates of $0.10 per million uncached input tokens, $0.01 per million cached input tokens, and $0.50 per million output tokens.
 
-Set `OPENAI_API_KEY` and `INVITE_SIGNING_KEY` as Worker secrets using Wrangler, review the access/quotas above, then deploy from a Cloudflare account. Keep `.dev.vars` local. No account configuration or deployment is performed by this repository.
-
-OpenAI Responses requests explicitly use `store: false`, which disables default response application-state storage. Standard abuse-monitoring retention is a separate account policy; review it and update user-facing consent before distribution.
+`GET /health` and `GET /v1/config` do not need an invite. Responses requests are restricted to AK14's bounded schema, image, output and model shape, and set `store: false`.

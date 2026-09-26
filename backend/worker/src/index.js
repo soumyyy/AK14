@@ -12,32 +12,29 @@ function json(value, status = 200, extraHeaders = {}) {
   });
 }
 
-function decodeBase64URL(value) {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid token encoding");
-  const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
-  return Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")), c => c.charCodeAt(0));
-}
-
-async function verifyInvite(authorization, signingKey) {
-  if (!signingKey || encoder.encode(signingKey).length < 32) throw new Error("server signing key is missing or too short");
+async function verifyInvite(authorization, tokenHashes) {
   if (!authorization?.startsWith("Bearer ")) return null;
   const token = authorization.slice(7);
-  if (token.length > 2048) return null;
-  const parts = token.split(".");
-  if (parts.length !== 2) return null;
+  if (!token || token.length > 512) return null;
   try {
-    const key = await crypto.subtle.importKey("raw", encoder.encode(signingKey),
-      { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-    const valid = await crypto.subtle.verify("HMAC", key, decodeBase64URL(parts[1]), encoder.encode(parts[0]));
-    if (!valid) return null;
-    const invite = JSON.parse(new TextDecoder().decode(decodeBase64URL(parts[0])));
-    const now = Math.floor(Date.now() / 1000);
-    if (invite.v !== 1 || invite.scope !== "responses" || !/^[A-Za-z0-9_-]{1,64}$/.test(invite.sub)
-      || !Number.isInteger(invite.exp) || invite.exp <= now || invite.exp > now + 31 * 86400) return null;
-    return invite;
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(token)));
+    const hash = [...digest].map(byte => byte.toString(16).padStart(2, "0")).join("");
+    const configured = (tokenHashes || "").split(",").map(value => value.trim().toLowerCase());
+    return configured.includes(hash) ? { id: hash } : null;
   } catch {
     return null;
   }
+}
+
+function utcDate() { return new Date().toISOString().slice(0, 10); }
+function capValue(value) { const number = Number(value); return Number.isFinite(number) && number > 0 ? number : 0; }
+async function readNumber(kv, key) { return Number(await kv.get(key) || 0); }
+function estimateCost(usage = {}) {
+  const input = Number(usage.input_tokens) || 0;
+  const cached = Number(usage.input_tokens_details?.cached_tokens) || 0;
+  const output = Number(usage.output_tokens) || 0;
+  const billableInput = Math.max(0, input - cached);
+  return { input, cached, output, usd: billableInput * 0.10 / 1_000_000 + cached * 0.01 / 1_000_000 + output * 0.50 / 1_000_000 };
 }
 
 function validRequest(body) {
@@ -108,7 +105,7 @@ export function createHandler(fetchUpstream = fetch) {
     if (request.method !== "POST") return json({ error: "method not allowed" }, 405, { allow: "POST" });
     if (!env.OPENAI_API_KEY) return json({ error: "server is not configured" }, 503);
     let invite;
-    try { invite = await verifyInvite(request.headers.get("authorization"), env.INVITE_SIGNING_KEY); }
+    try { invite = await verifyInvite(request.headers.get("authorization"), env.INVITE_TOKEN_HASHES); }
     catch { return json({ error: "server is not configured" }, 503); }
     if (!invite) return json({ error: "unauthorized" }, 401);
     const declaredSize = Number(request.headers.get("content-length") || 0);
@@ -121,8 +118,19 @@ export function createHandler(fetchUpstream = fetch) {
     try { body = JSON.parse(new TextDecoder().decode(bytes)); }
     catch { return json({ error: "invalid JSON" }, 400); }
     if (!validRequest(body)) return json({ error: "unsupported request" }, 400);
-    const limit = await env.MODEL_LIMIT.limit({ key: invite.sub });
-    if (!limit.success) return json({ error: "rate limit exceeded" }, 429);
+    if (!env.AK14_USAGE) return json({ error: "server is not configured" }, 503);
+    const date = utcDate();
+    const prefix = `${invite.id}:${date}`;
+    const requestsKey = `${prefix}:requests`;
+    const spendKey = `${prefix}:spend`;
+    const requestCount = await readNumber(env.AK14_USAGE, requestsKey);
+    const spend = await readNumber(env.AK14_USAGE, spendKey);
+    const requestCap = capValue(env.DAILY_REQUEST_CAP);
+    const spendCap = capValue(env.DAILY_SPEND_CAP_USD);
+    if ((requestCap && requestCount >= requestCap) || (spendCap && spend >= spendCap)) {
+      return json({ error: "daily usage limit reached" }, 429);
+    }
+    await env.AK14_USAGE.put(requestsKey, String(requestCount + 1), { expirationTtl: 172800 });
     let upstream;
     try {
       upstream = await fetchUpstream("https://api.openai.com/v1/responses", {
@@ -133,7 +141,15 @@ export function createHandler(fetchUpstream = fetch) {
     } catch {
       return json({ error: "model service unavailable" }, 502);
     }
-    return new Response(upstream.body, {
+    let responseBody;
+    try { responseBody = await upstream.text(); } catch { responseBody = ""; }
+    let usage = {};
+    try { usage = JSON.parse(responseBody).usage || {}; } catch {}
+    const cost = estimateCost(usage);
+    await env.AK14_USAGE.put(spendKey, String(spend + cost.usd), { expirationTtl: 172800 });
+    console.log(JSON.stringify({ event: "model_usage", token_id_hash: invite.id, model: body.model,
+      input_tokens: cost.input, cached_tokens: cost.cached, output_tokens: cost.output, estimated_usd: cost.usd }));
+    return new Response(responseBody, {
       status: upstream.status,
       headers: { "content-type": upstream.headers.get("content-type") || "application/json", "cache-control": "no-store" },
     });
