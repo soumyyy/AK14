@@ -69,8 +69,8 @@ public struct ReductionResult: Codable, Sendable {
         let clustersByID = Dictionary(uniqueKeysWithValues: clusters.map { ($0.clusterID, $0) })
         var alternatives: [RankedCandidate] = []
         for candidate in base {
-            guard alternatives.count < limit - base.count,
-                  var cluster = clustersByID[candidate.clusterID] else { break }
+            guard alternatives.count < limit - base.count else { break }
+            guard var cluster = clustersByID[candidate.clusterID] else { continue }
             let safeMembers = cluster.memberAssetIDs.filter { junkByID[$0]?.verdict != .reject }
             let alternativesForCluster = safeMembers.filter { $0 != candidate.assetID }
             guard !alternativesForCluster.isEmpty else { continue }
