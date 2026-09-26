@@ -45,7 +45,7 @@ struct RunPipeline: Sendable {
         lap("ingest", start)
         log("Finding the best moments… \(ingest.photos.count) photos, \(ingest.skipped.count) skipped")
 
-        var events = EventSegmenter.segment(ingest.photos)
+        var events = options.exact ? [] : EventSegmenter.segment(ingest.photos)
         if options.event != nil && options.allEvents { throw ArgumentError.invalidValue("--event", "cannot be combined with --all-events") }
         var photos = ingest.photos
 
@@ -80,9 +80,9 @@ struct RunPipeline: Sendable {
         lap("analysis", start)
 
         // Refine timestamp groups with the on-device Vision scene signatures before selection.
-        events = EventSegmenter.segment(ingest.photos, features: features)
+        if !options.exact { events = EventSegmenter.segment(ingest.photos, features: features) }
         var occasionResult: OccasionSplitter.Result?
-        if options.consent && !options.noLLM, let client {
+        if !options.exact && options.consent && !options.noLLM, let client {
             occasionResult = await OccasionSplitter.split(events: events, photos: ingest.photos,
                                                            thumbnails: thumbByID, features: features, client: client)
             if let occasionResult {
@@ -90,10 +90,10 @@ struct RunPipeline: Sendable {
                 timings.append(StageTiming(stage: "occasion_split", seconds: occasionResult.call.latencySeconds))
             }
         }
-        if let requested = options.event, !events.contains(where: { $0.index == requested }) {
+        if !options.exact, let requested = options.event, !events.contains(where: { $0.index == requested }) {
             throw ArgumentError.invalidEvent("\(requested) (found \(events.count) events)")
         }
-        let chosenEvent: Int? = options.allEvents ? nil : (options.event ?? events.max(by: { $0.photoCount < $1.photoCount })?.index)
+        let chosenEvent: Int? = options.exact || options.allEvents ? nil : (options.event ?? events.max(by: { $0.photoCount < $1.photoCount })?.index)
         let selectedIDs = chosenEvent.flatMap { id in events.first(where: { $0.index == id })?.assetIDs }
         if let selectedIDs {
             let selected = Set(selectedIDs)
@@ -116,8 +116,18 @@ struct RunPipeline: Sendable {
         let config = ReductionConfig()
         let index = FeaturePrintIndex(cacheRoot: options.cacheDirectory, features: features)
         var reduction = ReductionResult.reduce(photos: photos, features: features, distance: index.distance, config: config)
+        if options.exact {
+            let junk = Dictionary(uniqueKeysWithValues: reduction.junk.map { ($0.assetID, $0) })
+            let exactClusters = ShotClusterer.cluster(photos: photos, features: features, distance: { _, _ in nil }, config: config)
+            let exactRanked = CandidateRanker.rank(photos: photos, features: features, clusters: exactClusters,
+                                                   junk: junk, config: config)
+            reduction.ranked = exactRanked
+            reduction.shortlist = exactRanked
+            reduction.funnel.representatives = exactRanked.count
+            reduction.funnel.shortlisted = exactRanked.count
+        }
         lap("reduction", start)
-        log("Reduced to \(reduction.shortlist.count) candidates from \(reduction.funnel.representatives) distinct moments")
+        log(options.exact ? "Exact set: \(reduction.shortlist.count) photos for planning" : "Reduced to \(reduction.shortlist.count) candidates from \(reduction.funnel.representatives) distinct moments")
 
         // 5. Run directory
         let store = try RunStore.create(in: options.runsDirectory, runID: RunID.make(now: now))
@@ -133,6 +143,7 @@ struct RunPipeline: Sendable {
         // Written immediately (completedAt = nil) so an interrupted run is visible as incomplete, never counted.
         var early = RunManifest(runID: store.root.lastPathComponent, createdAt: now, sourceFolderLabel: options.folder.lastPathComponent)
         early.studyCode = options.studyCode
+        early.exactSet = options.exact
         try store.write(early, to: "manifest.json")
         try store.write(IngestResult(photos: ingest.photos.map { $0.redactingLocation() }, skipped: ingest.skipped), to: "input-index.json")
 
@@ -220,6 +231,7 @@ struct RunPipeline: Sendable {
         manifest.events = events.map(EventSegmentSummary.init)
         manifest.chosenEvent = chosenEvent
         manifest.storyHint = options.story
+        manifest.exactSet = options.exact
         manifest.skippedCount = ingest.skipped.count
         manifest.aspectRatio = aspect
         manifest.aspectOverridden = options.aspect != nil
@@ -281,7 +293,7 @@ struct RunPipeline: Sendable {
                         index: FeaturePrintIndex, folder: URL, options: RunOptions, stylePack: StylePack,
                         aspect: CarouselAspect, runID: String, warnings: inout [String]) async throws -> DirectorOutput {
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
-        let triageCandidates = reduction.triageCandidates(photos: photos, features: features)
+        let triageCandidates = options.exact ? reduction.shortlist : reduction.triageCandidates(photos: photos, features: features)
         let shortlistPhotos = triageCandidates.compactMap { photoByID[$0.assetID] }
         let triageThumbs = try await thumbnails(shortlistPhotos, tier: .triage, folder: folder, warnings: &warnings)
         let planningThumbs = try await thumbnails(shortlistPhotos, tier: .planning, folder: folder, warnings: &warnings)
@@ -303,7 +315,11 @@ struct RunPipeline: Sendable {
         let poolTarget = min(shortlist.count, options.slides.map { min(planning.upperBound, max(planning.lowerBound, $0 * 4)) }
                              ?? (planning.lowerBound + planning.upperBound) / 2)
         let selectPool: @Sendable ([AssetID: TriageScore]) -> [AssetID] = { triage in
-            DiversitySelector.selectPlanningPool(ranked: shortlist, triage: triage, target: poolTarget,
+            if options.exact {
+                let ordered = options.keepOrder ? photos.sorted { $0.sourceRelativePaths[0] < $1.sourceRelativePaths[0] }.map(\.assetID) : shortlist.map(\.assetID)
+                return ordered.filter { id in shortlist.contains(where: { $0.assetID == id }) }
+            }
+            return DiversitySelector.selectPlanningPool(ranked: shortlist, triage: triage, target: poolTarget,
                                                  photos: photoByID, features: features, distance: index.distance,
                                                  config: config).map(\.assetID)
         }
@@ -316,12 +332,13 @@ struct RunPipeline: Sendable {
         }
 
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
-                                             sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides)
+                                             sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides,
+                                             exactSet: options.exact, keepOrder: options.keepOrder)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,
                                                    composition: composition, runID: runID, storyHint: options.story,
-                                                   allowMultiEventRecap: options.allEvents))
+                                                   allowMultiEventRecap: options.allEvents, exactSet: options.exact, keepOrder: options.keepOrder))
     }
 
     /// Updates rank scores with triage, records the planning pool and funnel counts.

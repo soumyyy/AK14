@@ -19,6 +19,8 @@ struct RunOptions: Equatable, Sendable {
     var event: Int? = nil
     var allEvents: Bool = false
     var story: String? = nil
+    var exact: Bool = false
+    var keepOrder: Bool = false
 }
 
 enum Command: Equatable {
@@ -65,7 +67,7 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
 enum Arguments {
     static let usage = """
     usage:
-      ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--event N | --all-events] [--story TEXT] [--runs DIR] [--cache DIR]
+      ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--exact [--keep-order]] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--event N | --all-events] [--story TEXT] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
       ak14 rerender <runDir> --source <folder> [--seed HEX] [--recompose]
       ak14 followup <runDir> --posted yes|no [--posted-days N] [--platform instagram|other] [--reused-another-event yes|no] [--link-seen yes|no]
@@ -206,6 +208,8 @@ enum Arguments {
                 }
                 switch flag {
                 case "--recursive": o.recursive = true
+                case "--exact": o.exact = true
+                case "--keep-order": o.keepOrder = true
                 case "--all-events": o.allEvents = true
                 case "--event":
                     let v = try value()
@@ -236,6 +240,7 @@ enum Arguments {
                 }
             }
             if o.event != nil && o.allEvents { throw ArgumentError.invalidValue("--event", "cannot be combined with --all-events") }
+            if o.keepOrder && !o.exact { throw ArgumentError.invalidValue("--keep-order", "requires --exact") }
             return .run(o)
         default:
             throw ArgumentError.unknownCommand(command)
