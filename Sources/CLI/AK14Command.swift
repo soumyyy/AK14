@@ -40,6 +40,16 @@ struct AK14Command {
                 print("Also delete: the participant's intake photo folder, any folders you exported slides to, and Studio's remembered source folder (Runs > Source folder… is per run).")
             case .versions:
                 for (k, v) in Versions.all.sorted(by: { $0.key < $1.key }) { print("\(k)\t\(v)") }
+            case .evalPairs(let dirs, let out, let seed):
+                try EvalCommand.pairs(runDirectories: dirs, out: out, seed: seed)
+                print(out.appending(path: "evalset.json").path)
+            case .evalLabel(let dir, let rater):
+                try EvalCommand.label(evalDirectory: dir, rater: rater)
+                print(dir.appending(path: "index.html").path)
+            case .evalImport(let dir, let labels):
+                try EvalCommand.importLabels(evalDirectory: dir, file: labels)
+                print("labels imported")
+            case .evalScore(let dir): print(try EvalCommand.score(evalDirectory: dir))
             case .report(let dir):
                 try ReportCommand.rebuild(runDirectory: dir)
                 print(dir.appending(path: "report.html").path)

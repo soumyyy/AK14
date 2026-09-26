@@ -26,6 +26,10 @@ enum Command: Equatable {
     case studySummary(runsDirectory: URL, out: URL?)
     case delete(runDirectory: URL, cache: URL?)
     case deleteStudyCode(code: String, runsDirectory: URL, cache: URL?)
+    case evalPairs(runDirectories: [URL], out: URL, seed: UInt64)
+    case evalLabel(directory: URL, rater: String)
+    case evalImport(directory: URL, labels: URL)
+    case evalScore(directory: URL)
     case versions
     case help
 }
@@ -63,6 +67,10 @@ enum Arguments {
       ak14 delete <runDir> [--purge-cache] [--cache DIR]
       ak14 delete --study-code CODE [--runs DIR] [--purge-cache] [--cache DIR]
       ak14 versions
+      ak14 eval pairs <runDir>… --out <evalDir> [--seed HEX]
+      ak14 eval label <evalDir> --rater <name>
+      ak14 eval import <evalDir> <labels.json>
+      ak14 eval score <evalDir>
     """
 
     static func parse(_ args: [String], cwd: URL) throws -> Command {
@@ -90,6 +98,38 @@ enum Arguments {
         }
 
         switch command {
+        case "eval":
+            guard let action = rest.first else { throw ArgumentError.unknownCommand("eval") }
+            rest.removeFirst()
+            switch action {
+            case "pairs":
+                var dirs: [URL] = [], out: URL?, seed: UInt64 = 14
+                while !rest.isEmpty {
+                    let value = rest.removeFirst()
+                    if value == "--out" || value == "--seed" {
+                        guard !rest.isEmpty else { throw ArgumentError.missingValue(value) }
+                        let v = rest.removeFirst()
+                        if value == "--out" { out = path(v) }
+                        else { guard let n = UInt64(v, radix: 16) else { throw ArgumentError.invalidSeed(v) }; seed = n }
+                    } else if value.hasPrefix("--") { throw ArgumentError.unknownOption(value) }
+                    else { dirs.append(path(value)) }
+                }
+                guard !dirs.isEmpty else { throw ArgumentError.missingRunDirectory }
+                guard let out else { throw ArgumentError.missingValue("--out") }
+                return .evalPairs(runDirectories: dirs, out: out, seed: seed)
+            case "label":
+                guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
+                rest.removeFirst(); let f = try flags(["--rater"])
+                guard let rater = f["--rater"], !rater.isEmpty else { throw ArgumentError.missingValue("--rater") }
+                return .evalLabel(directory: path(dir), rater: rater)
+            case "import":
+                guard rest.count == 2 else { throw ArgumentError.missingRunDirectory }
+                return .evalImport(directory: path(rest[0]), labels: path(rest[1]))
+            case "score":
+                guard rest.count == 1 else { throw ArgumentError.missingRunDirectory }
+                return .evalScore(directory: path(rest[0]))
+            default: throw ArgumentError.unknownCommand("eval \(action)")
+            }
         case "versions":
             return .versions
         case "followup":

@@ -4,6 +4,7 @@
 node_modules/
 .wrangler/
 runs/
+eval/
 .build/
 .swiftpm/
 DerivedData/
