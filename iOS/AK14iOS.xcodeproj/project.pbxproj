@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		02BD467FD87C0A2CC66FCE2B /* InteractionRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C35761776638637869EAB0 /* InteractionRecorder.swift */; };
 		09BB41C9C5227D168712FDEE /* AK14App.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4E8F4E42040AAE7DD421C8F /* AK14App.swift */; };
 		1087594EF4DF256D01B3C65D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */; };
 		3D756A6C223337127BAE8925 /* Director in Frameworks */ = {isa = PBXBuildFile; productRef = D3166AE9C7956A1154E17AD1 /* Director */; };
@@ -30,6 +31,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E8C35761776638637869EAB0 /* InteractionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionRecorder.swift; sourceTree = "<group>"; };
 		0BD0F04FE50503C9E97AC215 /* AK14 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AK14; path = ..; sourceTree = SOURCE_ROOT; };
 		24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGenerateReviewUITests.swift; sourceTree = "<group>"; };
 		82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryEditingService.swift; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 				F4E8F4E42040AAE7DD421C8F /* AK14App.swift */,
 				C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */,
 				D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */,
+				E8C35761776638637869EAB0 /* InteractionRecorder.swift */,
 				82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */,
 				B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */,
 			);
@@ -213,6 +216,7 @@
 				09BB41C9C5227D168712FDEE /* AK14App.swift in Sources */,
 				579BAE047956EED0CEE6CA62 /* ImportReviewView.swift in Sources */,
 				93592874EFD9F99ACB5AB0D9 /* StoryEditingService.swift in Sources */,
+				02BD467FD87C0A2CC66FCE2B /* InteractionRecorder.swift in Sources */,
 				8AC7768D40E1085EC316D63D /* StoryPipeline.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
