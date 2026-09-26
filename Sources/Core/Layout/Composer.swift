@@ -377,7 +377,13 @@ extension LayoutResolver {
     /// Scores every candidate and lets the seed pick among those within a small margin of the best.
     static func choose(_ candidates: [Candidate], primitive: Primitive, heroID: AssetID, env: SlideEnv, history: [String],
                        rng: inout SeededRandom) -> Candidate {
-        let scored = candidates.enumerated()
+        // Hierarchy is a gate, not just a score: a two-photo slide keeps a clearly dominant hero whenever one is possible.
+        var pool = candidates
+        if primitive == .asymmetricPair || primitive == .inset {
+            let clear = candidates.filter { (metrics($0.elements, heroID: heroID, env: env).heroShare ?? 0) >= 1.5 }
+            if !clear.isEmpty { pool = clear }
+        }
+        let scored = pool.enumerated()
             .map { ($0.offset, $0.element, score($0.element, primitive: primitive, heroID: heroID, env: env, history: history)) }
             .sorted { ($0.2, $0.0) < ($1.2, $1.0) }
         let near = scored.filter { $0.2 <= scored[0].2 + 0.05 }
