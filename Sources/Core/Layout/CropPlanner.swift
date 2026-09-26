@@ -31,9 +31,21 @@ public enum CropPlanner {
         default: break
         }
         var x = fx - cw / 2, y = fy - ch / 2
-        if hasFaces, let f, f.height > ch { y = f.y - ch * 0.05 }   // keep heads rather than chins
+        if hasFaces, let f {
+            // Anchor shifts and tight zoom must never push a face out when the faces can fit.
+            if f.width <= cw { x = min(max(x, f.x + f.width - cw), f.x) }
+            if f.height <= ch { y = min(max(y, f.y + f.height - ch), f.y) } else { y = f.y - ch * 0.05 }  // heads over chins
+        }
         x = min(max(0, x), 1 - cw); y = min(max(0, y), 1 - ch)
         return UnitRect(x: x, y: y, width: cw, height: ch)
+    }
+
+    /// True when every detected face lies inside the crop (small tolerance).
+    public static func facesFit(_ f: PhotoFeatures?, crop: UnitRect) -> Bool {
+        (f?.faces ?? []).allSatisfy {
+            $0.box.x >= crop.x - 0.01 && $0.box.y >= crop.y - 0.01 &&
+            $0.box.x + $0.box.width <= crop.x + crop.width + 0.01 && $0.box.y + $0.box.height <= crop.y + crop.height + 0.01
+        }
     }
 
     /// Face boxes mapped into canvas pixels for a photo drawn with `crop` into `frame`.

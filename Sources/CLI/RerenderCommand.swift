@@ -26,8 +26,9 @@ enum RerenderCommand {
         guard !concepts.plans.isEmpty else { throw Failure.noPlans }
         let photos = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) })
         let folder = source.resolvingSymlinksInPath()
+        // Unknown IDs (e.g. a hand-edited plan) are dropped by the resolver with a warning; verify only known photos.
         for id in Set(concepts.plans.flatMap(\.photoAssetIDs)) {
-            guard let p = photos[id] else { throw Failure.changed(id.rawValue) }
+            guard let p = photos[id] else { continue }
             let sha = try FileHasher.sha256Hex(of: folder.appending(path: p.sourceRelativePaths[0]))
             if sha != p.contentSHA256 { throw Failure.changed(p.sourceRelativePaths[0]) }
         }
@@ -43,12 +44,23 @@ enum RerenderCommand {
             try? fm.removeItem(at: staging)
             throw Failure.render(result.warnings)
         }
-        for dir in ["slides", "layouts"] {
-            let final = store.url(dir), staged = staging.appending(path: dir)
-            if fm.fileExists(atPath: final.path) { _ = try fm.replaceItemAt(final, withItemAt: staged) }
-            else { try fm.moveItem(at: staged, to: final) }
+        // Swap both directories together: move current output aside, move staged in, roll back on any failure.
+        let backup = store.url(".rerender-backup")
+        try? fm.removeItem(at: backup)
+        try fm.createDirectory(at: backup, withIntermediateDirectories: true)
+        var moved: [String] = []
+        do {
+            for dir in ["slides", "layouts"] where fm.fileExists(atPath: store.url(dir).path) {
+                try fm.moveItem(at: store.url(dir), to: backup.appending(path: dir)); moved.append(dir)
+            }
+            for dir in ["slides", "layouts"] { try fm.moveItem(at: staging.appending(path: dir), to: store.url(dir)) }
+        } catch {
+            for dir in ["slides", "layouts"] { try? fm.removeItem(at: store.url(dir)) }
+            for dir in moved { try? fm.moveItem(at: backup.appending(path: dir), to: store.url(dir)) }
+            try? fm.removeItem(at: staging); try? fm.removeItem(at: backup)
+            throw error
         }
-        try? fm.removeItem(at: staging)
+        try? fm.removeItem(at: staging); try? fm.removeItem(at: backup)
         concepts.renderedSlides = result.slides
         try store.write(concepts, to: "plans/director.json")
     }

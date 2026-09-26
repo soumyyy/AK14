@@ -81,3 +81,16 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
   - Location stamps are omitted: they would need a network geocoder, which Phase 0 privacy excludes.
   - Core uses CryptoKit for seed hashing (not an imaging framework).
   - Decorations are procedural instead of downloaded assets, so there are no licensing issues.
+
+### M4 review fixes (all 9 findings)
+- The date stamp's year tick is drawn as a path (DSEG7 has no apostrophe glyph, so no system-font fallback).
+- Stamps use the camera's own wall-clock date (`localDateTime`), so they're machine-independent. Older runs fall back to UTC.
+- Film-edge bands are reserved before layout: margins, full-bleed and inset frames, and stamps all stay clear.
+- A full-bleed crop that would cut faces becomes a whole-photo hero, with a warning. Landscape heroes crop to square only when faces fit.
+- Crops are re-clamped after anchor shift and tight zoom so faces stay in.
+- A slide with no usable photos renders empty with a warning, instead of crashing.
+- The date stamp avoids other photos, not just faces.
+- Rerender swaps slides and layouts together, with rollback.
+- Overlap coverage is measured on a grid, so there's no double counting.
+- E2E: 24 tests passing.
+- Deferred minor: overlap and face checks use unrotated boxes (at most ±2°, about 15 px).

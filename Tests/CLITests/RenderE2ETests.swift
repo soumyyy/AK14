@@ -74,3 +74,43 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.plans.allSatisfy { d.renderedSlides[$0.conceptType.rawValue]?.count == $0.slides.count })
 }
+
+// MARK: - M4 review fixes
+
+@Test func stampsUseLocalCaptureDateAndFilmEdgeKeepsContentClear() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let store = try await run(tmp, folder: try sceneFolder(tmp))
+    let m = try store.read(RunManifest.self, from: "manifest.json")
+    let band = StyleMetrics.filmBand(canvasWidth: Double(m.aspectRatio.exportWidth)) / Double(m.aspectRatio.exportWidth)
+    let layouts = try FileManager.default.subpathsOfDirectory(atPath: store.url("layouts").path).filter { $0.hasSuffix(".json") }
+    var sawFilm = false, sawStamp = false
+    for path in layouts {
+        let slide = try store.read(ResolvedSlide.self, from: "layouts/" + path)
+        for e in slide.elements where e.kind == .stamp {
+            sawStamp = true
+            #expect(e.text == "26 5 29", "stamp text \(e.text ?? "nil")")   // fixture EXIF local date 2026:05:29, no apostrophe glyph
+        }
+        guard slide.filmEdge else { continue }
+        sawFilm = true
+        for e in slide.elements where e.kind != .tape {
+            #expect(e.frame.x >= band - 0.001 && e.frame.x + e.frame.width <= 1 - band + 0.001,
+                    "\(path) \(e.kind) under the film band: \(e.frame)")
+        }
+    }
+    #expect(sawFilm && sawStamp)
+}
+
+@Test func slideWithNoUsablePhotosRendersEmptyInsteadOfCrashing() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp)
+    let store = try await run(tmp, folder: folder)
+    var d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    let i = try #require(d.plans.firstIndex { $0.conceptType == .designed })
+    d.plans[i].slides[0].photos = [PhotoElement.plain(AssetID(rawValue: "a_doesnotexist"))]   // hand-edited plan
+    try store.write(d, to: "plans/director.json")
+    try RerenderCommand.rerender(runDirectory: store.root, source: folder)
+    let slide = try store.read(ResolvedSlide.self, from: "layouts/designed/slide-01.json")
+    #expect(slide.elements.isEmpty && slide.warnings.contains { $0.contains("no usable photos") })
+    #expect(!FileManager.default.fileExists(atPath: store.url(".rerender-backup").path))
+    #expect(!FileManager.default.fileExists(atPath: store.url(".rerender").path))
+}

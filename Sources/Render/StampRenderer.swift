@@ -22,8 +22,14 @@ enum StampRenderer {
         let width = CTLineGetTypographicBounds(line, nil, nil, nil)
         ctx.saveGState()
         ctx.setShadow(offset: .zero, blur: rect.height * 0.25, color: CGColor(srgbRed: 1, green: 0.45, blue: 0.1, alpha: 0.7 * opacity))
-        ctx.textPosition = CGPoint(x: rect.maxX - width, y: rect.minY + rect.height * 0.12)
+        let x = rect.maxX - width, baseline = rect.minY + rect.height * 0.12
+        ctx.textPosition = CGPoint(x: x, y: baseline)
         CTLineDraw(line, ctx)
+        // Film-style year tick (') drawn as a path: DSEG7 has no apostrophe glyph, and falling back to a
+        // system font would make output depend on installed fonts.
+        let tick = CGRect(x: x - rect.height * 0.3, y: baseline + rect.height * 0.5, width: rect.height * 0.1, height: rect.height * 0.28)
+        ctx.setFillColor(orange)
+        ctx.fill(tick)
         ctx.restoreGState()
     }
 }

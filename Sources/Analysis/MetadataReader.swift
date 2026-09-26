@@ -31,7 +31,8 @@ public enum MetadataReader {
             timeZoneAssumed: assumed,
             location: gpsPoint(props[kCGImagePropertyGPSDictionary] as? [CFString: Any]),
             cameraModel: (tiff[kCGImagePropertyTIFFModel] as? String).flatMap { $0.isEmpty ? nil : $0 },
-            isScreenshot: (exif[kCGImagePropertyExifUserComment] as? String) == "Screenshot"
+            isScreenshot: (exif[kCGImagePropertyExifUserComment] as? String) == "Screenshot",
+            localDateTime: date == nil ? nil : exif[kCGImagePropertyExifDateTimeOriginal] as? String
         )
         return ImageMetadata(pixelWidth: swapped ? rawH : rawW, pixelHeight: swapped ? rawW : rawH,
                              exifOrientation: orientation, capture: capture)

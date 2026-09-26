@@ -32,7 +32,11 @@ public enum LayoutResolver {
     static func resolveSlide(_ slide: SlidePlan, index: Int, context: LayoutContext, rng: inout SeededRandom) -> ResolvedSlide {
         let c = Canvas(W: Double(context.aspect.exportWidth), H: Double(context.aspect.exportHeight))
         let spacing = context.stylePack.spacingRanges
-        let margin = rng.range(spacing["marginMin"] ?? 0.04, spacing["marginMax"] ?? 0.07) * c.short
+        // A film edge draws bands down both sides; reserve them so nothing important sits underneath.
+        let filmBand = slide.decorations.contains { $0.decorationID == "film-edge" } ? StyleMetrics.filmBand(canvasWidth: c.W) : 0
+        let margin = max(rng.range(spacing["marginMin"] ?? 0.04, spacing["marginMax"] ?? 0.07) * c.short,
+                         filmBand > 0 ? filmBand + 0.035 * c.short : 0)
+        let content = Box(x: filmBand, y: 0, w: c.W - 2 * filmBand, h: c.H)
         let maxPhotoRot = context.stylePack.allowedRotations["photoDegrees"] ?? 2
         let minVisible = context.stylePack.overlapRanges["minimumVisibleFraction"] ?? 0.55
         var warnings: [String] = []
@@ -41,6 +45,10 @@ public enum LayoutResolver {
         let photos = slide.photos.filter {
             if context.photos[$0.assetID] == nil { warnings.append("unknown photo \($0.assetID) dropped"); return false }
             return true
+        }
+        guard !photos.isEmpty else {
+            return ResolvedSlide(index: index, primitive: slide.primitive, requestedPrimitive: slide.primitive, background: "plain",
+                                 grain: 0, filmEdge: filmBand > 0, elements: [], warnings: warnings + ["slide has no usable photos"])
         }
         var primitive = slide.primitive
         if !primitive.photoRange.contains(photos.count) {
@@ -53,6 +61,18 @@ public enum LayoutResolver {
             let b = ($1.element.importance, $1.element.role == "hero" ? 1 : 0, -$1.offset)
             return a > b
         }.map(\.element)
+
+        // Full-bleed faces that cannot fit the crop become a hero (whole photo) rather than being cut (spec §7.3).
+        if primitive == .fullBleed {
+            let e = photos[0]
+            let a = Double(context.photos[e.assetID]!.pixelWidth) / Double(max(1, context.photos[e.assetID]!.pixelHeight))
+            let crop = CropPlanner.cover(imageAspect: a, boxAspect: content.w / content.h, features: context.features[e.assetID],
+                                         cropIntent: e.cropIntent, anchorIntent: e.anchorIntent)
+            if !CropPlanner.facesFit(context.features[e.assetID], crop: crop) {
+                warnings.append("faces do not fit a full-bleed crop; showing the whole photo as a hero")
+                primitive = .hero
+            }
+        }
 
         var elements: [ResolvedElement] = []
         var background = "plain"
@@ -86,14 +106,18 @@ public enum LayoutResolver {
 
         switch primitive {
         case .fullBleed:
-            background = "none"
-            elements.append(photoElement(ranked[0], frame: Box(x: 0, y: 0, w: c.W, h: c.H), z: 0))
+            background = filmBand > 0 ? "plain" : "none"
+            elements.append(photoElement(ranked[0], frame: content, z: 0))
 
         case .hero:
             let e = ranked[0]
             if e.cropIntent == "tight" {
                 elements.append(photoElement(e, frame: usable, z: 0))
-            } else if aspect(e.assetID) > 1.15 * usable.w / usable.h {
+            } else if aspect(e.assetID) > 1.15 * usable.w / usable.h,
+                      CropPlanner.facesFit(context.features[e.assetID],
+                                           crop: CropPlanner.cover(imageAspect: aspect(e.assetID),
+                                                                   boxAspect: max(usable.w / usable.h, min(aspect(e.assetID), 1.0)),
+                                                                   features: context.features[e.assetID])) {
                 // A landscape photo would float small on a tall canvas: crop it toward square (face-safe) instead.
                 let target = max(usable.w / usable.h, min(aspect(e.assetID), 1.0))
                 let w = usable.w, h = min(usable.h, w / target)
@@ -115,14 +139,17 @@ public enum LayoutResolver {
             }
 
         case .inset:
-            background = "none"
+            background = filmBand > 0 ? "plain" : "none"
             let main = ranked[0], small = ranked[1]
-            let mainEl = photoElement(main, frame: Box(x: 0, y: 0, w: c.W, h: c.H), z: 0)
+            let mainEl = photoElement(main, frame: content, z: 0)
+            if !CropPlanner.facesFit(context.features[main.assetID], crop: mainEl.crop!) {
+                warnings.append("some faces in the main inset photo are cropped")
+            }
             elements.append(mainEl)
             let a = aspect(small.assetID)
             var w = 0.36 * c.W, h = w / a
             if h > 0.42 * c.H { h = 0.42 * c.H; w = h * a }
-            let faces = CropPlanner.facesOnCanvas(context.features[main.assetID], crop: mainEl.crop!, frame: Box(x: 0, y: 0, w: c.W, h: c.H))
+            let faces = CropPlanner.facesOnCanvas(context.features[main.assetID], crop: mainEl.crop!, frame: content)
             let corners: [String: Box] = [
                 "TL": Box(x: margin, y: margin, w: w, h: h), "TR": Box(x: c.W - margin - w, y: margin, w: w, h: h),
                 "BL": Box(x: margin, y: c.H - margin - h, w: w, h: h), "BR": Box(x: c.W - margin - w, y: c.H - margin - h, w: w, h: h),
@@ -236,17 +263,30 @@ public enum LayoutResolver {
         for (i, e) in elements.enumerated() {
             let above = elements.indices.filter { elements[$0].zIndex > e.zIndex }.map { boxes[$0] }
             guard !above.isEmpty else { continue }
-            let covered = min(boxes[i].area, above.reduce(0) { $0 + boxes[i].intersection($1).area })
-            let visible = 1 - covered / max(1, boxes[i].area)
+            let visible = 1 - coveredFraction(boxes[i], by: above)
             if visible < minVisible { penalty += minVisible - visible }
             if let crop = e.crop, let id = e.assetID {
                 for face in CropPlanner.facesOnCanvas(features[id], crop: crop, frame: boxes[i]) {
-                    let hidden = above.reduce(0) { $0 + face.intersection($1).area }
-                    penalty += min(1, hidden / max(1, face.area))
+                    penalty += coveredFraction(face, by: above)
                 }
             }
         }
         return penalty
+    }
+
+    /// Fraction of `box` covered by the union of `covers`, sampled on a 24×24 grid (no double counting).
+    static func coveredFraction(_ box: Box, by covers: [Box]) -> Double {
+        guard box.area > 0 else { return 0 }
+        let n = 24
+        var hit = 0
+        for iy in 0..<n {
+            let y = box.y + (Double(iy) + 0.5) / Double(n) * box.h
+            for ix in 0..<n {
+                let x = box.x + (Double(ix) + 0.5) / Double(n) * box.w
+                if covers.contains(where: { x >= $0.x && x < $0.maxX && y >= $0.y && y < $0.maxY }) { hit += 1 }
+            }
+        }
+        return Double(hit) / Double(n * n)
     }
 
     static func overlapPenalty(_ elements: [ResolvedElement], canvas c: Canvas, context: LayoutContext, minVisible: Double) -> Double {
@@ -307,16 +347,18 @@ public enum LayoutResolver {
 
         guard wantsDate else { return }
         // Date comes from the most important photo on the slide (the first plan photo).
-        guard let heroID = plan.photos.first?.assetID, let date = context.photos[heroID]?.metadata.capturedAt else {
+        guard let heroID = plan.photos.first?.assetID, let text = stampText(context.photos[heroID]?.metadata) else {
             slide.warnings.append("date stamp omitted: photo has no capture date"); return
         }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "''yy M d"
-        let text = f.string(from: date)
-        let host = photos.first { $0.assetID == heroID }.map {
+        let hostElement = photos.first { $0.assetID == heroID }
+        let host = hostElement.map {
             Box(x: $0.frame.x * c.W, y: $0.frame.y * c.H, w: $0.frame.width * c.W, h: $0.frame.height * c.H)
         } ?? Box(x: 0, y: 0, w: c.W, h: c.H)
-        let h = 0.03 * c.H, w = h * 0.62 * Double(text.count) + h * 0.4
+        // Other photos above the host are obstacles too (e.g. the small photo on an inset slide).
+        let obstacles = faces + photos.filter { $0.assetID != heroID && $0.zIndex > (hostElement?.zIndex ?? -1) }.map {
+            Box(x: $0.frame.x * c.W, y: $0.frame.y * c.H, w: $0.frame.width * c.W, h: $0.frame.height * c.H)
+        }
+        let h = 0.03 * c.H, w = h * 0.62 * Double(text.count) + h * 0.7
         let pad = 0.04 * min(host.w, host.h)
         let spots: [String: Box] = [
             "bottomRight": Box(x: host.maxX - pad - w, y: host.maxY - pad - h, w: w, h: h),
@@ -325,10 +367,31 @@ public enum LayoutResolver {
             "topLeft": Box(x: host.x + pad, y: host.y + pad, w: w, h: h),
         ]
         let order = [datePlacement] + ["bottomRight", "bottomLeft", "topRight", "topLeft"].filter { $0 != datePlacement }
-        guard let spot = order.first(where: { !faces.contains(where: spots[$0]!.intersects) }) else {
-            slide.warnings.append("date stamp omitted: every corner would cover a face"); return
+        guard let spot = order.first(where: { !obstacles.contains(where: spots[$0]!.intersects) }) else {
+            slide.warnings.append("date stamp omitted: every corner would cover a face or photo"); return
         }
         slide.elements.append(ResolvedElement(kind: .stamp, assetID: heroID, text: text, frame: spots[spot]!.unit(canvasW: c.W, canvasH: c.H),
                                               rotationDegrees: 0, crop: nil, zIndex: z, opacity: 0.92, border: 0, shadow: false))
+    }
+}
+
+/// Style geometry shared by the resolver (to reserve space) and the renderer (to draw it).
+public enum StyleMetrics {
+    public static func filmBand(canvasWidth: Double) -> Double { (0.05 * canvasWidth).rounded() }
+}
+
+extension LayoutResolver {
+    /// Film-camera date imprint from the camera's own wall-clock date: "26 5 29" (the year tick is drawn by the renderer).
+    static func stampText(_ m: CaptureMetadata?) -> String? {
+        guard let raw = m?.localDateTime else {
+            // Older runs lack the wall-clock string: format the absolute date in UTC so output stays machine-independent.
+            guard let d = m?.capturedAt else { return nil }
+            var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+            let c = cal.dateComponents([.year, .month, .day], from: d)
+            return String(format: "%02d %d %d", c.year! % 100, c.month!, c.day!)
+        }
+        let parts = raw.split(separator: " ").first?.split(separator: ":").compactMap { Int($0) } ?? []
+        guard parts.count == 3 else { return nil }
+        return String(format: "%02d %d %d", parts[0] % 100, parts[1], parts[2])
     }
 }

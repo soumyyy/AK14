@@ -27,10 +27,14 @@ public struct CaptureMetadata: Codable, Sendable, Equatable {
     public var hasLocation: Bool
     public var cameraModel: String?
     public var isScreenshot: Bool
+    /// Wall-clock capture date as the camera recorded it ("yyyy:MM:dd HH:mm:ss"); used for date stamps so they
+    /// show the local day of capture regardless of the machine rendering them.
+    public var localDateTime: String?
     public init(capturedAt: Date? = nil, timeZoneAssumed: Bool = false, location: GeoPoint? = nil,
-                cameraModel: String? = nil, isScreenshot: Bool = false) {
+                cameraModel: String? = nil, isScreenshot: Bool = false, localDateTime: String? = nil) {
         self.capturedAt = capturedAt; self.timeZoneAssumed = timeZoneAssumed; self.location = location
         self.hasLocation = location != nil; self.cameraModel = cameraModel; self.isScreenshot = isScreenshot
+        self.localDateTime = localDateTime
     }
 
     /// Tolerates records written before `hasLocation` existed.
@@ -42,6 +46,7 @@ public struct CaptureMetadata: Codable, Sendable, Equatable {
         hasLocation = try c.decodeIfPresent(Bool.self, forKey: .hasLocation) ?? (location != nil)
         cameraModel = try c.decodeIfPresent(String.self, forKey: .cameraModel)
         isScreenshot = try c.decodeIfPresent(Bool.self, forKey: .isScreenshot) ?? false
+        localDateTime = try c.decodeIfPresent(String.self, forKey: .localDateTime)
     }
 }
 

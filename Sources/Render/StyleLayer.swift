@@ -57,7 +57,7 @@ enum StyleLayer {
 
     /// Black film-strip bands down both sides with evenly spaced sprocket holes.
     static func filmEdge(_ ctx: CGContext, size: CGSize) {
-        let band = (0.05 * size.width).rounded()
+        let band = StyleMetrics.filmBand(canvasWidth: size.width)
         let holeW = (0.45 * band).rounded(), holeH = (0.02 * size.height).rounded(), step = (0.04 * size.height).rounded()
         ctx.saveGState()
         for x in [0, size.width - band] {
