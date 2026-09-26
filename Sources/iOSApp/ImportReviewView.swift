@@ -57,11 +57,9 @@ final class ImportReviewModel {
     var importTotal = 0
     private var importDuration: Double = 0
     var modelAssist = UserDefaults.standard.object(forKey: "ak14.modelAssist") as? Bool ?? true
-    var allowThumbnailTransfer = false
     var shareURLs: [URL] = []
     var sharePresented = false
     var showWorkerSettings = false
-    var showThumbnailDisclosure = false
     var showLimitedLibraryPicker = false
     var workerBaseURL = UserDefaults.standard.string(forKey: "ak14.workerBaseURL") ?? "https://ak14-api.soumyamaheshwari1234.workers.dev"
     var workerInviteToken = WorkerInviteToken.load() ?? ""
@@ -181,7 +179,7 @@ final class ImportReviewModel {
 
     func prepareOccasionChoices(useModel: Bool) async {
         guard !records.isEmpty, let folder = importedFolder else { return }
-        let client = useModel && allowThumbnailTransfer ? configuredResponsesClient : nil
+        let client = useModel ? configuredResponsesClient : nil
         let preserveAllEventsChoice = selectedEventIndex == nil
         let previouslySelectedIDs = selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } }
         isPreparingOccasions = true
@@ -238,10 +236,6 @@ final class ImportReviewModel {
         guard let importedFolder else { return false }
         if modelAssist && configuredResponsesClient == nil {
             showWorkerSettings = true
-            return false
-        }
-        guard !modelAssist || allowThumbnailTransfer else {
-            showThumbnailDisclosure = true
             return false
         }
         isGenerating = true
@@ -498,15 +492,6 @@ struct ImportReviewView: View {
                 .alert(item: $model.alert) { alert in
                     Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
                 }
-                .alert("Send selected thumbnails?", isPresented: $model.showThumbnailDisclosure) {
-                    Button("Allow and create options") {
-                        model.allowThumbnailTransfer = true
-                        Task { if await model.generateOptions() { path.append(.options) } }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Small selected thumbnails and short descriptions will be sent to the AK14 Worker and OpenAI for story planning. Full-resolution originals stay on this device.")
-                }
                 .onChange(of: model.state) { _, state in
                     guard case .failed(let message) = state else { return }
                     model.alert = .init(title: "Could not continue", message: message)
@@ -516,10 +501,6 @@ struct ImportReviewView: View {
                     UserDefaults.standard.set(enabled, forKey: "ak14.modelAssist")
                     guard !model.records.isEmpty else { return }
                     Task { await model.prepareOccasionChoices(useModel: enabled) }
-                }
-                .onChange(of: model.allowThumbnailTransfer) { _, allowed in
-                    guard !model.records.isEmpty, model.modelAssist else { return }
-                    Task { await model.prepareOccasionChoices(useModel: allowed) }
                 }
         }
     }
@@ -790,19 +771,15 @@ struct ImportReviewView: View {
                         Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
                             .accessibilityHint("When on, selected thumbnails and short descriptions are sent to the configured Worker. Full-resolution originals stay on this device.")
                         if model.modelAssist {
-                            Toggle("Allow selected thumbnails to be sent", isOn: $model.allowThumbnailTransfer)
-                            Text("When allowed, selected small thumbnails and short descriptions go to the AK14 Worker and OpenAI to plan story directions. Full-resolution originals stay on this device.")
+                            Text("AI planning sends selected small thumbnails and short descriptions to the AK14 Worker and OpenAI. Full-resolution originals stay on this device.")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else {
                             localModeExplanation
                         }
                     } else {
                         Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
-                        Text("AI planning is on by default. Add your scoped invite token before creating options. No photos are sent until you allow thumbnail transfer below.")
+                        Text("AI planning is on by default. Add your scoped invite token before creating options. Planning sends selected small thumbnails and short descriptions; full-resolution originals stay on this device.")
                             .font(.footnote).foregroundStyle(.secondary)
-                        if model.modelAssist {
-                            Toggle("Allow selected thumbnails to be sent", isOn: $model.allowThumbnailTransfer)
-                        }
                         if !model.modelAssist { localModeExplanation }
                         Button("Set up AI-assisted planning") { model.showWorkerSettings = true }
                             .buttonStyle(.bordered)
@@ -858,6 +835,7 @@ struct ImportReviewView: View {
                 }
                 .buttonStyle(.borderedProminent).controlSize(.large)
                 .padding(.horizontal, 18).padding(.vertical, 10)
+                .disabled(model.isPreparingOccasions)
             }
         }
         .background(.regularMaterial)
@@ -888,7 +866,7 @@ struct ImportReviewView: View {
                 }
                 Section {
                     Text(model.hasWorkerConfig
-                         ? "AI-assisted planning is available. You choose whether to send selected thumbnails and short descriptions for each story."
+                         ? "AI-assisted planning is available. Creating options sends selected small thumbnails and short descriptions to the AK14 Worker and OpenAI. Full-resolution originals stay on this device."
                          : "Add your HTTPS Worker URL and invite token to enable AI-assisted planning. HTTP localhost is available for simulator development.")
                         .font(.callout)
                 }
@@ -903,7 +881,11 @@ struct ImportReviewView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { model.showWorkerSettings = false }
+                Button("Done") {
+                    model.showWorkerSettings = false
+                    guard model.modelAssist, model.hasWorkerConfig, !model.records.isEmpty else { return }
+                    Task { await model.prepareOccasionChoices(useModel: true) }
+                }
                 }
             }
         }
