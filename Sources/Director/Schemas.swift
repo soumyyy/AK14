@@ -3,7 +3,8 @@ import Core
 /// Strict JSON schemas. Candidate IDs and decoration IDs are enums so the model cannot invent them.
 enum Schemas {
     static let triageTags = ["people", "group", "selfie", "food", "drink", "sign", "text", "venue", "detail", "landscape",
-                             "architecture", "night", "flash", "motion", "mirror", "animal", "vehicle", "nature", "celebration"]
+                             "architecture", "night", "flash", "motion", "mirror", "animal", "vehicle", "nature", "celebration",
+                             "candid", "characterful", "gesture", "portrait", "personality"]
 
     static func triage(ids: [AssetID]) -> JSONValue {
         .obj([("results", .arr(.obj([

@@ -60,9 +60,11 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
 
     static func triage(_ schema: JSONValue, flagged: Set<String> = []) -> String {
         let ids = enumValues(schema["properties"]?["results"]?["items"]?["properties"]?["id"])
+        let allowedTags = enumValues(schema["properties"]?["results"]?["items"]?["properties"]?["tags"]?["items"])
         let results = ids.enumerated().map { i, id in
             let safety = flagged.contains(id) ? #"["blink"]"# : "[]"
-            return #"{"id":"\#(id)","emotionalValue":\#(i % 6),"imperfection":"neutral","safety":\#(safety),"tags":["people"],"confidence":"high"}"#
+            let tag = i == 0 && allowedTags.contains("candid") ? "candid" : "people"
+            return #"{"id":"\#(id)","emotionalValue":\#(i % 6),"imperfection":"neutral","safety":\#(safety),"tags":["\#(tag)"],"confidence":"high"}"#
         }
         return #"{"results":[\#(results.joined(separator: ","))]}"#
     }
@@ -123,6 +125,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     #expect(m.providerCalls.count == 2 && m.providerCalls.allSatisfy(\.ok))
     #expect(m.totalEstimatedCost > 0)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect(d.triage.values.contains { $0.tags.contains("candid") })
     #expect(d.plans.map(\.id) == ["baseline", "c1", "c2", "c3"])
     #expect(Set(d.presentationOrder) == Set(d.plans.map(\.id)))
     #expect(d.baselineSlides.count == 6 && d.diversity.count == 3 && d.diversity.allSatisfy(\.passes), "\(d.diversity)")

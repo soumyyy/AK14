@@ -3,6 +3,35 @@ import Foundation
 /// Greedy marginal-gain selection with soft time/people/scene coverage and a redundancy penalty,
 /// then a bounded exploration fill that favours coverage over score (spec §5.3).
 public enum DiversitySelector {
+    /// Shared CLI/iOS policy for triage weighting, one-frame-per-burst choice, soft weak-frame
+    /// fallback, and deterministic diversity selection.
+    public static func selectPlanningPool(ranked: [RankedCandidate], triage: [AssetID: TriageScore], target: Int,
+                                          photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
+                                          distance: (AssetID, AssetID) -> Double?, config: ReductionConfig) -> [RankedCandidate] {
+        let adjusted = CandidateRanker.applyTriage(ranked, triage: triage, config: config)
+        let grouped = Dictionary(grouping: adjusted, by: { $0.clusterID })
+        var bestByCluster: [RankedCandidate] = []
+        for group in grouped.values {
+            // Never let an unjudged alternate displace its model-judged representative. If the
+            // model omitted triage for every frame, keep the original deterministic representative.
+            let judged = group.filter { $0.triage != nil }
+            let eligibleForRepresentative: [RankedCandidate]
+            if !judged.isEmpty { eligibleForRepresentative = judged }
+            else {
+                let original = group.filter { $0.selectionReason != nil }
+                eligibleForRepresentative = original.isEmpty ? group : original
+            }
+            guard let best = eligibleForRepresentative.max(by: { lhs, rhs in
+                lhs.effectiveScore == rhs.effectiveScore ? lhs.assetID > rhs.assetID : lhs.effectiveScore < rhs.effectiveScore
+            }) else { continue }
+            bestByCluster.append(best)
+        }
+        let strong = bestByCluster.filter { !CandidateRanker.isWeakTriageCandidate($0) }
+        let eligible = strong.count >= target ? strong : strong + bestByCluster.filter(CandidateRanker.isWeakTriageCandidate)
+        return select(ranked: eligible, target: target, photos: photos, features: features,
+                      distance: distance, config: config)
+    }
+
     public static func select(ranked: [RankedCandidate], target: Int, photos: [AssetID: PhotoRecord],
                               features: [AssetID: PhotoFeatures], distance: (AssetID, AssetID) -> Double?,
                               config: ReductionConfig) -> [RankedCandidate] {

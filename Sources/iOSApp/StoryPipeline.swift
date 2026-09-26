@@ -98,7 +98,7 @@ struct StoryPipeline: Sendable {
         stageStart = clock.now
         if modelAssist, let client = responsesClient {
             progress("Preparing a private photo summary for the model…")
-            let candidates = reduction.shortlist
+            let candidates = reduction.triageCandidates(photos: photos, features: features)
             let triageURLs = try thumbnailerURLs(candidates, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
                                                  tier: .triage, progressName: "Preparing triage thumbnails", progress: progress)
             let planningURLs = try thumbnailerURLs(candidates, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
@@ -122,12 +122,9 @@ struct StoryPipeline: Sendable {
             let reductionConfig = reduction.config
             let candidatePhotos = photoByID
             let poolSelector: @Sendable ([AssetID: TriageScore]) -> [AssetID] = { triage in
-                let adjusted = CandidateRanker.applyTriage(candidates, triage: triage, config: reductionConfig)
-                let strong = adjusted.filter { !CandidateRanker.isWeakTriageCandidate($0) }
-                let eligible = strong.count >= poolCount ? strong : strong + adjusted.filter(CandidateRanker.isWeakTriageCandidate)
-                return DiversitySelector.select(ranked: eligible, target: poolCount, photos: candidatePhotos,
-                                                features: features, distance: index.distance,
-                                                config: reductionConfig).map(\.assetID)
+                DiversitySelector.selectPlanningPool(ranked: candidates, triage: triage, target: poolCount,
+                                                     photos: candidatePhotos, features: features, distance: index.distance,
+                                                     config: reductionConfig).map(\.assetID)
             }
             let dateSpan: String
             let dates = candidates.compactMap { photoByID[$0.assetID]?.metadata.capturedAt }
@@ -144,7 +141,12 @@ struct StoryPipeline: Sendable {
                               storyHint: modelAssist ? storyHint : nil))
             guard !output.plans.isEmpty else { throw PipelineFailure.directorProducedNoPlans }
             providerCalls = output.calls
-            reduction.planningPool = output.pool.compactMap { id in reduction.shortlist.first { $0.assetID == id } }
+            let adjusted = CandidateRanker.applyTriage(candidates, triage: output.triage, config: reductionConfig)
+            let adjustedByID = Dictionary(uniqueKeysWithValues: adjusted.map { ($0.assetID, $0) })
+            reduction.planningPool = output.pool.compactMap { adjustedByID[$0] }
+            reduction.funnel.shortlisted = candidates.count
+            reduction.funnel.triaged = output.triage.count
+            reduction.funnel.planningPool = output.pool.count
             plans = output.plans
             presentationOrder = output.presentationOrder.isEmpty ? output.plans.map(\.id) : output.presentationOrder
             warnings = output.warnings
