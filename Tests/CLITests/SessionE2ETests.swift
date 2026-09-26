@@ -23,62 +23,64 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let (store, folder) = try await makeRun(tmp)
     let session = try RunSession(runDirectory: store.root)
-    #expect(session.availableConcepts == [.plainDump, .designed, .wildcard])
+    #expect(Set(session.availableConcepts) == ["baseline", "c1", "c2", "c3"])
     let originalPlans = try Data(contentsOf: store.url("plans/director.json"))
-    let originalSlides = try bytes(session.slideURLs(.designed))
+    let originalSlides = try bytes(session.slideURLs("c1"))
 
     // Editing before choosing a source folder is refused.
-    #expect(throws: (any Error).self) { try session.reroll(.designed) }
+    #expect(throws: (any Error).self) { try session.reroll("c1") }
     try session.setSource(folder)
     try session.presented()
 
     // Reorder Plain: order changes, still one photo per slide, re-rendered in edits/.
-    let plain0 = try #require(session.plan(.plainDump))
-    try session.apply(.reorder(from: 0, to: 2), to: .plainDump)
-    let plain1 = try #require(session.plan(.plainDump))
+    let plain0 = try #require(session.plan("baseline"))
+    try session.apply(.reorder(from: 0, to: 2), to: "baseline")
+    let plain1 = try #require(session.plan("baseline"))
     #expect(plain1.photoAssetIDs[2] == plain0.photoAssetIDs[0] && plain1.slides.allSatisfy { $0.photos.count == 1 })
-    #expect(session.slideURLs(.plainDump).count == plain1.slides.count)
-    #expect(session.slideURLs(.plainDump).allSatisfy { $0.path.contains("/edits/plainDump/slides/") })
+    #expect(session.slideURLs("baseline").count == plain1.slides.count)
+    #expect(session.slideURLs("baseline").allSatisfy { $0.path.contains("/edits/baseline/slides/") })
 
     // Swap on Designed with a real candidate; candidates never include photos already used.
-    let designed = try #require(session.plan(.designed))
+    let designed = try #require(session.plan("c1"))
     let target = designed.slides[0].photos[0].assetID
-    let candidates = session.swapCandidates(.designed, photo: target)
+    let candidates = session.swapCandidates("c1", photo: target)
     #expect(!candidates.isEmpty && Set(candidates).isDisjoint(with: designed.photoAssetIDs))
-    try session.apply(.swap(slide: 0, photo: target, with: candidates[0]), to: .designed)
-    #expect(session.plan(.designed)?.slides[0].photos[0].assetID == candidates[0])
-    #expect(try bytes(session.slideURLs(.designed)) != originalSlides)
+    try session.apply(.swap(slide: 0, photo: target, with: candidates[0]), to: "c1")
+    #expect(session.plan("c1")?.slides[0].photos[0].assetID == candidates[0])
+    #expect(try bytes(session.slideURLs("c1")) != originalSlides)
 
     // Remove the only photo of a slide → slide dropped (never padded).
-    let before = try #require(session.plan(.designed)).slides.count
-    let single = try #require(session.plan(.designed)?.slides.firstIndex { $0.photos.count == 1 && $0 != session.plan(.designed)!.slides[0] })
-    try session.apply(.remove(slide: single, photo: session.plan(.designed)!.slides[single].photos[0].assetID), to: .designed)
-    #expect(session.plan(.designed)?.slides.count == before - 1)
-    #expect(session.slideURLs(.designed).count == before - 1)
+    let before = try #require(session.plan("c1")).slides.count
+    let single = try #require(session.plan("c1")?.slides.firstIndex { $0.photos.count == 1 && $0 != session.plan("c1")!.slides[0] })
+    try session.apply(.remove(slide: single, photo: session.plan("c1")!.slides[single].photos[0].assetID), to: "c1")
+    #expect(session.plan("c1")?.slides.count == before - 1)
+    #expect(session.slideURLs("c1").count == before - 1)
 
     // Remove one photo from a two-photo slide → primitive downgraded, still renders.
-    if let pair = session.plan(.designed)?.slides.firstIndex(where: { $0.photos.count == 2 }) {
-        try session.apply(.remove(slide: pair, photo: session.plan(.designed)!.slides[pair].photos[1].assetID), to: .designed)
-        #expect(session.plan(.designed)?.slides[pair].primitive == .hero)
+    if let pair = session.plan("c1")?.slides.firstIndex(where: { $0.photos.count == 2 }) {
+        try session.apply(.remove(slide: pair, photo: session.plan("c1")!.slides[pair].photos[1].assetID), to: "c1")
+        #expect(session.plan("c1")?.slides[pair].primitive == .hero)
     }
 
-    // Reroll: new layout, same plan.
-    let wildBefore = try bytes(session.slideURLs(.wildcard))
-    let wildPlan = session.plan(.wildcard)
-    try session.reroll(.wildcard)
-    #expect(session.plan(.wildcard) == wildPlan)
-    let wildAfter = try bytes(session.slideURLs(.wildcard))
+    // Reroll: recomposed without a model call; same photos, cover and direction, new slides.
+    let wildBefore = try bytes(session.slideURLs("c2"))
+    let wildPlan = try #require(session.plan("c2"))
+    try session.reroll("c2")
+    let rerolled = try #require(session.plan("c2"))
+    #expect(Set(rerolled.photoAssetIDs) == Set(wildPlan.photoAssetIDs) && rerolled.coverAssetID == wildPlan.coverAssetID)
+    #expect(rerolled.style == wildPlan.style)
+    let wildAfter = try bytes(session.slideURLs("c2"))
     #expect(wildAfter != wildBefore)
 
     // Select + export ordered files.
-    try session.select(.designed)
-    let exported = try session.export(.designed, to: tmp.url.appending(path: "export"))
-    #expect(exported.map(\.lastPathComponent) == (1...exported.count).map { String(format: "ak14-designed-%02d.png", $0) })
-    #expect(try bytes(exported) == bytes(session.slideURLs(.designed)))
+    try session.select("c1")
+    let exported = try session.export("c1", to: tmp.url.appending(path: "export"))
+    #expect(exported.map(\.lastPathComponent) == (1...exported.count).map { String(format: "ak14-c1-%02d.png", $0) })
+    #expect(try bytes(exported) == bytes(session.slideURLs("c1")))
 
     // Originals untouched; events logged in order; a reopened session sees the edits.
     #expect(try Data(contentsOf: store.url("plans/director.json")) == originalPlans)
-    #expect(try bytes(try RunSession(runDirectory: store.root).slideURLs(.designed)) == bytes(session.slideURLs(.designed)))
+    #expect(try bytes(try RunSession(runDirectory: store.root).slideURLs("c1")) == bytes(session.slideURLs("c1")))
     let events = session.log.read().map(\.event)
     #expect(Array(events.prefix(6)) == ["concepts_presented", "slide_reordered", "cover_changed", "photo_swapped", "cover_changed", "photo_removed"])
     #expect(events.suffix(3) == ["concept_rerolled", "concept_selected", "carousel_exported"])
@@ -92,11 +94,11 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let (store, folder) = try await makeRun(tmp)
     let session = try RunSession(runDirectory: store.root)
     try session.setSource(folder)
-    let plan = try #require(session.plan(.designed))
+    let plan = try #require(session.plan("c1"))
     #expect(throws: PlanEditError.alreadyInConcept(plan.photoAssetIDs[1])) {
-        try session.apply(.swap(slide: 0, photo: plan.photoAssetIDs[0], with: plan.photoAssetIDs[1]), to: .designed)
+        try session.apply(.swap(slide: 0, photo: plan.photoAssetIDs[0], with: plan.photoAssetIDs[1]), to: "c1")
     }
-    #expect(throws: PlanEditError.slideOutOfRange(99)) { try session.apply(.reorder(from: 99, to: 0), to: .designed) }
+    #expect(throws: PlanEditError.slideOutOfRange(99)) { try session.apply(.reorder(from: 99, to: 0), to: "c1") }
     // A modified source photo is detected before anything renders.
     let first = try #require(session.photos[plan.photoAssetIDs[0]]?.sourceRelativePaths.first)
     try FixtureFactory.writeScene(to: folder.appending(path: first), scene: 999)
@@ -120,11 +122,11 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let (store, folder) = try await makeRun(tmp)
     let session = try RunSession(runDirectory: store.root)
     try session.setSource(folder)
-    try session.apply(.reorder(from: 0, to: 1), to: .designed)
-    try session.select(.designed)
+    try session.apply(.reorder(from: 0, to: 1), to: "c1")
+    try session.select("c1")
     let html = try String(contentsOf: store.url("report.html"), encoding: .utf8)
-    #expect(html.contains("Studio edits") && html.contains("designed (edited)"))
-    #expect(html.contains("edits/designed/slides/slide-01.png"))
+    #expect(html.contains("Studio edits") && html.contains("c1 (edited)"))
+    #expect(html.contains("edits/c1/slides/slide-01.png"))
     #expect(html.contains("slide_reordered") && html.contains("concept_selected"))
 }
 
@@ -133,16 +135,16 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let (store, folder) = try await makeRun(tmp)
     let session = try RunSession(runDirectory: store.root)
     try session.setSource(folder)
-    let original = try #require(session.plan(.plainDump)).photoAssetIDs
+    let original = try #require(session.plan("baseline")).photoAssetIDs
     // Two "Move later" clicks on the first slide fired at once must both apply, in sequence.
-    async let a: Void = Task.detached { try session.apply(.reorder(from: 0, to: 1), to: .plainDump) }.value
-    async let b: Void = Task.detached { try session.reroll(.wildcard) }.value
-    async let c: Void = Task.detached { try session.apply(.reorder(from: 1, to: 2), to: .plainDump) }.value
+    async let a: Void = Task.detached { try session.apply(.reorder(from: 0, to: 1), to: "baseline") }.value
+    async let b: Void = Task.detached { try session.reroll("c2") }.value
+    async let c: Void = Task.detached { try session.apply(.reorder(from: 1, to: 2), to: "baseline") }.value
     _ = try await (a, b, c)
-    let final = try #require(session.plan(.plainDump)).photoAssetIDs
+    let final = try #require(session.plan("baseline")).photoAssetIDs
     #expect(Set(final) == Set(original) && final != original)
     #expect(session.log.read().filter { $0.event == "slide_reordered" }.count == 2)
-    #expect(session.slideURLs(.plainDump).count == original.count)
+    #expect(session.slideURLs("baseline").count == original.count)
     let leftovers = (try? FileManager.default.contentsOfDirectory(atPath: store.url("edits/.staging").path)) ?? []
     #expect(leftovers.isEmpty)
 }
@@ -153,23 +155,23 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let session = try RunSession(runDirectory: store.root)
     try session.setSource(folder)
     let exportDir = tmp.url.appending(path: "export")
-    let first = try session.export(.designed, to: exportDir)
+    let first = try session.export("c1", to: exportDir)
     // Remove a whole slide, export again into the same folder: no stale extra file survives.
-    let plan = try #require(session.plan(.designed))
+    let plan = try #require(session.plan("c1"))
     let single = try #require(plan.slides.firstIndex { $0.photos.count == 1 && $0 != plan.slides[0] })
-    try session.apply(.remove(slide: single, photo: plan.slides[single].photos[0].assetID), to: .designed)
-    let second = try session.export(.designed, to: exportDir)
+    try session.apply(.remove(slide: single, photo: plan.slides[single].photos[0].assetID), to: "c1")
+    let second = try session.export("c1", to: exportDir)
     #expect(second.count == first.count - 1)
-    #expect(try FileManager.default.contentsOfDirectory(atPath: exportDir.path).filter { $0.hasPrefix("ak14-designed-") }.count == second.count)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: exportDir.path).filter { $0.hasPrefix("ak14-c1-") }.count == second.count)
 
     // A reroll whose render fails (source photo deleted) leaves the concept exactly as it was.
-    let before = try session.slideURLs(.wildcard).map { try Data(contentsOf: $0) }
-    let wildPlan = try #require(session.plan(.wildcard))
+    let before = try session.slideURLs("c2").map { try Data(contentsOf: $0) }
+    let wildPlan = try #require(session.plan("c2"))
     let victim = try #require(session.photos[wildPlan.photoAssetIDs[0]]).sourceRelativePaths[0]
     try FileManager.default.removeItem(at: folder.appending(path: victim))
-    #expect(throws: (any Error).self) { try session.reroll(.wildcard) }
-    #expect(!session.isEdited(.wildcard))
-    #expect(try session.slideURLs(.wildcard).map { try Data(contentsOf: $0) } == before)
+    #expect(throws: (any Error).self) { try session.reroll("c2") }
+    #expect(!session.isEdited("c2"))
+    #expect(try session.slideURLs("c2").map { try Data(contentsOf: $0) } == before)
     #expect(!session.log.read().contains { $0.event == "concept_rerolled" })
 }
 
@@ -178,10 +180,10 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     let (store, folder) = try await makeRun(tmp)
     let session = try RunSession(runDirectory: store.root)
     try session.setSource(folder)
-    let plan = try #require(session.plan(.designed))
+    let plan = try #require(session.plan("c1"))
     let old = plan.slides[0].photos[0].assetID
-    let candidate = try #require(session.swapCandidates(.designed, photo: old).first)
+    let candidate = try #require(session.swapCandidates("c1", photo: old).first)
     try FixtureFactory.writeScene(to: folder.appending(path: session.photos[candidate]!.sourceRelativePaths[0]), scene: 4242)
-    #expect(throws: (any Error).self) { try session.apply(.swap(slide: 0, photo: old, with: candidate), to: .designed) }
-    #expect(session.plan(.designed) == plan)
+    #expect(throws: (any Error).self) { try session.apply(.swap(slide: 0, photo: old, with: candidate), to: "c1") }
+    #expect(session.plan("c1") == plan)
 }

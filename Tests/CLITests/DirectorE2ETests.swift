@@ -8,7 +8,9 @@ import TestSupport
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
 final class FakeModel: ResponsesTransport, @unchecked Sendable {
-    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete }
+    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete, badDirection }
+    /// How many directions the planner proposes (2-5).
+    var directions = 3
     private let lock = NSLock()
     private var script: [String: [Behaviour]]
     private(set) var stages: [String] = []
@@ -39,7 +41,8 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             text = Self.triage(schema, flagged: flagCover ? Set(ids.prefix(3)) : [])
         default:
             let first = lock.withLock { flagged }
-            text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first)
+            text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first, directions: directions,
+                                badDirection: behaviour == .badDirection)
         }
         let envelope: JSONValue = .object([
             ("id", .string("resp_test")), ("status", .string(behaviour == .incomplete ? "incomplete" : "completed")),
@@ -64,30 +67,33 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         return #"{"results":[\#(results.joined(separator: ","))]}"#
     }
 
-    static func planner(_ schema: JSONValue, duplicate: Bool, first: [String] = []) -> String {
+    /// Styles for up to five directions; each pair differs on several axes.
+    static let styles = [
+        #"{"density":"balanced","overlap":"some","grouping":"mixed","decoration":"light","rotation":"none","whitespace":"tight"}"#,
+        #"{"density":"dense","overlap":"bold","grouping":"collage","decoration":"rich","rotation":"some","whitespace":"tight"}"#,
+        #"{"density":"quiet","overlap":"none","grouping":"single","decoration":"none","rotation":"none","whitespace":"airy"}"#,
+        #"{"density":"varied","overlap":"some","grouping":"mixed","decoration":"rich","rotation":"some","whitespace":"airy"}"#,
+        #"{"density":"balanced","overlap":"none","grouping":"mixed","decoration":"light","rotation":"none","whitespace":"tight"}"#,
+    ]
+
+    static func planner(_ schema: JSONValue, duplicate: Bool, first: [String] = [], directions: Int = 3,
+                        badDirection: Bool = false) -> String {
         let pool = enumValues(schema["properties"]?["spine"]?["properties"]?["orderedAssetIDs"]?["items"])
         let ids = pool.filter { first.contains($0) } + pool.filter { !first.contains($0) }
-        let decos = enumValues(schema["properties"]?["plans"]?["items"]?["properties"]?["slides"]?["items"]?["properties"]?["decorations"]?["items"]?["properties"]?["decorationID"])
-        func photo(_ i: Int, _ role: String = "hero") -> String {
-            #"{"assetID":"\#(ids[i])","role":"\#(role)","importance":2,"cropIntent":"balanced","anchorIntent":"center","overlapIntent":"none","rotationIntent":"none"}"#
+        let spine = Array(ids.prefix(6))
+        let quoted = { (list: [String]) in "[" + list.map { "\"\($0)\"" }.joined(separator: ",") + "]" }
+        let items = (0..<directions).map { k -> String in
+            // Each direction tells the story from a different opening photo, with one or two extra candidates.
+            var list = Array(spine.dropFirst(k % spine.count) + spine.prefix(k % spine.count)) + Array(ids.dropFirst(6).prefix(k % 3))
+            if duplicate && k == 0 { list.append(list[1]) }
+            if badDirection && k == 1 { list.append("a_notacandidate") }
+            let cover = list.first { !first.contains($0) } ?? list[0]
+            let keep = k == 1 ? quoted([list[1], list[2]]) : ""
+            let emphasis = k == 0 ? quoted([list[3]]) : "[]"
+            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(list)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis)}"#
         }
-        func slide(_ primitive: String, _ density: String, _ photos: [Int], deco: Bool = false) -> String {
-            let d = deco ? "[" + decos.map { #"{"decorationID":"\#($0)","intensity":"medium"}"# }.joined(separator: ",") + "]" : "[]"
-            let stamps = deco ? #"[{"kind":"date","placement":"bottomRight"},{"kind":"location","placement":"topLeft"}]"# : "[]"
-            return #"{"primitive":"\#(primitive)","mood":"warm","density":"\#(density)","photos":[\#(photos.enumerated().map { photo($1, $0 == 0 ? "hero" : "support") }.joined(separator: ","))],"decorations":\#(d),"stamps":\#(stamps)}"#
-        }
-        let spine = Array(0..<6)
-        let plain = spine.map { slide("full_bleed", "quiet", [$0]) }
-        let designed = [slide("hero", "quiet", [0], deco: true), slide("asymmetric_pair", "balanced", [1, 2]),
-                        slide("full_bleed", "quiet", [3]), slide("full_bleed", "quiet", [4]),
-                        slide("full_bleed", "quiet", duplicate ? [0] : [5])]
-        let wildcard = [slide("overlap_cluster", "dense", [7, 6], deco: true), slide("full_bleed", "balanced", [5]),
-                        slide("hero", "dense", [4]), slide("full_bleed", "balanced", [3]), slide("inset", "dense", [2, 1])]
-        func plan(_ type: String, _ slides: [String]) -> String {
-            #"{"conceptType":"\#(type)","conceptNote":"test","slides":[\#(slides.joined(separator: ","))]}"#
-        }
-        let spineJSON = #"{"orderedAssetIDs":[\#(spine.map { "\"\(ids[$0])\"" }.joined(separator: ","))],"sequenceIntent":[\#(spine.map { _ in "\"build\"" }.joined(separator: ","))],"rationale":[]}"#
-        return #"{"recommendedSlideCount":6,"spine":\#(spineJSON),"plans":[\#(plan("plainDump", plain)),\#(plan("designed", designed)),\#(plan("wildcard", wildcard))]}"#
+        let spineJSON = #"{"orderedAssetIDs":\#(quoted(spine)),"sequenceIntent":[\#(spine.map { _ in "\"build\"" }.joined(separator: ","))],"rationale":[]}"#
+        return #"{"recommendedSlideCount":\#(spine.count),"spine":\#(spineJSON),"directions":[\#(items.joined(separator: ","))]}"#
     }
 }
 
@@ -117,9 +123,10 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     #expect(m.providerCalls.count == 2 && m.providerCalls.allSatisfy(\.ok))
     #expect(m.totalEstimatedCost > 0)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    #expect(d.plans.map(\.conceptType) == [.plainDump, .designed, .wildcard])
-    #expect(d.plainSlides.count == 6 && d.diversity?.passes == true)
-    for s in d.plainSlides { #expect(FileManager.default.fileExists(atPath: store.url(s).path)) }
+    #expect(d.plans.map(\.id) == ["baseline", "c1", "c2", "c3"])
+    #expect(Set(d.presentationOrder) == Set(d.plans.map(\.id)))
+    #expect(d.baselineSlides.count == 6 && d.diversity.count == 3 && d.diversity.allSatisfy(\.passes), "\(d.diversity)")
+    for s in d.baselineSlides { #expect(FileManager.default.fileExists(atPath: store.url(s).path)) }
     #expect(m.funnel?.triaged == m.funnel?.shortlisted)
     // Raw LLM I/O is persisted without image data.
     let llm = try FileManager.default.contentsOfDirectory(atPath: store.url("llm").path).sorted()
@@ -127,12 +134,12 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let raw = try String(contentsOf: store.url("llm/1-triage.json"), encoding: .utf8)
     #expect(raw.contains("thumbnail:a_") && !raw.contains("base64"))
     let html = try String(contentsOf: store.url("report.html"), encoding: .utf8)
-    #expect(html.contains("slides/plainDump/slide-01.png") && html.contains("Model calls") && html.contains("Selection spine"))
+    #expect(html.contains("slides/baseline/slide-01.png") && html.contains("Model calls") && html.contains("Selection spine"))
 
     // rerender: no model calls, identical PNG bytes.
-    let before = try Data(contentsOf: store.url("slides/plainDump/slide-01.png"))
+    let before = try Data(contentsOf: store.url("slides/baseline/slide-01.png"))
     try RerenderCommand.rerender(runDirectory: store.root, source: tmp.url.appending(path: "trip"))
-    #expect(try Data(contentsOf: store.url("slides/plainDump/slide-01.png")) == before)
+    #expect(try Data(contentsOf: store.url("slides/baseline/slide-01.png")) == before)
     #expect(model.stages.count == 2)
 }
 
@@ -153,9 +160,9 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     #expect(model.stages == ["triage", "planner", "repair", "retry"])
     #expect(m.directorStatus == "fallback")
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    #expect(d.plans.map(\.conceptType) == [.plainDump])
-    #expect(Set(d.unavailable.keys) == ["designed", "wildcard"])
-    #expect(d.plainSlides.count == 5)
+    #expect(d.plans.map(\.id) == ["baseline"])
+    #expect(Set(d.unavailable.keys) == ["directions"])
+    #expect(d.baselineSlides.count == 5)
 }
 
 @Test func rateLimitIsRetriedAndRecorded() async throws {
@@ -172,7 +179,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let folder = try sceneFolder(tmp, count: 3)
     let store = try await run(tmp, folder: folder, model: FakeModel(["planner": [.garbage], "repair": [.garbage], "retry": [.garbage]]))
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    #expect(d.plainSlides.count == 3)
+    #expect(d.baselineSlides.count == 3)
 }
 
 
@@ -186,7 +193,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     #expect(flagged.count == 3)
     let cover = try #require(d.spine?.orderedAssetIDs.first)
     #expect(!flagged.contains(cover.rawValue))
-    for p in d.plans { #expect(!flagged.contains(p.coverAssetID!.rawValue), "\(p.conceptType) cover flagged") }
+    for p in d.plans { #expect(!flagged.contains(p.coverAssetID!.rawValue), "\(p.id) cover flagged") }
 }
 
 @Test func failedFirstPlannerCallIsRetriedAndBilled() async throws {
@@ -206,16 +213,16 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(), slides: 5)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect((d.spine?.orderedAssetIDs.count ?? 99) <= 5)
-    #expect(d.plans.allSatisfy { $0.slides.count <= 5 || $0.conceptType != .plainDump })
+    #expect(d.plans.allSatisfy { $0.slides.count <= 5 })
 }
 
-@Test func invalidSpineMakesDesignedConceptsUnavailable() async throws {
+@Test func invalidSpineLeavesOnlyTheBaseline() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     // 6-photo spine against a 5-slide request stays invalid through repair and retry.
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(), slides: 5)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.status == "fallback")
-    #expect(d.plans.map(\.conceptType) == [.plainDump])
+    #expect(d.plans.map(\.id) == ["baseline"])
 }
 
 @Test func oldManifestsStillOpenInReport() async throws {

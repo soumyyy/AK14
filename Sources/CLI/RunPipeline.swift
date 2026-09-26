@@ -120,7 +120,7 @@ struct RunPipeline: Sendable {
             let stylePack = try StylePackLoader.load()
             let output = try await direct(reduction: reduction, photos: ingest.photos, features: features,
                                                    index: index, folder: folder, options: options, stylePack: stylePack,
-                                                   warnings: &warnings)
+                                                   aspect: aspect, runID: store.root.lastPathComponent, warnings: &warnings)
             lap("director", start)
             calls = output.calls
             directorStatus = output.status
@@ -128,6 +128,7 @@ struct RunPipeline: Sendable {
             versions["model"] = client!.model
             versions["stylePack"] = "\(stylePack.id)@\(stylePack.version)"
             versions["resolver"] = ResolvedCarousel.resolverVersion
+            versions["composer"] = ComposerEngine.version
             versions["renderer"] = CarouselRenderer.version
             for (name, v) in output.promptVersions { versions["prompt:\(name)"] = v }
 
@@ -137,7 +138,7 @@ struct RunPipeline: Sendable {
             }
             reduction = Self.applyDirector(output, to: reduction, config: config)
             if let spine = output.spine { try store.write(spine, to: "plans/selection-spine.json") }
-            for p in output.plans { try store.write(p, to: "plans/\(p.conceptType.rawValue).json") }
+            for p in output.plans { try store.write(p, to: "plans/\(p.id).json") }
 
             // Resolve + render every concept
             start = clock.now
@@ -160,7 +161,8 @@ struct RunPipeline: Sendable {
                 triage: Dictionary(uniqueKeysWithValues: output.triage.map { ($0.key.rawValue, $0.value) }),
                 pool: output.pool, spine: output.spine, recommendedSlideCount: output.recommendedSlideCount,
                 plans: output.plans, unavailable: output.unavailable, deviations: output.deviations,
-                diversity: output.diversity, warnings: output.warnings, renderedSlides: rendered)
+                diversity: output.diversity, warnings: output.warnings, renderedSlides: rendered,
+                presentationOrder: output.presentationOrder)
             try store.write(concepts, to: "plans/director.json")
         }
 
@@ -224,7 +226,7 @@ struct RunPipeline: Sendable {
 
     private func direct(reduction: ReductionResult, photos: [PhotoRecord], features: [AssetID: PhotoFeatures],
                         index: FeaturePrintIndex, folder: URL, options: RunOptions, stylePack: StylePack,
-                        warnings: inout [String]) async throws -> DirectorOutput {
+                        aspect: CarouselAspect, runID: String, warnings: inout [String]) async throws -> DirectorOutput {
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
         let shortlistPhotos = reduction.shortlist.compactMap { photoByID[$0.assetID] }
         let triageThumbs = try await thumbnails(shortlistPhotos, tier: .triage, folder: folder, warnings: &warnings)
@@ -267,9 +269,14 @@ struct RunPipeline: Sendable {
             span = days <= 1 ? "a single day" : "\(days) days"
         }
 
+        var moment: [AssetID: String] = [:]
+        for c in reduction.clusters { for m in c.memberAssetIDs { moment[m] = c.clusterID } }
+        let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
+                                             sequenceIntent: [:], moment: moment, stylePack: stylePack, maxSlides: options.slides)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
-                                                   requestedSlides: options.slides, shortlist: cards, selectPool: selectPool))
+                                                   requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,
+                                                   composition: composition, runID: runID))
     }
 
     /// Updates rank scores with triage, records the planning pool and funnel counts.

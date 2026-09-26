@@ -1,7 +1,5 @@
 import Foundation
 
-public enum ConceptType: String, Codable, Sendable, CaseIterable { case plainDump, designed, wildcard }
-
 public enum Primitive: String, Codable, Sendable, CaseIterable {
     case fullBleed = "full_bleed", hero, framedHero = "framed_hero", inset
     case asymmetricPair = "asymmetric_pair", overlapCluster = "overlap_cluster"
@@ -71,32 +69,52 @@ public struct SlidePlan: Codable, Sendable, Equatable {
     }
 }
 
+/// One carousel option. `id` is opaque: `baseline` (the photos-only control) or `c1`…`c5` (model directions).
+/// Runs made before the composer engine keep their old ids (`plainDump`, `designed`, `wildcard`) so their
+/// directories and events still resolve.
 public struct CarouselPlan: Codable, Sendable, Equatable {
-    public var conceptType: ConceptType
-    public var conceptNote: String
+    public static let baselineID = "baseline"
+    public var id: String
+    /// Internal one-sentence brief (operator-facing, never shown to participants).
+    public var brief: String
+    /// The direction this plan was composed from (nil for legacy plans); lets Studio recompose without a model call.
+    public var direction: Direction?
     public var slides: [SlidePlan]
-    public init(conceptType: ConceptType, conceptNote: String, slides: [SlidePlan]) {
-        self.conceptType = conceptType; self.conceptNote = conceptNote; self.slides = slides
+
+    public init(id: String, brief: String, direction: Direction?, slides: [SlidePlan]) {
+        self.id = id; self.brief = brief; self.direction = direction; self.slides = slides
     }
 
+    public var style: StyleVector? { direction?.style }
+    /// The photos-only control (including the legacy Plain Dump).
+    public var isBaseline: Bool { id == Self.baselineID || id == "plainDump" }
     public var photoAssetIDs: [AssetID] { slides.flatMap { $0.photos.map(\.assetID) } }
     public var coverAssetID: AssetID? {
         slides.first.flatMap { s in (s.photos.first { $0.role == "hero" } ?? s.photos.first)?.assetID }
     }
 
-    /// One full-bleed photo per slide, no decoration or text, in spine order.
-    public static func plainDump(from spine: SelectionSpine, note: String) -> CarouselPlan {
-        CarouselPlan(conceptType: .plainDump, conceptNote: note, slides: spine.orderedAssetIDs.map {
-            SlidePlan(primitive: .fullBleed, mood: "calm", density: "quiet", photos: [.plain($0)], decorations: [], stamps: [])
-        })
+    enum CodingKeys: String, CodingKey { case id, brief, direction, slides, conceptType, conceptNote }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? c.decode(String.self, forKey: .conceptType)
+        brief = try c.decodeIfPresent(String.self, forKey: .brief) ?? c.decodeIfPresent(String.self, forKey: .conceptNote) ?? ""
+        direction = try c.decodeIfPresent(Direction.self, forKey: .direction)
+        slides = try c.decode([SlidePlan].self, forKey: .slides)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id); try c.encode(brief, forKey: .brief)
+        try c.encodeIfPresent(direction, forKey: .direction); try c.encode(slides, forKey: .slides)
     }
 }
 
 public struct PlannerResponse: Codable, Sendable, Equatable {
     public var recommendedSlideCount: Int
     public var spine: SelectionSpine
-    public var plans: [CarouselPlan]
-    public init(recommendedSlideCount: Int, spine: SelectionSpine, plans: [CarouselPlan]) {
-        self.recommendedSlideCount = recommendedSlideCount; self.spine = spine; self.plans = plans
+    public var directions: [Direction]
+    public init(recommendedSlideCount: Int, spine: SelectionSpine, directions: [Direction]) {
+        self.recommendedSlideCount = recommendedSlideCount; self.spine = spine; self.directions = directions
     }
 }

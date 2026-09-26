@@ -165,7 +165,7 @@ Principle (user): every concept must be postable and aesthetic. Wildcard is bold
 - [x] Slide `variant` and `metrics` (coverage, heroShare, maxCropLoss) in layouts and the report
 - [x] Prompt: Wildcard is "bold, not chaotic", and every slide must be postable on its own
 - [x] E2E updated. Rerender the latest IMG run (no model cost), inspect montages, compare metrics before and after
-- [ ] Claude subagent review, then fix, merge and push
+- [x] Folded into the composer engine work below (reviewed together)
 - Live rerender of runs/20260926-081711-fee7af (no model cost), layout-1 → layout-2:
   - largest crop on framed slides: 55% → 10% (Designed), 55% → 18% (Wildcard)
   - hero share: Designed 1.38× → 1.7×+; Wildcard cluster hero 0.6× → 1.2×
@@ -173,3 +173,16 @@ Principle (user): every concept must be postable and aesthetic. Wildcard is bold
   - average coverage on framed slides is about 50% (was 56%, but that was from 55% crops). The remaining whitespace is landscape group shots that can't be cropped without cutting people.
   - consecutive repeated arrangements: 0
 - E2E: 40 tests passing (new: composer hierarchy, crop, coverage and rhythm)
+
+## Composer engine: open directions instead of Plain/Designed/Wildcard (2026-09-26)
+Owner decisions: no fixed concept types; the model decides 2-5 directions; a photos-only baseline is shown unlabeled as a control; the model provides the story and directions, and a deterministic composer engine builds the carousels. Spec: docs/superpowers/specs/2026-09-26-composer-engine-design.md (drafted by Codex/Luna).
+- [x] Core: `Direction` + `StyleVector` (density, overlap, grouping, decoration, rotation, whitespace); `CarouselPlan` identified by id, with legacy decoding
+- [x] `ComposerEngine`: DP grouping (scene time limit ≤6 h, keep-together, emphasis, cover alone), primitive and intent assignment, decoration budget, whole-carousel scoring through the layout engine, seeded near-best pick
+- [x] Set level: pairwise diversity with local remedies (other cover, other seeds, one axis nudge, drop if more than 2 remain); seeded presentation order with the baseline shuffled in
+- [x] Director: planner prompt v3 plus schema (directions 2-5); invalid directions dropped individually; mutation call removed
+- [x] Session/Studio: ids everywhere; neutral "Option N" columns; operator-only details toggle; reroll recomposes without a model call
+- [x] Study: any selected option counts; baseline-picked rate and picked-style distribution; reroll ordering by log position (fixes a same-second timestamp bug)
+- [x] `ak14 rerender --recompose`: re-runs the engine on stored directions (free iteration)
+- [x] E2E: 46 passing (new: 2 and 5 directions with axis budgets, a partial invalid direction, determinism, legacy runs)
+- [x] Live IMG run 20260926-090257-b0667b: model chose 2 directions (style distance 0.83, distinct), $0.0048
+- [ ] Claude review, fix, merge, push

@@ -1,2 +1,0 @@
-<!-- prompt: mutation v1 -->
-The designed and wildcard concepts in this carousel plan are too similar. Rewrite ONLY the wildcard concept so it differs structurally from designed on the named dimensions (different cover, different primitive mix, different density rhythm, a different balance of single and multi-photo slides, and different decoration use). Keep the spine, plainDump and designed exactly as they are. Use only photo ids already present in the JSON's spine or concepts. Return the complete JSON matching the schema.

@@ -28,10 +28,10 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     let m = try store.read(RunManifest.self, from: "manifest.json")
     let features = Dictionary(uniqueKeysWithValues: try store.read([PhotoFeatures].self, from: "cache/features.json").map { ($0.assetID, $0) })
-    #expect(m.versions["renderer"] == "render-1" && m.versions["resolver"] == "layout-2")
+    #expect(m.versions["renderer"] == "render-1" && m.versions["resolver"] == "layout-2" && m.versions["composer"] == ComposerEngine.version)
 
     for plan in d.plans {
-        let concept = plan.conceptType.rawValue
+        let concept = plan.id
         let slides = try #require(d.renderedSlides[concept])
         #expect(slides.count == plan.slides.count, "\(concept) rendered \(slides.count)/\(plan.slides.count)")
         for (i, path) in slides.enumerated() {
@@ -51,9 +51,9 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
             }
         }
     }
-    #expect(d.renderedSlides["designed"]?.isEmpty == false && d.renderedSlides["wildcard"]?.isEmpty == false)
+    #expect(d.renderedSlides["c1"]?.isEmpty == false && d.renderedSlides["c2"]?.isEmpty == false)
     let html = try String(contentsOf: store.url("report.html"), encoding: .utf8)
-    #expect(html.contains("slides/designed/slide-01.png") && html.contains("slides/wildcard/slide-01.png"))
+    #expect(html.contains("slides/c1/slide-01.png") && html.contains("slides/c2/slide-01.png"))
 
     // Rerender: no model calls, every PNG byte-identical; a different seed changes designed layouts.
     func digests() throws -> [String: Data] {
@@ -72,14 +72,22 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let store = try await run(tmp, folder: try sceneFolder(tmp, dated: false))
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    #expect(d.plans.allSatisfy { d.renderedSlides[$0.conceptType.rawValue]?.count == $0.slides.count })
+    #expect(d.plans.allSatisfy { d.renderedSlides[$0.id]?.count == $0.slides.count })
 }
 
 // MARK: - M4 review fixes
 
 @Test func stampsUseLocalCaptureDateAndFilmEdgeKeepsContentClear() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
-    let store = try await run(tmp, folder: try sceneFolder(tmp))
+    let folder = try sceneFolder(tmp)
+    let store = try await run(tmp, folder: folder)
+    // The composer decides decoration; force a film edge and a date stamp onto one slide so both paths are exercised.
+    var d = try store.read(ConceptsReport.self, from: "plans/director.json")
+    let i = try #require(d.plans.firstIndex { $0.id == "c1" })
+    d.plans[i].slides[0].decorations = [DecorationElement(decorationID: "film-edge", intensity: "medium")]
+    d.plans[i].slides[0].stamps = [StampElement(kind: "date", placement: "bottomRight")]
+    try store.write(d, to: "plans/director.json")
+    try RerenderCommand.rerender(runDirectory: store.root, source: folder)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     let band = StyleMetrics.filmBand(canvasWidth: Double(m.aspectRatio.exportWidth)) / Double(m.aspectRatio.exportWidth)
     let layouts = try FileManager.default.subpathsOfDirectory(atPath: store.url("layouts").path).filter { $0.hasSuffix(".json") }
@@ -105,11 +113,11 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let folder = try sceneFolder(tmp)
     let store = try await run(tmp, folder: folder)
     var d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    let i = try #require(d.plans.firstIndex { $0.conceptType == .designed })
+    let i = try #require(d.plans.firstIndex { $0.id == "c1" })
     d.plans[i].slides[0].photos = [PhotoElement.plain(AssetID(rawValue: "a_doesnotexist"))]   // hand-edited plan
     try store.write(d, to: "plans/director.json")
     try RerenderCommand.rerender(runDirectory: store.root, source: folder)
-    let slide = try store.read(ResolvedSlide.self, from: "layouts/designed/slide-01.json")
+    let slide = try store.read(ResolvedSlide.self, from: "layouts/c1/slide-01.json")
     #expect(slide.elements.isEmpty && slide.warnings.contains { $0.contains("no usable photos") })
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender-backup").path))
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender").path))
@@ -123,8 +131,8 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let store = try await run(tmp, folder: folder)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     var report: [String] = []
-    for plan in d.plans where plan.conceptType != .plainDump {
-        let concept = plan.conceptType.rawValue
+    for plan in d.plans where !plan.isBaseline {
+        let concept = plan.id
         var families: [String] = []
         for i in plan.slides.indices {
             let s = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", concept, i + 1))

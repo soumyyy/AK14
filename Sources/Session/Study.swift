@@ -28,6 +28,10 @@ public struct StudySummary: Codable, Sendable {
         /// Eligible study runs (consented, with concepts) for this code.
         public var runs: Int
         public var selectedConcept: String?
+        /// Whether the selected carousel was the photos-only baseline control.
+        public var selectedBaseline: Bool?
+        /// Style axes of the selected carousel ("grouping=collage", …); empty for the baseline and legacy plans.
+        public var selectedStyle: [String]
         public var exportedOrShared: Bool
         /// nil when the handed-off plan could not be read (counted as not successful).
         public var photoChangeFraction: Double?
@@ -50,7 +54,11 @@ public struct StudySummary: Codable, Sendable {
     public var minimumSignalMet: Bool
     public var postedShare: Double
     public var strongSignalMet: Bool
-    public var picks: [String: Int]
+    /// Participants who selected the photos-only baseline / a designed direction.
+    public var baselinePicked: Int
+    public var directionPicked: Int
+    /// How often each style axis value appears among selected directions ("density=dense": 2, …).
+    public var pickedStyles: [String: Int]
     public var medianPhotoChange: Double
     public var meanCostUSD: Double
     public var meanDirectorSeconds: Double
@@ -86,8 +94,8 @@ public struct StudySummary: Codable, Sendable {
         var minimum: [String: Double] = [:]
         for t in thresholds { minimum[key(t)] = Double(participants.filter { $0.success[key(t)] == true }.count) / n }
         let posted = Double(participants.filter(\.postedWithin7Days).count) / n
-        var picks: [String: Int] = [:]
-        for p in participants { if let c = p.selectedConcept { picks[c, default: 0] += 1 } }
+        var styles: [String: Int] = [:]
+        for p in participants { for axis in p.selectedStyle { styles[axis, default: 0] += 1 } }
         let changes = participants.compactMap(\.photoChangeFraction).sorted()
         let median = changes.isEmpty ? 0 : changes.count % 2 == 1 ? changes[changes.count / 2]
             : (changes[changes.count / 2 - 1] + changes[changes.count / 2]) / 2
@@ -96,7 +104,9 @@ public struct StudySummary: Codable, Sendable {
             runsWithoutStudyCode: uncoded, minimumSignal: minimum,
             minimumSignalMet: !participants.isEmpty && (minimum[key(0.3)] ?? 0) >= 0.5,
             postedShare: posted, strongSignalMet: !participants.isEmpty && posted >= 0.33,
-            picks: picks, medianPhotoChange: median,
+            baselinePicked: participants.filter { $0.selectedBaseline == true }.count,
+            directionPicked: participants.filter { $0.selectedBaseline == false }.count,
+            pickedStyles: styles, medianPhotoChange: median,
             meanCostUSD: participants.map(\.costUSD).reduce(0, +) / n,
             meanDirectorSeconds: participants.map(\.directorSeconds).reduce(0, +) / n)
     }
@@ -110,11 +120,13 @@ public struct StudySummary: Codable, Sendable {
         let handoff = selected.flatMap { s in
             events.last { ($0.event == "carousel_exported" || $0.event == "carousel_shared") && $0.conceptID == s }
         }
-        let rerolled = handoff.map { h in events.contains { $0.event == "concept_rerolled" && $0.conceptID == h.conceptID && $0.timestamp <= h.timestamp } } ?? false
+        // Log order, not timestamps: events are appended in order, while stored times only have one-second precision.
+        let handoffIndex = handoff.flatMap { h in events.lastIndex { $0.eventID == h.eventID } }
+        let rerolled = handoffIndex.map { i in events[..<i].contains { $0.event == "concept_rerolled" && $0.conceptID == handoff?.conceptID } } ?? false
 
         var photoChange: Double?, relayout: Double?
-        if let s = selected, let type = ConceptType(rawValue: s), let handoff,
-           let original = (try? store.read(ConceptsReport.self, from: "plans/director.json"))?.plans.first(where: { $0.conceptType == type }) {
+        let selectedPlan = selected.flatMap { (try? store.read(ConceptsReport.self, from: "plans/director.json"))?.plan($0) }
+        if let s = selected, let handoff, let original = selectedPlan {
             let snapshotID = handoff.after?.first { $0.hasPrefix("snapshot=") }.map { String($0.dropFirst("snapshot=".count)) }
             // Scored on exactly what was handed off. Older runs without a snapshot fall back to the current plan.
             let handed = snapshotID.flatMap { try? store.read(CarouselPlan.self, from: "handoffs/\(s)-\($0).json") }
@@ -139,7 +151,11 @@ public struct StudySummary: Codable, Sendable {
         let postedDays = answers["postedDays"].flatMap { Int($0) }
         let postedWithin7 = handoff != nil && answers["posted"] == "yes" && postedDays.map { (0...7).contains($0) } == true
 
+        let style = selectedPlan?.isBaseline == false ? selectedPlan?.style : nil
+        let axes = style.map { v in zip(StyleVector.axes.map(\.name), [v.density, v.overlap, v.grouping, v.decoration, v.rotation, v.whitespace])
+            .map { "\($0)=\($1)" } } ?? []
         return Participant(studyCode: code, runID: m.runID, runs: runs.count, selectedConcept: selected,
+                           selectedBaseline: selectedPlan?.isBaseline, selectedStyle: axes,
                            exportedOrShared: handoff != nil, photoChangeFraction: photoChange, slideRelayoutFraction: relayout,
                            rerolledBeforeHandoff: rerolled, success: success, postedWithin7Days: postedWithin7,
                            followupRecorded: followup != nil,
@@ -157,7 +173,8 @@ public struct StudySummary: Codable, Sendable {
         md += "| Minimum: selected + exported/shared, not substantially rebuilt (30% rule) | ≥ 50% | \(pct(minimumSignal[Self.key(0.3)] ?? 0)) | \(minimumSignalMet ? "yes" : "no") |\n"
         md += "| Strong: posted within 7 days | ≥ 33% | \(pct(postedShare)) | \(strongSignalMet ? "yes" : "no") |\n\n"
         md += "Sensitivity of the minimum signal: " + Self.thresholds.map { "\(Self.key($0)) rule → \(pct(minimumSignal[Self.key($0)] ?? 0))" }.joined(separator: ", ") + ".\n\n"
-        md += "Concept picks: " + (picks.isEmpty ? "none" : picks.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+        md += "Picks: baseline (photos only) \(baselinePicked), designed direction \(directionPicked). Styles picked: "
+        md += pickedStyles.isEmpty ? "none" : pickedStyles.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         md += String(format: ". Median photos changed: %@. Mean model cost $%.4f, mean Director time %.0f s.\n\n", pct(medianPhotoChange), meanCostUSD, meanDirectorSeconds)
         md += "## Participants\n\n| Code | Runs | Selected | Handed off | Photos changed | Slides re-laid out | Success (30%) | Posted ≤7d | Follow-up | Repeat |\n|---|---|---|---|---|---|---|---|---|---|\n"
         for p in participants {

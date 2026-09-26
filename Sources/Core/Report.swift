@@ -32,7 +32,7 @@ public struct ReportInput: Sendable {
     public let thumbnails: [AssetID: String]
     public let reduction: ReductionResult?
     public let concepts: ConceptsReport?
-    public let edits: [ConceptType: EditedConcept]
+    public let edits: [String: EditedConcept]
     public let events: [InteractionEvent]
     /// Concept → resolved slides, for the layout metrics.
     public let layouts: [String: [ResolvedSlide]]
@@ -40,7 +40,7 @@ public struct ReportInput: Sendable {
     public init(manifest: RunManifest, photos: [PhotoRecord], skipped: [SkippedFile],
                 features: [AssetID: PhotoFeatures], thumbnails: [AssetID: String],
                 reduction: ReductionResult? = nil, concepts: ConceptsReport? = nil,
-                edits: [ConceptType: EditedConcept] = [:], events: [InteractionEvent] = [],
+                edits: [String: EditedConcept] = [:], events: [InteractionEvent] = [],
                 layouts: [String: [ResolvedSlide]] = [:]) {
         self.manifest = manifest; self.photos = photos; self.skipped = skipped
         self.features = features; self.thumbnails = thumbnails
@@ -191,17 +191,21 @@ public enum ReportBuilder {
             }
             h += "</div>\n"
         }
-        for plan in c.plans {
-            h += "<h3>\(e(plan.conceptType.rawValue)) · \(plan.slides.count) slides</h3>\n<p><i>\(e(plan.conceptNote))</i></p>\n"
-            if let d = c.deviations[plan.conceptType.rawValue] {
+        for (position, plan) in c.orderedPlans.enumerated() {
+            let id = plan.id
+            h += "<h3>Option \(position + 1) · <code>\(e(id))</code>\(plan.isBaseline ? " (baseline control)" : "") · \(plan.slides.count) slides</h3>\n"
+            h += "<p><i>\(e(plan.brief))</i>"
+            if let style = plan.style, !plan.isBaseline { h += "<br><small>\(e(style.summary))</small>" }
+            h += "</p>\n"
+            if let d = c.deviations[id] {
                 h += "<p>vs spine: +\(d.added.count) / −\(d.removed.count) photos, cover \(d.coverChanged ? "changed" : "same"), "
                 h += "order agreement \(String(format: "%.2f", d.orderSimilarity))</p>\n"
             }
-            if let slides = c.renderedSlides[plan.conceptType.rawValue], !slides.isEmpty {
+            if let slides = c.renderedSlides[id], !slides.isEmpty {
                 h += "<div class=\"strip\">" + slides.map { "<img class=\"slide\" src=\"\(e($0))\">" }.joined() + "</div>\n"
             }
-            h += layoutMetrics(input.layouts[plan.conceptType.rawValue] ?? [])
-            if plan.conceptType == .plainDump { continue }
+            h += layoutMetrics(input.layouts[id] ?? [])
+            if plan.isBaseline { continue }
             h += "<details><summary>Slide plan</summary><div class=\"strip\">"
             for (i, s) in plan.slides.enumerated() {
                 h += "<div class=\"slideplan\"><b>\(i + 1)</b> \(e(s.primitive.rawValue)) · \(e(s.density)) · \(e(s.mood))<br>"
@@ -212,9 +216,14 @@ public enum ReportBuilder {
             }
             h += "</div></details>\n"
         }
-        if let d = c.diversity {
-            h += "<p>Designed vs Wildcard: \(d.passes ? "distinct" : "too similar") — photo overlap \(String(format: "%.2f", d.jaccard)), "
-            h += "same cover \(d.sameCover), structural differences: \(e(d.structuralDiffs.joined(separator: ", ")))</p>\n"
+        if !c.diversity.isEmpty {
+            h += "<h3>Diversity between directions</h3>\n<ul>"
+            for d in c.diversity {
+                h += "<li>\(e(d.a ?? "?")) vs \(e(d.b ?? "?")): \(d.passes ? "distinct" : "too similar") — photo overlap \(String(format: "%.2f", d.jaccard)), "
+                if let s = d.styleDistance { h += "style distance \(String(format: "%.2f", s)), " }
+                h += "same cover \(d.sameCover), structural differences: \(e(d.structuralDiffs.joined(separator: ", ")))</li>"
+            }
+            h += "</ul>\n"
         }
         return h
     }
@@ -243,11 +252,10 @@ public enum ReportBuilder {
     private static func studioSection(_ input: ReportInput) -> String {
         let e = htmlEscape
         var h = "<h2>Studio edits</h2>\n"
-        for c in ConceptType.allCases {
-            guard let edit = input.edits[c] else { continue }
-            let original = input.concepts?.plans.first { $0.conceptType == c }
+        for (c, edit) in input.edits.sorted(by: { $0.key < $1.key }) {
+            let original = input.concepts?.plan(c)
             let before = Set(original?.photoAssetIDs ?? []), after = Set(edit.plan.photoAssetIDs)
-            h += "<h3>\(e(c.rawValue)) (edited) · \(edit.plan.slides.count) slides</h3>\n"
+            h += "<h3>\(e(c)) (edited) · \(edit.plan.slides.count) slides</h3>\n"
             h += "<p>vs original: \(original?.slides.count ?? 0) → \(edit.plan.slides.count) slides, "
             h += "+\(after.subtracting(before).count) / −\(before.subtracting(after).count) photos, "
             h += "cover \(original?.coverAssetID == edit.plan.coverAssetID ? "same" : "changed")</p>\n"

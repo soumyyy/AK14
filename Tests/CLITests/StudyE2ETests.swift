@@ -41,7 +41,7 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     // P1: picks Designed, exports, posts on day 3, comes back with another event (second run).
     let r1 = try await run(tmp, source, code: "P1")
     let s1 = try RunSession(runDirectory: r1.root); try s1.setSource(source)
-    try s1.select(.designed); try s1.export(.designed, to: tmp.url.appending(path: "out1"))
+    try s1.select("c1"); try s1.export("c1", to: tmp.url.appending(path: "out1"))
     try Followup.record(runDirectory: r1.root, posted: true, postedDaysAfterHandoff: 3, platform: "instagram",
                         reusedAnotherEvent: nil, linkSeen: true)
     _ = try await run(tmp, source, code: "P1")
@@ -50,18 +50,18 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     let r2 = try await run(tmp, source, code: "P2")
     let s2 = try RunSession(runDirectory: r2.root); try s2.setSource(source)
     for _ in 0..<2 {
-        let plan = try #require(s2.plan(.wildcard))
+        let plan = try #require(s2.plan("c2"))
         let slide = try #require(plan.slides.firstIndex { $0.photos.count > 1 } ?? plan.slides.indices.last)
         let old = plan.slides[slide].photos[0].assetID
-        if let new = s2.swapCandidates(.wildcard, photo: old).first { try s2.apply(.swap(slide: slide, photo: old, with: new), to: .wildcard) }
+        if let new = s2.swapCandidates("c2", photo: old).first { try s2.apply(.swap(slide: slide, photo: old, with: new), to: "c2") }
     }
-    try s2.reroll(.wildcard)
-    try s2.select(.wildcard); try s2.export(.wildcard, to: tmp.url.appending(path: "out2"))
+    try s2.reroll("c2")
+    try s2.select("c2"); try s2.export("c2", to: tmp.url.appending(path: "out2"))
     try Followup.record(runDirectory: r2.root, posted: false, postedDaysAfterHandoff: nil, platform: nil, reusedAnotherEvent: false, linkSeen: nil)
 
     // P3: picks Plain, never exports.
     let r3 = try await run(tmp, source, code: "P3")
-    try RunSession(runDirectory: r3.root).select(.plainDump)
+    try RunSession(runDirectory: r3.root).select("baseline")
 
     // An interrupted run (no completedAt) and an uncoded run are not counted.
     let broken = try await run(tmp, source, code: "P4")
@@ -75,10 +75,10 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     let p = Dictionary(uniqueKeysWithValues: summary.participants.map { ($0.studyCode, $0) })
     #expect(p["P1"]?.success["30%"] == true && p["P1"]?.postedWithin7Days == true && p["P1"]?.repeatDemand == true)
     #expect(p["P2"]?.rerolledBeforeHandoff == true && p["P2"]?.success["30%"] == false && p["P2"]?.exportedOrShared == true)
-    #expect(p["P3"]?.selectedConcept == "plainDump" && p["P3"]?.exportedOrShared == false)
+    #expect(p["P3"]?.selectedConcept == "baseline" && p["P3"]?.exportedOrShared == false)
     #expect(abs((summary.minimumSignal["30%"] ?? 0) - 1.0 / 3.0) < 1e-9 && !summary.minimumSignalMet)
     #expect(abs(summary.postedShare - 1.0 / 3.0) < 1e-9 && summary.strongSignalMet)
-    #expect(summary.picks == ["designed": 1, "wildcard": 1, "plainDump": 1])
+    #expect(summary.baselinePicked == 1 && summary.directionPicked == 2 && summary.pickedStyles["grouping=collage"] == 1)
     let md = summary.markdown()
     #expect(md.contains("| P1 |") && md.contains("≥ 50%") && !md.contains(tmp.url.path))
 }
@@ -113,27 +113,27 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     _ = try await run(tmp, source, code: "P9", consent: false)             // operator answered N first
     let real = try await run(tmp, source, code: "P9")
     let s = try RunSession(runDirectory: real.root); try s.setSource(source)
-    try s.select(.designed)
-    try s.export(.designed, to: tmp.url.appending(path: "o"))
+    try s.select("c1")
+    try s.export("c1", to: tmp.url.appending(path: "o"))
     // Playing with a reroll *after* hand-off must not count against what was handed off.
-    try s.reroll(.designed)
+    try s.reroll("c1")
     try Followup.record(runDirectory: real.root, posted: true, postedDaysAfterHandoff: 2, platform: "instagram", reusedAnotherEvent: nil, linkSeen: nil)
     let summary = StudySummary.compute(runsDirectory: tmp.url.appending(path: "runs"))
     #expect(summary.ineligibleRunsSkipped == 1)
     let p = try #require(summary.participants.first)
     #expect(p.runs == 1 && !p.repeatDemand && p.runID == real.root.lastPathComponent)
-    #expect(!p.rerolledBeforeHandoff && p.success["30%"] == true && p.postedWithin7Days)
+    #expect(!p.rerolledBeforeHandoff && p.success["30%"] == true && p.postedWithin7Days, "\(p)")
 }
 
 @Test func postingWithoutAHandoffOrAfterDay7DoesNotCount() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let source = try folder(tmp, "trip")
     let a = try await run(tmp, source, code: "A1")
-    try RunSession(runDirectory: a.root).select(.plainDump)              // never exported
+    try RunSession(runDirectory: a.root).select("baseline")              // never exported
     try Followup.record(runDirectory: a.root, posted: true, postedDaysAfterHandoff: 1, platform: nil, reusedAnotherEvent: nil, linkSeen: nil)
     let b = try await run(tmp, source, code: "B1")
     let sb = try RunSession(runDirectory: b.root); try sb.setSource(source)
-    try sb.select(.plainDump); try sb.export(.plainDump, to: tmp.url.appending(path: "o"))
+    try sb.select("baseline"); try sb.export("baseline", to: tmp.url.appending(path: "o"))
     try Followup.record(runDirectory: b.root, posted: true, postedDaysAfterHandoff: 9, platform: nil, reusedAnotherEvent: nil, linkSeen: nil)
     let summary = StudySummary.compute(runsDirectory: tmp.url.appending(path: "runs"))
     #expect(summary.participants.allSatisfy { !$0.postedWithin7Days })

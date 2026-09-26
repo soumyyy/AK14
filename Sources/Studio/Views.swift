@@ -33,13 +33,17 @@ struct ConceptBoardView: View {
             HStack(alignment: .top, spacing: 0) {
                 ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: 16) {
-                        ForEach(ConceptType.allCases, id: \.self) { c in ConceptColumn(session: s, concept: c) }
+                        ForEach(Array(s.availableConcepts.enumerated()), id: \.element) { i, c in
+                            ConceptColumn(session: s, concept: c, position: i + 1)
+                        }
                     }.padding()
                 }
                 if let sel = model.selection { Divider(); SlideInspector(session: s, ref: sel).frame(width: 340) }
             }
             .navigationTitle(s.manifest.sourceFolderLabel)
             .toolbar {
+                Toggle("Operator details", systemImage: "info.circle", isOn: Binding(get: { model.showDetails },
+                                                                                     set: { model.showDetails = $0 }))
                 Button("Source folder…", systemImage: "photo.on.rectangle") { model.chooseSource() }
             }
         }
@@ -49,23 +53,27 @@ struct ConceptBoardView: View {
 struct ConceptColumn: View {
     @Environment(StudioModel.self) private var model
     let session: RunSession
-    let concept: ConceptType
-
-    var title: String {
-        switch concept { case .plainDump: "Plain Dump"; case .designed: "Designed"; case .wildcard: "Wildcard" }
-    }
+    let concept: String
+    /// Neutral label: options are never named by kind, so the baseline is not singled out.
+    let position: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(title).font(.title3.bold())
+                Text("Option \(position)").font(.title3.bold())
                 if session.isEdited(concept) { Text("edited").font(.caption).padding(.horizontal, 6).background(.yellow.opacity(0.3), in: Capsule()) }
             }
             if let plan = session.plan(concept) {
-                Text(plan.conceptNote).font(.caption).foregroundStyle(.secondary).lineLimit(3).frame(width: 260, alignment: .leading)
+                if model.showDetails {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(plan.id)\(plan.isBaseline ? " · baseline control" : "")").font(.caption.monospaced())
+                        Text(plan.brief).font(.caption).lineLimit(3)
+                        if let style = plan.style, !plan.isBaseline { Text(style.summary).font(.caption2).lineLimit(2) }
+                    }.foregroundStyle(.secondary).frame(width: 260, alignment: .leading)
+                }
                 HStack {
                     Button("Use this") { model.record { try $0.select(concept) } }
-                    Button("Reroll layout") { model.perform({ try $0.reroll(concept) }) }.disabled(model.busy != nil)
+                    Button("Reroll") { model.perform({ try $0.reroll(concept) }) }.disabled(model.busy != nil)
                     Button("Export…") { model.export(concept) }.disabled(model.busy != nil)
                     ShareButton(urls: session.slideURLs(concept)) { service in
                         model.record { try $0.shared(concept, service: service) }
@@ -86,7 +94,7 @@ struct ConceptColumn: View {
                     }
                 }
             } else {
-                Text(session.concepts.unavailable[concept.rawValue] ?? "Not available in this run")
+                Text("Not available in this run")
                     .font(.callout).foregroundStyle(.secondary).frame(width: 260, alignment: .leading)
             }
         }
@@ -175,7 +183,7 @@ struct SlideInspector: View {
 
 struct SwapPicker: View {
     let session: RunSession
-    let concept: ConceptType
+    let concept: String
     let photo: AssetID
     let choose: (AssetID) -> Void
 

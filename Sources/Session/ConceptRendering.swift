@@ -11,8 +11,8 @@ public enum ConceptRendering {
         public var failed = false
     }
 
-    public static func seed(runID: String, concept: ConceptType) -> UInt64 {
-        SeededRandom.seed(runID, concept.rawValue, ResolvedCarousel.resolverVersion)
+    public static func seed(runID: String, concept: String) -> UInt64 {
+        ComposerEngine.layoutSeed(runID: runID, id: concept)
     }
 
     public static func renderAll(_ plans: [CarouselPlan], runID: String, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
@@ -21,9 +21,9 @@ public enum ConceptRendering {
         var result = Result()
         let store = RunStore.open(root)
         for plan in plans {
-            let concept = plan.conceptType.rawValue
+            let concept = plan.id
             let context = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
-                                        seed: seedOverride ?? seed(runID: runID, concept: plan.conceptType))
+                                        seed: seedOverride ?? seed(runID: runID, concept: plan.id))
             let carousel = LayoutResolver.resolve(plan, context: context)
             for slide in carousel.slides {
                 try store.write(slide, to: String(format: "layouts/%@/slide-%02d.json", concept, slide.index + 1))

@@ -21,7 +21,7 @@ struct RunOptions: Equatable, Sendable {
 enum Command: Equatable {
     case run(RunOptions)
     case report(runDirectory: URL)
-    case rerender(runDirectory: URL, source: URL, seed: UInt64?)
+    case rerender(runDirectory: URL, source: URL, seed: UInt64?, recompose: Bool)
     case followup(runDirectory: URL, posted: Bool, postedDays: Int?, platform: String?, reused: Bool?, linkSeen: Bool?)
     case studySummary(runsDirectory: URL, out: URL?)
     case delete(runDirectory: URL, cache: URL?)
@@ -57,7 +57,7 @@ enum Arguments {
     usage:
       ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
-      ak14 rerender <runDir> --source <folder> [--seed HEX]
+      ak14 rerender <runDir> --source <folder> [--seed HEX] [--recompose]
       ak14 followup <runDir> --posted yes|no [--posted-days N] [--platform instagram|other] [--reused-another-event yes|no] [--link-seen yes|no]
       ak14 study summary [runsDir] [--out DIR]
       ak14 delete <runDir> [--purge-cache] [--cache DIR]
@@ -132,9 +132,10 @@ enum Arguments {
         case "rerender":
             guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
             rest.removeFirst()
-            var source: URL?, seed: UInt64?
+            var source: URL?, seed: UInt64?, recompose = false
             while !rest.isEmpty {
                 let flag = rest.removeFirst()
+                if flag == "--recompose" { recompose = true; continue }
                 guard !rest.isEmpty else { throw ArgumentError.missingValue(flag) }
                 let v = rest.removeFirst()
                 switch flag {
@@ -146,7 +147,7 @@ enum Arguments {
                 }
             }
             guard let source else { throw ArgumentError.missingSource }
-            return .rerender(runDirectory: path(dir), source: source, seed: seed)
+            return .rerender(runDirectory: path(dir), source: source, seed: seed, recompose: recompose)
         case "run":
             guard let folder = rest.first, !folder.hasPrefix("--") else { throw ArgumentError.missingFolder }
             rest.removeFirst()

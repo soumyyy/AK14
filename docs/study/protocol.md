@@ -16,7 +16,7 @@ Given someone's own 200–2,000 photos from one meaningful event, does AK14 prod
 1. **Consent:** read them `docs/study/consent.md`, which is the same text `ak14 run` shows.
 2. **Intake:** export the event from their iPhone as unmodified originals with location, then AirDrop it to the operator Mac (see the operator guide).
 3. **Run:** `ak14 run <folder> --study-code P07`, and answer the consent prompt.
-4. **Review:** open the run in Studio together. The participant compares Plain Dump, Designed and Wildcard, makes only the allowed edits (reorder, swap, remove, reroll layout), and clicks **Use this** on their choice.
+4. **Review:** open the run in Studio together. The participant compares the options (labelled only Option 1, 2, …), makes only the allowed edits (reorder, swap, remove, reroll), and clicks **Use this** on their choice. The options are 2–5 directions proposed by the model and composed on the Mac, plus a photos-only baseline (the selected photos, one per slide, nothing added). The baseline sits unlabeled among the directions in a seeded shuffled order recorded in the run.
 5. **Hand-off:** export or share the chosen concept to their phone.
 6. **Day 7:** record the follow-up with `ak14 followup <runDir> --posted yes|no …`.
 7. **Deletion:** delete their data when the study ends, or earlier if they ask (see Retention).
@@ -29,21 +29,22 @@ Computed with `ak14 study summary`. Each participant's **first eligible** run is
 
 | Signal | Definition | Bar |
 |---|---|---|
-| **Minimum** | Selected a pipeline concept **and** exported or shared it **without substantially rebuilding** it | ≥ 50% of participants |
+| **Minimum** | Selected **any** option (a direction or the baseline) **and** exported or shared it **without substantially rebuilding** it | ≥ 50% of participants |
 | **Strong** | Actually posted a pipeline carousel within 7 days (self-reported at follow-up) | ≥ 33% of participants |
 
-**Substantially rebuilt** (fixed before recruitment) means that, for the selected concept, more than 30% of its original photos were swapped out or removed, **or** more than 30% of its slides were re-laid out. A layout reroll counts as re-laying out every slide.
+**Substantially rebuilt** (fixed before recruitment) means that, for the selected concept, more than 30% of its original photos were swapped out or removed, **or** more than 30% of its slides were re-laid out. A reroll (which recomposes the option) counts as re-laying out every slide.
 
 - **Sensitivity:** the summary also reports the minimum signal under 20% and 40% rules.
 - **No redefinition:** the rule is not redefined after seeing results.
 
 **Also reported:**
-- concept picks (Plain, Designed, Wildcard), which show design lift against the Plain control
+- baseline-picked rate (photos-only control vs designed directions), which shows whether design adds anything over the plain photos
+- the style of the picked directions (how often each style axis value was chosen: density, overlap, grouping, decoration, rotation, whitespace)
 - median share of photos changed (edit burden)
 - repeat demand: the participant ran another event, or said at follow-up they'd reuse AK14
 - mean model cost and Director time
 
-A Plain win is valid evidence, not a failure.
+A baseline win is valid evidence, not a failure.
 
 ## Posting verification
 

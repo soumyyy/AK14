@@ -11,6 +11,11 @@ public struct Deviation: Codable, Sendable, Equatable {
 }
 
 public struct ConceptDistance: Codable, Sendable, Equatable {
+    /// The pair compared (absent in runs before the composer engine, which compared designed and wildcard).
+    public var a: String?
+    public var b: String?
+    /// Fraction of style axes that differ.
+    public var styleDistance: Double?
     public var jaccard: Double
     public var sameCover: Bool
     public var orderSimilarity: Double
@@ -36,7 +41,8 @@ public enum PlanMetrics {
         if decorationProfile(a) != decorationProfile(b) { diffs.append("decorationProfile") }
         let sameCover = a.coverAssetID == b.coverAssetID
         let order = orderAgreement(a.photoAssetIDs, b.photoAssetIDs)
-        return ConceptDistance(jaccard: jaccard, sameCover: sameCover, orderSimilarity: order, structuralDiffs: diffs,
+        return ConceptDistance(a: a.id, b: b.id, styleDistance: a.style.flatMap { sa in b.style.map { sa.distance(to: $0) } },
+                               jaccard: jaccard, sameCover: sameCover, orderSimilarity: order, structuralDiffs: diffs,
                                // Structure is the primary signal (spec §6.5 prefers changing structure over selection):
                                // with 3+ structural differences, photo overlap from a shared strong spine is fine.
                                passes: !sameCover && diffs.count >= 2 && (jaccard <= 0.8 || order < 0.5 || diffs.count >= 3))

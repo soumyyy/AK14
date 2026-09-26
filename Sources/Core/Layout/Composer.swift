@@ -42,7 +42,7 @@ extension LayoutResolver {
         func box(_ u: UnitRect) -> Box { Box(x: u.x * canvas.W, y: u.y * canvas.H, w: u.width * canvas.W, h: u.height * canvas.H) }
 
         /// Photo share of the canvas each density asks for.
-        var densityTarget: Double { density == "quiet" ? 0.52 : density == "dense" ? 0.78 : 0.64 }
+        var densityTarget: Double { LayoutResolver.densityTarget(density) }
         /// How much of the available space a single arrangement fills before scoring.
         var densityScale: Double { density == "quiet" ? 0.84 : density == "dense" ? 1.0 : 0.93 }
 
@@ -227,7 +227,7 @@ extension LayoutResolver {
                 let rot: Double = switch e.rotationIntent {
                 case "slightLeft": -rng.range(0.6, maxRot)
                 case "slightRight": rng.range(0.6, maxRot)
-                default: rng.range(-maxRot, maxRot)
+                default: 0
                 }
                 return env.photo(e, frame: Box(x: cx - w / 2, y: cy - h / 2, w: w, h: h), z: z, border: 0.02, shadow: true,
                                  rotation: rot, whole: true)

@@ -38,15 +38,15 @@ swift run -c release Studio
 ```
 
 1. Pick the run. Studio asks once for the source folder (`~/Study/P07`) and checks that the photos are unchanged.
-2. Compare **Plain Dump**, **Designed** and **Wildcard**.
+2. Compare the options (**Option 1, 2, …**). Keep **Operator details** off while the participant chooses: it shows each option's internal brief and style, and which one is the baseline.
 3. The allowed edits:
    - **Move earlier/later**
    - **Swap…** (similar shots first)
    - **Remove**
-   - **Reroll layout**
+   - **Reroll** (recomposes the option from the same photos; no model call)
 
    Don't edit on the participant's behalf. Let them drive, and keep quiet about your own preference.
-4. They click **Use this** on the concept they would post.
+4. They click **Use this** on the option they would post.
 
 All actions are logged in the run's `interaction-events.jsonl` and appear in `report.html`.
 
@@ -54,7 +54,7 @@ All actions are logged in the run's `interaction-events.jsonl` and appear in `re
 
 Either:
 - **Share** (the button next to Export) → AirDrop to their iPhone, or
-- **Export…** to a folder, then AirDrop the ordered `ak14-<concept>-NN.png` files.
+- **Export…** to a folder, then AirDrop the ordered `ak14-<option id>-NN.png` files.
 
 On the phone, the slides arrive in order, ready for an Instagram carousel. The slides are 1080 px wide at the run's aspect ratio (3:4, 4:5 or 1:1).
 

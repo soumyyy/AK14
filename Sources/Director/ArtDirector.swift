@@ -27,10 +27,15 @@ public struct DirectorInput: Sendable {
     public var selectPool: @Sendable ([AssetID: TriageScore]) -> [AssetID]
     /// Every pool candidate is sent as an image: text-only candidates were never chosen in practice.
     public var maxPlanningImages = 60
+    /// Local evidence for the composer engine (triage, flags and sequence intents are filled in by the director).
+    public var composition: CompositionContext
+    /// Seeds composition and layout, so a run's carousels are reproducible.
+    public var runID: String
     public init(storyLabel: String, dateSpan: String, requestedSlides: Int?, shortlist: [CandidateCard],
-                selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID]) {
+                selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID], composition: CompositionContext,
+                runID: String) {
         self.storyLabel = storyLabel; self.dateSpan = dateSpan; self.requestedSlides = requestedSlides
-        self.shortlist = shortlist; self.selectPool = selectPool
+        self.shortlist = shortlist; self.selectPool = selectPool; self.composition = composition; self.runID = runID
     }
 }
 
@@ -47,10 +52,12 @@ public struct DirectorOutput: Sendable {
     public var pool: [AssetID] = []
     public var spine: SelectionSpine?
     public var recommendedSlideCount: Int?
+    /// Baseline first, then the composed directions.
     public var plans: [CarouselPlan] = []
+    public var presentationOrder: [String] = []
     public var unavailable: [String: String] = [:]
     public var deviations: [String: Deviation] = [:]
-    public var diversity: ConceptDistance?
+    public var diversity: [ConceptDistance] = []
     public var calls: [ProviderCallRecord] = []
     public var warnings: [String] = []
     public var exchanges: [Exchange] = []
@@ -83,13 +90,13 @@ public struct ArtDirector: Sendable {
         var response: PlannerResponse?
         var issues: [ValidationIssue] = []
         let content = plannerContent(input, pool: out.pool, cards: cards, triage: out.triage)
-        let schema = Schemas.planner(ids: out.pool, decorationIDs: stylePack.decorationIDs)
+        let schema = Schemas.planner(ids: out.pool)
         let prompt = load("planner.system", &out)
 
         let requested = input.requestedSlides
         func consider(_ text: String) {
             let (r, i) = decode(text, pool: out.pool, flagged: flagged, requested: requested)
-            if r != nil && (response == nil || Self.quality(i) > Self.quality(issues)) { (response, issues) = (r, i) }
+            if let r, response.map({ Self.quality(r, i) > Self.quality($0, issues) }) ?? true { (response, issues) = (r, i) }
         }
         if let prompt {
             let first = await call("planner", prompt, content, schema, reasoning: "medium", &out)
@@ -115,35 +122,21 @@ public struct ArtDirector: Sendable {
         }
         if !issues.isEmpty { out.warnings.append("planner issues after repair/retry: " + issues.prefix(8).map(\.description).joined(separator: "; ")) }
 
-        // 4. Assemble: keep valid parts, deterministic Plain fallback otherwise
-        assemble(response, issues: issues, input: input, cards: cards, flagged: flagged, &out)
+        // 4. Assemble: keep the valid spine and directions, deterministic fallback spine otherwise
+        let directions = assemble(response, issues: issues, input: input, cards: cards, flagged: flagged, &out)
 
-        // 5. Diversity check with one mutation
-        if let d = out.plans.first(where: { $0.conceptType == .designed }),
-           let w = out.plans.first(where: { $0.conceptType == .wildcard }) {
-            var distance = PlanMetrics.diversity(d, w)
-            if !distance.passes, let mutation = load("mutation.system", &out), let spine = out.spine {
-                let current = PlannerResponse(recommendedSlideCount: spine.orderedAssetIDs.count, spine: spine, plans: out.plans)
-                let json = String(decoding: (try? JSONCoding.encoder.encode(current)) ?? Data(), as: UTF8.self)
-                let failed = "same cover: \(distance.sameCover), photo overlap (jaccard): \(String(format: "%.2f", distance.jaccard)), structural differences so far: \(distance.structuralDiffs)"
-                if let text = await call("mutation", mutation, [.text("Too similar: \(failed)"), .text("JSON:\n" + json)],
-                                         schema, reasoning: "low", &out) {
-                    let (r, i) = decode(text, pool: out.pool, flagged: flagged, requested: requested)
-                    if let r, let newW = r.plans.first(where: { $0.conceptType == .wildcard }),
-                       !i.contains(where: { $0.concept == .wildcard }), PlanMetrics.diversity(d, newW).passes {
-                        out.plans = out.plans.map { $0.conceptType == .wildcard ? newW : $0 }
-                        distance = PlanMetrics.diversity(d, newW)
-                    } else {
-                        out.warnings.append("designed and wildcard remain similar after one mutation")
-                    }
-                }
-            }
-            out.diversity = distance
-        }
+        // 5. Compose every direction (and the baseline) locally: no further model calls.
         if let spine = out.spine {
-            for p in out.plans where p.conceptType != .plainDump {
-                out.deviations[p.conceptType.rawValue] = PlanMetrics.deviation(plan: p, spine: spine)
-            }
+            var context = input.composition
+            context.triage = out.triage
+            context.flagged = flagged
+            context.sequenceIntent = Dictionary(zip(spine.orderedAssetIDs, spine.sequenceIntent), uniquingKeysWith: { a, _ in a })
+            let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: input.runID)
+            out.plans = set.plans
+            out.presentationOrder = set.presentationOrder
+            out.diversity = set.distances
+            out.warnings += set.warnings
+            for p in out.plans where !p.isBaseline { out.deviations[p.id] = PlanMetrics.deviation(plan: p, spine: spine) }
         }
         return out
     }
@@ -203,11 +196,11 @@ public struct ArtDirector: Sendable {
         return content
     }
 
-    /// Spine validity dominates, then the number of valid concepts, then fewer issues.
-    static func quality(_ issues: [ValidationIssue]) -> (Int, Int, Int) {
-        let spineOK = !issues.contains { $0.concept == nil && $0.path != "spine.cover" }
-        let broken = Set(issues.compactMap(\.concept))
-        return (spineOK ? 1 : 0, ConceptType.allCases.filter { !broken.contains($0) }.count, -issues.count)
+    /// Spine validity dominates, then the number of valid directions, then fewer issues.
+    static func quality(_ response: PlannerResponse, _ issues: [ValidationIssue]) -> (Int, Int, Int) {
+        let spineOK = !issues.contains { $0.direction == nil && $0.path != "spine.cover" }
+        let broken = Set(issues.compactMap(\.direction))
+        return (spineOK ? 1 : 0, response.directions.indices.filter { !broken.contains($0) }.count, -issues.count)
     }
 
     /// Moves the first unflagged photo to the front so a flagged face is never the cover.
@@ -219,10 +212,11 @@ public struct ArtDirector: Sendable {
         return s
     }
 
+    /// Sets the spine (the model's, or a deterministic fallback) and returns the directions that passed validation.
     private func assemble(_ response: PlannerResponse?, issues: [ValidationIssue], input: DirectorInput,
-                          cards: [AssetID: CandidateCard], flagged: Set<AssetID>, _ out: inout DirectorOutput) {
+                          cards: [AssetID: CandidateCard], flagged: Set<AssetID>, _ out: inout DirectorOutput) -> [Direction] {
         // A flagged cover alone is fixable locally; any other spine issue means the model's story is unusable.
-        let spineOK = response != nil && !issues.contains { $0.concept == nil && $0.path != "spine.cover" }
+        let spineOK = response != nil && !issues.contains { $0.direction == nil && $0.path != "spine.cover" }
         var spine: SelectionSpine
         if spineOK, let response {
             spine = response.spine
@@ -238,20 +232,16 @@ public struct ArtDirector: Sendable {
         out.spine = spine
         out.recommendedSlideCount = spine.orderedAssetIDs.count
 
-        let modelPlain = spineOK ? response?.plans.first { $0.conceptType == .plainDump } : nil
-        var plans = [modelPlain.map { Self.normalizePlain($0, spine: spine) }
-                     ?? .plainDump(from: spine, note: "Deterministic Plain Dump of the selection spine.")]
-        for type in [ConceptType.designed, .wildcard] {
-            if spineOK, let p = response?.plans.first(where: { $0.conceptType == type }),
-               !issues.contains(where: { $0.concept == type }) {
-                plans.append(p)
-            } else {
-                out.unavailable[type.rawValue] = response == nil ? "planner produced no usable response"
-                    : spineOK ? "invalid after repair/retry" : "the model's selection spine was invalid"
-            }
+        guard spineOK, let response else {
+            out.unavailable["directions"] = response == nil ? "planner produced no usable response" : "the model's selection spine was invalid"
+            out.status = "fallback"
+            return []
         }
-        out.plans = plans
-        out.status = !spineOK ? "fallback" : out.unavailable.isEmpty ? "ok" : "partial"
+        let broken = Set(issues.compactMap(\.direction))
+        let valid = response.directions.enumerated().filter { !broken.contains($0.offset) }.map(\.element)
+        if !broken.isEmpty { out.unavailable["directions"] = "\(broken.count) of \(response.directions.count) invalid after repair/retry" }
+        out.status = valid.isEmpty ? "fallback" : broken.isEmpty ? "ok" : "partial"
+        return valid
     }
 
     // MARK: - Helpers
@@ -303,26 +293,11 @@ public struct ArtDirector: Sendable {
     private func decode(_ text: String, pool: [AssetID], flagged: Set<AssetID>, requested: Int?) -> (PlannerResponse?, [ValidationIssue]) {
         do {
             var r = try JSONDecoder().decode(PlannerResponse.self, from: Data(text.utf8))
-            r.plans = r.plans.map { Self.normalizePlain($0, spine: r.spine) }
             r.recommendedSlideCount = r.spine.orderedAssetIDs.count
-            return (r, PlanValidator.validate(r, pool: pool, stylePack: stylePack, flagged: flagged, requestedSlides: requested))
+            return (r, PlanValidator.validate(r, pool: pool, flagged: flagged, requestedSlides: requested))
         } catch {
             return (nil, [ValidationIssue(path: "json", message: "could not decode: \(error)")])
         }
-    }
-}
-
-extension ArtDirector {
-    /// Plain Dump is defined as the spine, so derive it deterministically instead of spending a repair call:
-    /// spine order, one photo per slide, keeping the model's hero/full_bleed choice per photo, no decoration.
-    static func normalizePlain(_ plan: CarouselPlan, spine: SelectionSpine) -> CarouselPlan {
-        guard plan.conceptType == .plainDump else { return plan }
-        let chosen = Dictionary(plan.slides.compactMap { s in s.photos.first.map { ($0.assetID, s.primitive) } },
-                                uniquingKeysWith: { a, _ in a })
-        return CarouselPlan(conceptType: .plainDump, conceptNote: plan.conceptNote, slides: spine.orderedAssetIDs.map { id in
-            SlidePlan(primitive: chosen[id] == .hero ? .hero : .fullBleed, mood: "calm", density: "quiet",
-                      photos: [.plain(id)], decorations: [], stamps: [])
-        })
     }
 }
 

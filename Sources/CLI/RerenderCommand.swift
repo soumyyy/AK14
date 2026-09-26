@@ -18,13 +18,25 @@ enum RerenderCommand {
 
     /// Re-resolves and re-renders every concept from saved plans and the source folder. Never calls the model.
     /// Renders into a staging directory and swaps only if every slide succeeded, so a failure keeps the old output.
-    static func rerender(runDirectory: URL, source: URL, seed: UInt64? = nil) throws {
+    /// `recompose` first re-runs the composer engine on the stored directions (legacy plans without one are kept).
+    static func rerender(runDirectory: URL, source: URL, seed: UInt64? = nil, recompose: Bool = false) throws {
         let store = RunStore.open(runDirectory)
         let manifest = try store.read(RunManifest.self, from: "manifest.json")
         let ingest = try store.read(IngestResult.self, from: "input-index.json")
         let features = try store.read([PhotoFeatures].self, from: "cache/features.json")
         var concepts = try store.read(ConceptsReport.self, from: "plans/director.json")
         guard !concepts.plans.isEmpty else { throw Failure.noPlans }
+        if recompose, let spine = concepts.spine, concepts.plans.contains(where: { $0.direction != nil }) {
+            let context = try RunSession(runDirectory: runDirectory).compositionContext()
+            let directions = concepts.plans.filter { !$0.isBaseline }.compactMap(\.direction)
+            let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: manifest.runID)
+            concepts.plans = set.plans
+            concepts.presentationOrder = set.presentationOrder
+            concepts.diversity = set.distances
+            concepts.deviations = Dictionary(uniqueKeysWithValues: set.plans.filter { !$0.isBaseline }
+                .map { ($0.id, PlanMetrics.deviation(plan: $0, spine: spine)) })
+            concepts.warnings = concepts.warnings.filter { !$0.hasPrefix("c") && !$0.hasPrefix("baseline:") } + set.warnings
+        }
         let photos = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) })
         let folder = source.resolvingSymlinksInPath()
         // Unknown IDs (e.g. a hand-edited plan) are dropped by the resolver with a warning; verify only known photos.

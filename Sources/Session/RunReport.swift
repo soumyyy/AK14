@@ -16,12 +16,12 @@ public enum RunReport {
         }
         let reduction = try? store.read(ReductionResult.self, from: "cache/reduction.json")
         let concepts = try? store.read(ConceptsReport.self, from: "plans/director.json")
-        var edits: [ConceptType: EditedConcept] = [:]
-        for c in ConceptType.allCases {
-            guard let plan = try? store.read(CarouselPlan.self, from: "edits/\(c.rawValue)/plan.json") else { continue }
-            let dir = store.url("edits/\(c.rawValue)/slides")
+        var edits: [String: EditedConcept] = [:]
+        for c in concepts?.plans.map(\.id) ?? [] {
+            guard let plan = try? store.read(CarouselPlan.self, from: "edits/\(c)/plan.json") else { continue }
+            let dir = store.url("edits/\(c)/slides")
             let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".png") }.sorted()) ?? []
-            edits[c] = EditedConcept(plan: plan, slides: names.map { "edits/\(c.rawValue)/slides/\($0)" })
+            edits[c] = EditedConcept(plan: plan, slides: names.map { "edits/\(c)/slides/\($0)" })
         }
         let events = InteractionLog(url: store.url("interaction-events.jsonl")).read()
         let html = ReportBuilder.html(ReportInput(

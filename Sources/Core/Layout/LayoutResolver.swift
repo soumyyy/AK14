@@ -20,12 +20,17 @@ public enum LayoutResolver {
         let slides = plan.slides.enumerated().map { i, s in
             resolveSlide(s, index: i, plan: plan, context: context, history: &history, rng: &rng)
         }
-        return ResolvedCarousel(conceptType: plan.conceptType, aspect: context.aspect,
+        return ResolvedCarousel(id: plan.id, aspect: context.aspect,
                                 seed: String(context.seed, radix: 16), resolverVersion: ResolvedCarousel.resolverVersion,
                                 slides: slides)
     }
 
     // MARK: - Slide
+
+    /// Photo share of the canvas each slide density asks for.
+    public static func densityTarget(_ density: String) -> Double {
+        density == "quiet" ? 0.52 : density == "dense" ? 0.78 : 0.64
+    }
 
     struct Canvas {
         let W: Double, H: Double
@@ -38,7 +43,9 @@ public enum LayoutResolver {
         let spacing = context.stylePack.spacingRanges
         // A film edge draws bands down both sides; reserve them so nothing important sits underneath.
         let filmBand = slide.decorations.contains { $0.decorationID == "film-edge" } ? StyleMetrics.filmBand(canvasWidth: c.W) : 0
-        let margin = max(rng.range(spacing["marginMin"] ?? 0.04, spacing["marginMax"] ?? 0.07) * c.short,
+        // Airy directions breathe more; the StylePack range still bounds the base margin.
+        let airy = plan.style?.whitespace == "airy" ? 1.5 : 1.0
+        let margin = max(airy * rng.range(spacing["marginMin"] ?? 0.04, spacing["marginMax"] ?? 0.07) * c.short,
                          filmBand > 0 ? filmBand + 0.035 * c.short : 0)
         let content = Box(x: filmBand, y: 0, w: c.W - 2 * filmBand, h: c.H)
         let maxPhotoRot = context.stylePack.allowedRotations["photoDegrees"] ?? 2
@@ -84,7 +91,7 @@ public enum LayoutResolver {
         let usable = Box(x: margin, y: margin, w: c.W - 2 * margin, h: c.H - 2 * margin)
 
         let env = SlideEnv(canvas: c, usable: usable, content: content, context: context,
-                           density: plan.conceptType == .plainDump ? "balanced" : slide.density, minVisible: minVisible)
+                           density: slide.density, minVisible: minVisible)
         func rotation(_ e: PhotoElement) -> Double {
             let magnitude = rng.range(0.6, maxPhotoRot)
             switch e.rotationIntent {

@@ -11,12 +11,12 @@ func operatorDryRun() throws {
     let session = try RunSession(runDirectory: parts[0])
     try session.setSource(parts[1])
     try session.presented()
-    let designed = try #require(session.plan(.designed))
-    if designed.slides.count > 1 { try session.apply(.reorder(from: 1, to: 0), to: .designed) }
-    let photo = try #require(session.plan(.designed)).slides[0].photos[0].assetID
-    if let alt = session.swapCandidates(.designed, photo: photo).first { try session.apply(.swap(slide: 0, photo: photo, with: alt), to: .designed) }
-    try session.reroll(.wildcard)
-    try session.select(.designed)
-    let files = try session.export(.designed, to: parts[2])
+    let designed = try #require(session.plan("c1"))
+    if designed.slides.count > 1 { try session.apply(.reorder(from: 1, to: 0), to: "c1") }
+    let photo = try #require(session.plan("c1")).slides[0].photos[0].assetID
+    if let alt = session.swapCandidates("c1", photo: photo).first { try session.apply(.swap(slide: 0, photo: photo, with: alt), to: "c1") }
+    try session.reroll("c2")
+    try session.select("c1")
+    let files = try session.export("c1", to: parts[2])
     #expect(!files.isEmpty)
 }

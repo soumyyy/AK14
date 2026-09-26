@@ -16,25 +16,16 @@ enum Schemas {
         ])))])
     }
 
-    static func planner(ids: [AssetID], decorationIDs: [String]) -> JSONValue {
+    static func planner(ids: [AssetID]) -> JSONValue {
         let id = JSONValue.str(ids.map(\.rawValue))
-        let photo = JSONValue.obj([
-            ("assetID", id),
-            ("role", .str(["hero", "support", "detail"])),
-            ("importance", .integer(1, 3, description: "3 = most prominent on the slide, 1 = least. The hero photo gets 3.")),
-            ("cropIntent", .str(["tight", "balanced", "loose"])),
-            ("anchorIntent", .str(["center", "top", "bottom", "left", "right"])),
-            ("overlapIntent", .str(["none", "slight", "strong"])),
-            ("rotationIntent", .str(["none", "slightLeft", "slightRight"])),
-        ])
-        let slide = JSONValue.obj([
-            ("primitive", .str(Primitive.allCases.map(\.rawValue))),
-            ("mood", .str(["calm", "warm", "energetic", "nostalgic", "playful", "moody"])),
-            ("density", .str(["quiet", "balanced", "dense"])),
-            ("photos", .arr(photo, min: 1, max: 4)),
-            ("decorations", .arr(.obj([("decorationID", .str(decorationIDs)), ("intensity", .str(["low", "medium", "high"]))]))),
-            ("stamps", .arr(.obj([("kind", .str(["date", "location"])),
-                                  ("placement", .str(["topLeft", "topRight", "bottomLeft", "bottomRight"]))]))),
+        let style = JSONValue.obj(StyleVector.axes.map { ($0.name, JSONValue.str($0.values)) })
+        let direction = JSONValue.obj([
+            ("brief", .str()),
+            ("style", style),
+            ("coverAssetID", id),
+            ("orderedAssetIDs", .arr(id, min: 1, max: 20)),
+            ("keepTogether", .arr(.arr(id, min: 2, max: 4))),
+            ("emphasisAssetIDs", .arr(id)),
         ])
         return .obj([
             ("recommendedSlideCount", .integer(1, 20)),
@@ -43,11 +34,7 @@ enum Schemas {
                 ("sequenceIntent", .arr(.str(SequenceIntent.allCases.map(\.rawValue)))),
                 ("rationale", .arr(.obj([("id", id), ("reason", .str(["cover", "emotional", "story", "variety", "detail", "people", "place"]))]))),
             ])),
-            ("plans", .arr(.obj([
-                ("conceptType", .str(ConceptType.allCases.map(\.rawValue))),
-                ("conceptNote", .str()),
-                ("slides", .arr(slide, min: 1, max: 20)),
-            ]), min: 3, max: 3)),
+            ("directions", .arr(direction, min: 2, max: 5)),
         ])
     }
 }

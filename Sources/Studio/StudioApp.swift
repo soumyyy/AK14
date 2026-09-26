@@ -64,7 +64,7 @@ enum Snapshot {
             let session = try RunSession(runDirectory: URL(fileURLWithPath: parts[0]))
             try session.setSource(URL(fileURLWithPath: parts[1]))
             model.session = session
-            model.selection = SlideRef(concept: .designed, index: 0)
+            model.selection = session.availableConcepts.first.map { SlideRef(concept: $0, index: 0) }
         } catch { fatalError("snapshot: \(error)") }
         let view = ConceptBoardView().environment(model).frame(width: 1300, height: 900).background(Color.white)
         // Host the real AppKit-backed hierarchy (scroll views, controls) off-screen and let AppKit draw it.

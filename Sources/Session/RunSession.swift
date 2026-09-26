@@ -38,8 +38,8 @@ public final class RunSession: @unchecked Sendable {
     /// Serializes whole mutating operations (render + commit + log).
     private let operation = NSLock()
     private var _sourceFolder: URL?
-    private var working: [ConceptType: CarouselPlan] = [:]
-    private var seeds: [ConceptType: UInt64] = [:]
+    private var working: [String: CarouselPlan] = [:]
+    private var seeds: [String: UInt64] = [:]
 
     public init(runDirectory: URL) throws {
         root = runDirectory
@@ -52,16 +52,17 @@ public final class RunSession: @unchecked Sendable {
         reduction = try? store.read(ReductionResult.self, from: "cache/reduction.json")
         stylePack = try StylePackLoader.load(id: c.stylePackID)
         log = InteractionLog(url: runDirectory.appending(path: "interaction-events.jsonl"))
-        for type in ConceptType.allCases {
-            if let p = try? store.read(CarouselPlan.self, from: "edits/\(type.rawValue)/plan.json") { working[type] = p }
-            if let text = try? String(contentsOf: store.url("edits/\(type.rawValue)/seed.txt"), encoding: .utf8),
-               let s = UInt64(text.trimmingCharacters(in: .whitespacesAndNewlines), radix: 16) { seeds[type] = s }
+        for id in c.plans.map(\.id) {
+            if let p = try? store.read(CarouselPlan.self, from: "edits/\(id)/plan.json") { working[id] = p }
+            if let text = try? String(contentsOf: store.url("edits/\(id)/seed.txt"), encoding: .utf8),
+               let s = UInt64(text.trimmingCharacters(in: .whitespacesAndNewlines), radix: 16) { seeds[id] = s }
         }
         try? FileManager.default.removeItem(at: store.url("edits/.staging"))   // leftovers from an interrupted edit
     }
 
     public var runID: String { manifest.runID }
-    public var availableConcepts: [ConceptType] { concepts.plans.map(\.conceptType) }
+    /// Carousel ids in presentation order (the baseline is shuffled in among the directions, unlabeled).
+    public var availableConcepts: [String] { concepts.orderedPlans.map(\.id) }
     public var sourceFolder: URL? { state.withLock { _sourceFolder } }
 
     /// Verifies the photos used by any concept and the candidate pool against their recorded content hashes.
@@ -74,27 +75,27 @@ public final class RunSession: @unchecked Sendable {
 
     // MARK: - Reading
 
-    public func plan(_ c: ConceptType) -> CarouselPlan? {
-        state.withLock { working[c] } ?? concepts.plans.first { $0.conceptType == c }
+    public func plan(_ c: String) -> CarouselPlan? {
+        state.withLock { working[c] } ?? concepts.plan(c)
     }
 
-    public func isEdited(_ c: ConceptType) -> Bool { state.withLock { working[c] != nil } }
+    public func isEdited(_ c: String) -> Bool { state.withLock { working[c] != nil } }
 
     /// Current slide images: edited output when present, else the run's original render.
-    public func slideURLs(_ c: ConceptType) -> [URL] {
+    public func slideURLs(_ c: String) -> [URL] {
         if isEdited(c) {
-            let dir = root.appending(path: "edits/\(c.rawValue)/slides")
+            let dir = root.appending(path: "edits/\(c)/slides")
             let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".png") }.sorted()) ?? []
             return names.map { dir.appending(path: $0) }
         }
-        return (concepts.renderedSlides[c.rawValue] ?? []).map { root.appending(path: $0) }
+        return (concepts.renderedSlides[c] ?? []).map { root.appending(path: $0) }
     }
 
     public func thumbnailURL(_ id: AssetID) -> URL { root.appending(path: "cache/thumbnails/analysis/\(id.rawValue).jpg") }
 
     /// Swap candidates: the photo's own shot-cluster alternates first, then the planning pool,
     /// excluding photos already in the concept and junk rejects.
-    public func swapCandidates(_ c: ConceptType, photo: AssetID) -> [AssetID] {
+    public func swapCandidates(_ c: String, photo: AssetID) -> [AssetID] {
         let used = Set(plan(c)?.photoAssetIDs ?? [])
         let cluster = reduction?.clusters.first { $0.memberAssetIDs.contains(photo) }?.memberAssetIDs ?? []
         let rejected = Set(reduction?.junk.filter { $0.verdict == .reject }.map(\.assetID) ?? [])
@@ -107,11 +108,11 @@ public final class RunSession: @unchecked Sendable {
 
     // MARK: - Edits (serialized)
 
-    public func apply(_ edit: PlanEdit, to c: ConceptType, source: String = "operator") throws {
+    public func apply(_ edit: PlanEdit, to c: String, source: String = "operator") throws {
         try operation.withLock {
-            guard let current = plan(c) else { throw Failure.unavailable(c.rawValue) }
+            guard let current = plan(c) else { throw Failure.unavailable(c) }
             var edited = try PlanEditor.apply(edit, to: current)
-            if c == .plainDump { edited.slides = edited.slides.map { var s = $0; s.decorations = []; s.stamps = []; return s } }
+            if current.isBaseline { edited.slides = edited.slides.map { var s = $0; s.decorations = []; s.stamps = []; return s } }
             if case .swap(_, _, let new) = edit, let folder = sourceFolder { try verify(new, in: folder) }
             try commit(edited, c, seed: state.withLock { seeds[c] })
 
@@ -132,11 +133,23 @@ public final class RunSession: @unchecked Sendable {
         }
     }
 
-    /// New layout seed for the concept (no model call). The seed is only kept if the render succeeds.
-    public func reroll(_ c: ConceptType, source: String = "operator") throws {
+    /// Recomposes the carousel with a new seed, no model call: the composer engine regroups the current photos
+    /// (keeping swaps and removals) under the same direction. Legacy plans without a direction only get new geometry.
+    /// The seed is only kept if the render succeeds.
+    public func reroll(_ c: String, source: String = "operator") throws {
         try operation.withLock {
-            guard let current = plan(c) else { throw Failure.unavailable(c.rawValue) }
-            try commit(current, c, seed: SeededRandom.seed(runID, c.rawValue, UUID().uuidString))
+            guard let current = plan(c) else { throw Failure.unavailable(c) }
+            let seed = SeededRandom.seed(runID, c, UUID().uuidString)
+            var next = current
+            if var direction = current.direction {
+                let ids = current.photoAssetIDs
+                direction.orderedAssetIDs = ids
+                if let cover = current.coverAssetID { direction.coverAssetID = cover }
+                direction.keepTogether = direction.keepTogether.filter { $0.allSatisfy(ids.contains) }
+                direction.emphasisAssetIDs = direction.emphasisAssetIDs.filter(ids.contains)
+                next = ComposerEngine.compose(direction, id: c, context: compositionContext(), seed: seed).plan
+            }
+            try commit(next, c, seed: seed)
             try record("concept_rerolled", c, source: source)
             try? RunReport.rebuild(runDirectory: root)
         }
@@ -144,14 +157,14 @@ public final class RunSession: @unchecked Sendable {
 
     // MARK: - Behaviour logging (no source folder needed)
 
-    public func select(_ c: ConceptType, source: String = "operator") throws {
+    public func select(_ c: String, source: String = "operator") throws {
         try operation.withLock { try record("concept_selected", c, source: source); try? RunReport.rebuild(runDirectory: root) }
     }
     public func presented(source: String = "operator") throws {
         try operation.withLock { try record("concepts_presented", nil, source: source) }
     }
     /// Call only after the share actually completed (not when a service was merely picked).
-    public func shared(_ c: ConceptType, service: String, source: String = "operator") throws {
+    public func shared(_ c: String, service: String, source: String = "operator") throws {
         try operation.withLock {
             let snapshot = try snapshotHandoff(c)
             try record("carousel_shared", c, after: [service, "snapshot=\(snapshot)"], source: source)
@@ -160,22 +173,22 @@ public final class RunSession: @unchecked Sendable {
     }
 
     /// Saves exactly what was handed to the participant, so study metrics score the handed-off plan.
-    private func snapshotHandoff(_ c: ConceptType) throws -> String {
-        guard let p = plan(c) else { throw Failure.unavailable(c.rawValue) }
+    private func snapshotHandoff(_ c: String) throws -> String {
+        guard let p = plan(c) else { throw Failure.unavailable(c) }
         let id = UUID().uuidString
-        try store.write(p, to: "handoffs/\(c.rawValue)-\(id).json")
+        try store.write(p, to: "handoffs/\(c)-\(id).json")
         return id
     }
 
     /// Copies the concept's current slides, in order, to `folder`, replacing any earlier export of this concept there.
     @discardableResult
-    public func export(_ c: ConceptType, to folder: URL, source: String = "operator") throws -> [URL] {
+    public func export(_ c: String, to folder: URL, source: String = "operator") throws -> [URL] {
         try operation.withLock {
             let slides = slideURLs(c)
             guard !slides.isEmpty else { throw Failure.nothingToExport }
             let fm = FileManager.default
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
-            let prefix = "ak14-\(c.rawValue)-"
+            let prefix = "ak14-\(c)-"
             for old in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] where old.hasPrefix(prefix) && old.hasSuffix(".png") {
                 try fm.removeItem(at: folder.appending(path: old))
             }
@@ -196,7 +209,7 @@ public final class RunSession: @unchecked Sendable {
 
     /// Renders `plan` into a private staging directory, then swaps `edits/<concept>/` in with one rename
     /// and only then updates in-memory state. A failure leaves the previous edit (or original) untouched.
-    private func commit(_ plan: CarouselPlan, _ c: ConceptType, seed: UInt64?) throws {
+    private func commit(_ plan: CarouselPlan, _ c: String, seed: UInt64?) throws {
         guard let folder = sourceFolder else { throw Failure.noSource }
         let fm = FileManager.default
         let stagingRoot = root.appending(path: "edits/.staging/\(UUID().uuidString)")
@@ -207,12 +220,12 @@ public final class RunSession: @unchecked Sendable {
         guard !result.failed else { throw Failure.render(result.warnings) }
         let concept = stagingRoot.appending(path: "concept")
         try fm.createDirectory(at: concept, withIntermediateDirectories: true)
-        try fm.moveItem(at: stagingRoot.appending(path: "slides/\(c.rawValue)"), to: concept.appending(path: "slides"))
-        try fm.moveItem(at: stagingRoot.appending(path: "layouts/\(c.rawValue)"), to: concept.appending(path: "layouts"))
+        try fm.moveItem(at: stagingRoot.appending(path: "slides/\(c)"), to: concept.appending(path: "slides"))
+        try fm.moveItem(at: stagingRoot.appending(path: "layouts/\(c)"), to: concept.appending(path: "layouts"))
         try JSONCoding.encoder.encode(plan).write(to: concept.appending(path: "plan.json"))
         if let seed { try Data(String(seed, radix: 16).utf8).write(to: concept.appending(path: "seed.txt")) }
 
-        let final = root.appending(path: "edits/\(c.rawValue)")
+        let final = root.appending(path: "edits/\(c)")
         let backup = stagingRoot.appending(path: "previous")
         if fm.fileExists(atPath: final.path) { try fm.moveItem(at: final, to: backup) }
         do { try fm.moveItem(at: concept, to: final) } catch {
@@ -225,16 +238,29 @@ public final class RunSession: @unchecked Sendable {
         }
     }
 
+    /// The same local evidence the run composed from (triage flags stand in for the run-time safety flags).
+    public func compositionContext() -> CompositionContext {
+        let triage = Dictionary(uniqueKeysWithValues: concepts.triage.map { (AssetID(rawValue: $0.key), $0.value) })
+        let spine = concepts.spine
+        var moment: [AssetID: String] = [:]
+        for cl in reduction?.clusters ?? [] { for m in cl.memberAssetIDs { moment[m] = cl.clusterID } }
+        return CompositionContext(aspect: manifest.aspectRatio, photos: photos, features: features, triage: triage,
+                                  flagged: Set(triage.filter { !$0.value.safety.isEmpty }.keys),
+                                  sequenceIntent: Dictionary(zip(spine?.orderedAssetIDs ?? [], spine?.sequenceIntent ?? []),
+                                                             uniquingKeysWith: { a, _ in a }),
+                                  moment: moment, stylePack: stylePack, maxSlides: nil)
+    }
+
     private func verify(_ id: AssetID, in folder: URL) throws {
         guard let p = photos[id] else { return }
         let url = folder.appending(path: p.sourceRelativePaths[0])
         guard let sha = try? Self.sha256(url), sha == p.contentSHA256 else { throw Failure.sourceChanged(p.sourceRelativePaths[0]) }
     }
 
-    private func record(_ event: String, _ c: ConceptType?, slide: Int? = nil, assets: [AssetID]? = nil,
+    private func record(_ event: String, _ c: String?, slide: Int? = nil, assets: [AssetID]? = nil,
                         before: [String]? = nil, after: [String]? = nil, source: String = "operator") throws {
         try log.append(InteractionEvent(eventID: UUID().uuidString, runID: runID, timestamp: Date(), event: event,
-                                        conceptID: c?.rawValue, slideIndex: slide, assetIDs: assets,
+                                        conceptID: c, slideIndex: slide, assetIDs: assets,
                                         before: before, after: after, source: source))
     }
 

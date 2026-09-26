@@ -16,8 +16,8 @@ struct AK14Command {
                 }
                 let store = try await RunPipeline.live(options: options).run(options)
                 print(store.url("report.html").path)
-            case .rerender(let dir, let source, let seed):
-                try RerenderCommand.rerender(runDirectory: dir, source: source, seed: seed)
+            case .rerender(let dir, let source, let seed, let recompose):
+                try RerenderCommand.rerender(runDirectory: dir, source: source, seed: seed, recompose: recompose)
                 try ReportCommand.rebuild(runDirectory: dir)
                 print(dir.appending(path: "report.html").path)
             case .followup(let dir, let posted, let days, let platform, let reused, let linkSeen):
@@ -78,7 +78,7 @@ enum Versions {
         var v = ["analyzer": VisionAnalyzer.version, "thumbnailer": Thumbnailer.version, "report": ReportBuilder.version,
                  "manifestSchema": "\(RunManifest.currentSchemaVersion)", "reduction": ReductionConfig().version,
                  "pricing": Pricing.version, "model": ResponsesClient(transport: OpenAITransport(apiKey: "")).model,
-                 "resolver": ResolvedCarousel.resolverVersion, "renderer": CarouselRenderer.version,
+                 "resolver": ResolvedCarousel.resolverVersion, "composer": ComposerEngine.version, "renderer": CarouselRenderer.version,
                  "disclosure": Disclosure.version]
         for name in ["triage.system", "planner.system", "repair.system", "mutation.system"] {
             v["prompt:\(name)"] = (try? Prompts.load(name).version) ?? "missing"

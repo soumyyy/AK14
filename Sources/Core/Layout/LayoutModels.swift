@@ -37,7 +37,8 @@ public struct ResolvedSlide: Codable, Sendable, Equatable {
 
 public struct ResolvedCarousel: Codable, Sendable, Equatable {
     public static let resolverVersion = "layout-2"
-    public var conceptType: ConceptType
+    /// Carousel id (`baseline`, `c1`…, or a legacy concept name).
+    public var id: String
     public var aspect: CarouselAspect
     /// Hex seed (string to survive JSON number precision).
     public var seed: String

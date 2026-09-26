@@ -1,0 +1,388 @@
+import Foundation
+
+/// Local evidence the composer engine works from. Everything here is on-device; nothing is sent anywhere.
+public struct CompositionContext: Sendable {
+    public var aspect: CarouselAspect
+    public var photos: [AssetID: PhotoRecord]
+    public var features: [AssetID: PhotoFeatures]
+    public var triage: [AssetID: TriageScore]
+    /// Photos with a social-safety flag (never a cover when an alternative exists).
+    public var flagged: Set<AssetID>
+    public var sequenceIntent: [AssetID: SequenceIntent]
+    /// Shot-cluster id per asset: photos sharing one were taken in the same moment.
+    public var moment: [AssetID: String]
+    public var stylePack: StylePack
+    /// The user's requested slide count, if any.
+    public var maxSlides: Int?
+
+    public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
+                triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
+                moment: [AssetID: String], stylePack: StylePack, maxSlides: Int?) {
+        self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
+        self.sequenceIntent = sequenceIntent; self.moment = moment; self.stylePack = stylePack; self.maxSlides = maxSlides
+    }
+}
+
+/// Turns a direction (story + style axes) into a complete carousel plan, deterministically for a seed:
+/// groups photos into slides, assigns primitives and per-photo intents, budgets decoration, then resolves
+/// several whole compositions through the layout engine and keeps one of the best. Every direction, and the
+/// baseline, is held to the same scoring.
+public enum ComposerEngine {
+    public static let version = "composer-1"
+    static let candidateCount = 6
+
+    public struct Composition: Sendable {
+        public var plan: CarouselPlan
+        public var score: Double
+        public var warnings: [String]
+    }
+
+    public struct ComposedSet: Sendable {
+        /// Baseline first, then the kept directions (c1…).
+        public var plans: [CarouselPlan]
+        public var distances: [ConceptDistance]
+        public var presentationOrder: [String]
+        public var warnings: [String]
+    }
+
+    /// Seed the layout engine uses for a carousel; composition evaluates with the same seed so what was scored is
+    /// exactly what renders.
+    public static func layoutSeed(runID: String, id: String) -> UInt64 {
+        SeededRandom.seed(runID, id, ResolvedCarousel.resolverVersion)
+    }
+
+    // MARK: - Set
+
+    public static func composeSet(directions: [Direction], spine: SelectionSpine, context: CompositionContext,
+                                  runID: String) -> ComposedSet {
+        var warnings: [String] = []
+        let baselineDirection = Direction(brief: "The selected photos as they are, one per slide.", style: .baseline,
+                                          coverAssetID: spine.orderedAssetIDs.first ?? AssetID(rawValue: ""),
+                                          orderedAssetIDs: spine.orderedAssetIDs)
+        let base = compose(baselineDirection, id: CarouselPlan.baselineID, context: context,
+                           seed: layoutSeed(runID: runID, id: CarouselPlan.baselineID))
+        warnings += base.warnings.map { "baseline: \($0)" }
+
+        var kept: [CarouselPlan] = []
+        for (i, d) in directions.enumerated() {
+            let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
+            var comp = compose(d, id: id, context: context, seed: seed)
+            warnings += comp.warnings.map { "\(id): \($0)" }
+            if let clash = kept.first(where: { !PlanMetrics.diversity($0, comp.plan).passes }) {
+                // Recompose away from the earlier carousel: a different cover, other near-best seeds, then one axis nudge.
+                var tries: [Direction] = []
+                if clash.coverAssetID == comp.plan.coverAssetID {
+                    let usedCovers = Set(kept.compactMap(\.coverAssetID))
+                    if let alt = d.orderedAssetIDs.filter({ !usedCovers.contains($0) && !context.flagged.contains($0) })
+                        .max(by: { strengthOrder($0, $1, context) }) {
+                        var moved = d; moved.coverAssetID = alt; tries.append(moved)
+                    }
+                }
+                var nudged = tries.last ?? d
+                nudged.style.grouping = d.style.grouping == "single" ? "mixed" : d.style.grouping == "mixed" ? "collage" : "mixed"
+                tries.append(nudged)
+                var fixed = false
+                attempts: for t in tries {
+                    for salt in 0..<3 {
+                        let alt = compose(t, id: id, context: context,
+                                          seed: salt == 0 ? seed : SeededRandom.seed(runID, id, "alt\(salt)"), layoutSeed: seed)
+                        if kept.allSatisfy({ PlanMetrics.diversity($0, alt.plan).passes }) {
+                            comp = alt; fixed = true
+                            warnings.append("\(id): recomposed to differ from \(clash.id)")
+                            break attempts
+                        }
+                    }
+                }
+                if !fixed {
+                    if kept.count + (directions.count - i - 1) >= 2 {   // dropping still leaves two directions
+                        warnings.append("\(id): dropped, too similar to \(clash.id)")
+                        continue
+                    }
+                    warnings.append("\(id): still similar to \(clash.id); kept so at least two directions remain")
+                }
+            }
+            kept.append(comp.plan)
+        }
+
+        var distances: [ConceptDistance] = []
+        for i in kept.indices { for j in kept.indices where j > i {
+            var d = PlanMetrics.diversity(kept[i], kept[j])
+            d.a = kept[i].id; d.b = kept[j].id
+            if let si = kept[i].style, let sj = kept[j].style { d.styleDistance = si.distance(to: sj) }
+            distances.append(d)
+        }}
+        let plans = [base.plan] + kept
+        var order = plans.map(\.id)
+        var rng = SeededRandom(seed: SeededRandom.seed(runID, "presentation-order"))
+        for i in stride(from: order.count - 1, to: 0, by: -1) { order.swapAt(i, Int(rng.next() % UInt64(i + 1))) }
+        return ComposedSet(plans: plans, distances: distances, presentationOrder: order, warnings: warnings)
+    }
+
+    // MARK: - One direction
+
+    public static func compose(_ direction: Direction, id: String, context: CompositionContext, seed: UInt64,
+                               layoutSeed: UInt64? = nil) -> Composition {
+        var rng = SeededRandom(seed: seed)
+        var warnings: [String] = []
+        var d = direction
+        d.style = d.style.normalized
+        var seen = Set<AssetID>()
+        var ids = d.orderedAssetIDs.filter { context.photos[$0] != nil && seen.insert($0).inserted }
+        guard !ids.isEmpty else {
+            return Composition(plan: CarouselPlan(id: id, brief: d.brief, direction: d, slides: []), score: .infinity,
+                               warnings: ["no usable photos"])
+        }
+        if !ids.contains(d.coverAssetID) || (context.flagged.contains(d.coverAssetID) && ids.contains { !context.flagged.contains($0) }) {
+            let replacement = ids.filter { !context.flagged.contains($0) }.max { strengthOrder($0, $1, context) } ?? ids[0]
+            warnings.append("cover \(d.coverAssetID) replaced by \(replacement) (missing or flagged)")
+            d.coverAssetID = replacement
+        }
+        ids.removeAll { $0 == d.coverAssetID }
+        ids.insert(d.coverAssetID, at: 0)
+        d.orderedAssetIDs = ids
+
+        var candidates: [(plan: CarouselPlan, score: Double)] = []
+        for k in 0..<candidateCount {
+            let (groups, dropped) = group(ids, direction: d, context: context, noise: k == 0 ? 0 : 0.15, rng: &rng)
+            if k == 0 && !dropped.isEmpty { warnings.append("\(dropped.count) photos left out to fit \(context.maxSlides ?? 20) slides") }
+            let plan = build(groups, id: id, direction: d, context: context, rng: &rng)
+            candidates.append((plan, evaluate(plan, context: context, seed: layoutSeed ?? seed)))
+        }
+        let ranked = candidates.enumerated().sorted { ($0.element.score, $0.offset) < ($1.element.score, $1.offset) }
+        let near = ranked.filter { $0.element.score <= ranked[0].element.score + 0.04 }
+        let pick = near[Int(rng.next() % UInt64(near.count))].element
+        return Composition(plan: pick.plan, score: pick.score, warnings: warnings)
+    }
+
+    // MARK: - Grouping
+
+    /// Partitions the ordered photos into contiguous slides by dynamic programming. Costs favour the direction's
+    /// grouping axis, keep-together sets, emphasis photos alone, and groups from one scene; photos more than six
+    /// hours apart are never combined. Returns the groups and any photos dropped to respect the slide limit.
+    static func group(_ ids: [AssetID], direction d: Direction, context: CompositionContext, noise: Double,
+                      rng: inout SeededRandom) -> ([[AssetID]], [AssetID]) {
+        let style = d.style
+        let maxSize = style.grouping == "single" ? 1 : style.overlap == "none" ? 2 : style.grouping == "mixed" ? 3 : 4
+        let maxSlides = max(1, min(context.maxSlides ?? 20, 20))
+        var keepIndex: [AssetID: Int] = [:]
+        for (g, members) in d.keepTogether.enumerated() { for m in members { keepIndex[m] = g } }
+        let emphasis = Set(d.emphasisAssetIDs)
+
+        func cost(_ seg: ArraySlice<AssetID>, first: Bool) -> Double {
+            let m = seg.count
+            var split = 0.0
+            for g in Set(seg.compactMap { keepIndex[$0] }) {
+                if !d.keepTogether[g].allSatisfy(seg.contains) { split += 0.4 }
+            }
+            if m == 1 {
+                let base = style.grouping == "single" ? 0 : style.grouping == "mixed" ? 0.35 : 0.55
+                return (first || emphasis.contains(seg.first!) ? 0 : base) + split
+            }
+            let oneKeepGroup = seg.allSatisfy { keepIndex[$0] != nil && keepIndex[$0] == keepIndex[seg.first!] }
+            if first && !oneKeepGroup { return .infinity }                       // the cover gets its own slide
+            var c = style.grouping == "mixed" ? (m == 2 ? 0.1 : 0.55) : (m == 2 ? 0.2 : m == 3 ? 0.05 : 0.2)
+            if !oneKeepGroup { c += 1.2 * Double(seg.filter(emphasis.contains).count) }
+            let times = seg.compactMap { context.photos[$0]?.metadata.capturedAt }
+            if times.count == m, let lo = times.min(), let hi = times.max() {
+                // Same part of the day reads as one scene; photos more than six hours apart never share a slide.
+                let hours = hi.timeIntervalSince(lo) / 3600
+                if hours > 6 { return .infinity }
+                c += 0.15 * max(0, hours - 0.5)
+            } else {
+                c += 0.3
+            }
+            let moments = seg.compactMap { context.moment[$0] }
+            if moments.count == m && Set(moments).count == 1 { c -= 0.1 }
+            if Set(seg.compactMap { keepIndex[$0] }).count > 1 { c += 0.5 }
+            if oneKeepGroup { c -= 0.3 }
+            return c + split
+        }
+
+        var photos = ids, dropped: [AssetID] = []
+        while true {
+            let n = photos.count
+            var jitter: [[Double]] = (0..<n).map { _ in (0...maxSize).map { _ in 0 } }
+            if noise > 0 { for i in 0..<n { for m in 1...maxSize { jitter[i][m] = rng.range(-noise, noise) } } }
+            // best[s][j]: cheapest way to lay out the first j photos on s slides.
+            var best = Array(repeating: Array(repeating: Double.infinity, count: n + 1), count: maxSlides + 1)
+            var back = Array(repeating: Array(repeating: 0, count: n + 1), count: maxSlides + 1)
+            best[0][0] = 0
+            for s in 1...maxSlides { for j in 1...n {
+                for m in 1...min(maxSize, j) where best[s - 1][j - m] < .infinity {
+                    let c = best[s - 1][j - m] + cost(photos[(j - m)..<j], first: j - m == 0) + jitter[j - m][m]
+                    if c < best[s][j] { best[s][j] = c; back[s][j] = m }
+                }
+            }}
+            if let s = (1...maxSlides).filter({ best[$0][n] < .infinity }).min(by: { (best[$0][n], $0) < (best[$1][n], $1) }) {
+                var groups: [[AssetID]] = [], j = n, k = s
+                while k > 0 { let m = back[k][j]; groups.insert(Array(photos[(j - m)..<j]), at: 0); j -= m; k -= 1 }
+                return (groups, dropped)
+            }
+            // Too many photos for the slide limit: drop the weakest non-cover photo and try again.
+            guard photos.count > 1, let weakest = photos.dropFirst().min(by: { strengthOrder($0, $1, context) }) else {
+                return (photos.map { [$0] }, dropped)
+            }
+            photos.removeAll { $0 == weakest }
+            dropped.append(weakest)
+        }
+    }
+
+    // MARK: - Slides
+
+    static func build(_ groups: [[AssetID]], id: String, direction d: Direction, context: CompositionContext,
+                      rng: inout SeededRandom) -> CarouselPlan {
+        let style = d.style, n = groups.count
+        let rhythmOffset = Int(rng.next() % 3)
+        var slides: [SlidePlan] = []
+        for (k, g) in groups.enumerated() {
+            let hero = k == 0 ? d.coverAssetID : g.max { strengthOrder($0, $1, context) }!
+            let others = g.filter { $0 != hero }.sorted { strengthOrder($1, $0, context) }
+            let position: SequenceIntent = k == 0 ? .opener : k == n - 1 ? .closer : context.sequenceIntent[hero] ?? .build
+            let density: String = switch style.density {
+            case "varied":
+                position == .peak ? "dense" : position == .breather || position == .detail ? "quiet"
+                    : position == .opener ? "balanced" : ["balanced", "dense", "quiet"][(k + rhythmOffset) % 3]
+            default: style.density
+            }
+            let primitive = choosePrimitive(hero: hero, others: others, style: style, position: position, density: density,
+                                            context: context, rng: &rng)
+            let overlapIntent = style.overlap == "bold" ? "strong" : style.overlap == "some" ? "slight" : "none"
+            func element(_ a: AssetID, hero isHero: Bool) -> PhotoElement {
+                let rotates = style.rotation == "some" && primitive != .fullBleed && (!isHero || g.count == 1 || primitive == .overlapCluster)
+                return PhotoElement(assetID: a, role: isHero ? "hero" : "support", importance: isHero ? 3 : 2,
+                                    cropIntent: "balanced", anchorIntent: "center", overlapIntent: isHero ? "none" : overlapIntent,
+                                    rotationIntent: rotates ? (rng.bool() ? "slightLeft" : "slightRight") : "none")
+            }
+            slides.append(SlidePlan(primitive: primitive, mood: mood(position), density: density,
+                                    photos: [element(hero, hero: true)] + others.map { element($0, hero: false) },
+                                    decorations: [], stamps: []))
+        }
+        decorate(&slides, style: style, context: context, rng: &rng)
+        return CarouselPlan(id: id, brief: d.brief, direction: d, slides: slides)
+    }
+
+    static func choosePrimitive(hero: AssetID, others: [AssetID], style: StyleVector, position: SequenceIntent, density: String,
+                                context: CompositionContext, rng: inout SeededRandom) -> Primitive {
+        let canvas = Double(context.aspect.exportWidth) / Double(context.aspect.exportHeight)
+        let a = aspect(hero, context)
+        let bleedLoss = 1 - min(a / canvas, canvas / a)
+        var costs: [(Primitive, Double)]
+        switch others.count {
+        case 0:
+            let f = context.features[hero]
+            let fits = CropPlanner.facesFit(f, crop: CropPlanner.cover(imageAspect: a, boxAspect: canvas, features: f))
+            let airy = style.whitespace == "airy"
+            costs = [
+                // Dense slides fill the frame even in an airy carousel: that contrast is the rhythm.
+                (.fullBleed, 1.2 * bleedLoss + (fits ? 0 : 5) + (airy && density != "dense" ? 0.5 : 0)
+                    + (density == "quiet" ? 0.3 : 0) - (density == "dense" ? 0.3 : 0)
+                    - (position == .opener || position == .peak ? 0.15 : 0)),
+                (.hero, 0.45 + (airy ? -0.1 : 0.2) + (density == "dense" ? 0.15 : 0)),
+            ]
+            // A border and shadow are decoration: never on a carousel that asked for none.
+            if style.decoration != "none" {
+                costs.append((.framedHero, 0.55 + (airy ? -0.1 : 0.2) + (density == "quiet" ? -0.1 : 0)))
+            }
+        case 1:
+            costs = [(.asymmetricPair, 0.2 + (style.overlap == "bold" ? 0.15 : 0))]
+            if style.overlap != "none" {
+                costs.append((.inset, 0.35 + 0.6 * bleedLoss - (style.overlap == "bold" ? 0.15 : 0) - (density == "dense" ? 0.1 : 0)))
+                costs.append((.overlapCluster, style.overlap == "bold" ? 0.4 : 0.65))
+            }
+        default:
+            return .overlapCluster
+        }
+        return costs.map { ($0.0, $0.1 + rng.range(0, 0.06)) }.min { $0.1 < $1.1 }!.0
+    }
+
+    /// Spends the direction's decoration budget on the slides where it fits: none = nothing, light ≤ 20% of slides,
+    /// rich ≤ 50%. Date stamps only on dated photos; paper never on a full-bleed slide.
+    static func decorate(_ slides: inout [SlidePlan], style: StyleVector, context: CompositionContext, rng: inout SeededRandom) {
+        guard style.decoration != "none", !slides.isEmpty else { return }
+        let pack = Set(context.stylePack.decorationIDs)
+        let rich = style.decoration == "rich"
+        let budget = max(1, Int(Double(slides.count) * (rich ? 0.5 : 0.2)))
+        let intensity = rich ? "medium" : "low"
+        // Framed slides first (decoration reads best there), then the rest; seeded order within each.
+        var order = slides.indices.map { ($0, slides[$0].primitive == .fullBleed ? 1 : 0, rng.unit()) }
+        order.sort { ($0.1, $0.2) < ($1.1, $1.2) }
+        var stamped = 0
+        for (i, _, _) in order.prefix(budget) {
+            let s = slides[i]
+            let options: [String] = switch s.primitive {
+            case .hero, .framedHero: ["film-edge", "paper-warm", "date-stamp"]
+            case .overlapCluster: ["tape-clear", "paper-warm"]
+            case .asymmetricPair, .inset: ["paper-warm", "grain-fine"]
+            case .fullBleed: ["grain-fine", "date-stamp"]
+            }
+            let dated = s.photos.first.flatMap { context.photos[$0.assetID]?.metadata.capturedAt } != nil
+            let usable = options.filter { pack.contains($0) && ($0 != "date-stamp" || (dated && stamped < (rich ? 2 : 1))) }
+            guard !usable.isEmpty else { continue }
+            let choice = usable[Int(rng.next() % UInt64(usable.count))]
+            if choice == "date-stamp" {
+                slides[i].stamps.append(StampElement(kind: "date", placement: "bottomRight")); stamped += 1
+            } else {
+                slides[i].decorations.append(DecorationElement(decorationID: choice, intensity: intensity))
+            }
+        }
+    }
+
+    // MARK: - Scoring
+
+    /// Resolves the plan through the layout engine and scores the whole carousel: crop loss, people and overlap
+    /// safety, hierarchy, arrangement rhythm, density fit and cover presence. Lower is better.
+    static func evaluate(_ plan: CarouselPlan, context: CompositionContext, seed: UInt64) -> Double {
+        guard !plan.slides.isEmpty else { return .infinity }
+        let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+                                                                          features: context.features, stylePack: context.stylePack,
+                                                                          seed: seed))
+        let n = Double(layout.slides.count)
+        var perSlide = 0.0, coverageGap = 0.0, framed = 0.0
+        for (slide, planned) in zip(layout.slides, plan.slides) {
+            guard let m = slide.metrics else { perSlide += 2; continue }
+            perSlide += 0.8 * m.maxCropLoss
+            if slide.warnings.contains(where: { $0.contains("people are cropped") }) { perSlide += 1 }
+            if slide.warnings.contains(where: { $0.contains("could not fully") }) { perSlide += 1 }
+            if let share = m.heroShare, share < 1.3 { perSlide += 1.3 - share }
+            if slide.primitive != .fullBleed {
+                coverageGap += abs(m.coverage - LayoutResolver.densityTarget(planned.density)); framed += 1
+            }
+        }
+        let families = layout.slides.compactMap { $0.variant?.split(separator: ".").prefix(2).joined(separator: ".") }
+        let repeats = zip(families, families.dropFirst()).filter { $0 == $1 && $0 != "bleed" }.count
+        var score = perSlide / n + 0.8 * (framed > 0 ? coverageGap / framed : 0) + 0.25 * Double(repeats) / max(1, n - 1)
+        if let cover = layout.slides.first?.metrics, cover.coverage < 0.45 { score += 0.3 }
+        // Honour the grouping axis: the share of multi-photo slides the direction asked for.
+        if let grouping = plan.style?.grouping, plan.slides.count > 1 {
+            let target = grouping == "collage" ? 0.6 : grouping == "mixed" ? 0.35 : 0
+            let multi = Double(plan.slides.filter { $0.photos.count > 1 }.count) / n
+            score += 1.0 * abs(multi - target)
+        }
+        return score
+    }
+
+    // MARK: - Helpers
+
+    static func aspect(_ id: AssetID, _ context: CompositionContext) -> Double {
+        guard let p = context.photos[id] else { return 1 }
+        return Double(p.pixelWidth) / Double(max(1, p.pixelHeight))
+    }
+
+    /// Photo strength: the model's emotional read first, then local aesthetics, then a stable id order.
+    static func strengthOrder(_ a: AssetID, _ b: AssetID, _ context: CompositionContext) -> Bool {
+        func key(_ id: AssetID) -> (Int, Double, String) {
+            (context.triage[id]?.emotionalValue ?? 0, context.features[id]?.aestheticScore ?? 0, id.rawValue)
+        }
+        return key(a) < key(b)
+    }
+
+    static func mood(_ p: SequenceIntent) -> String {
+        switch p {
+        case .opener: "warm"
+        case .peak: "energetic"
+        case .breather, .detail: "calm"
+        case .closer: "nostalgic"
+        case .build: "playful"
+        }
+    }
+}

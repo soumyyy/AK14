@@ -14,7 +14,7 @@ struct RunSummary: Identifiable, Hashable {
 }
 
 struct SlideRef: Equatable {
-    let concept: ConceptType
+    let concept: String
     let index: Int
 }
 
@@ -26,6 +26,8 @@ final class StudioModel {
     var selection: SlideRef?
     var busy: String?
     var error: String?
+    /// Operator-only: shows each option's id, brief and style (hidden while a participant is choosing).
+    var showDetails = false
     /// Bumped after every render so slide images reload.
     var revision = 0
 
@@ -136,7 +138,7 @@ final class StudioModel {
         return image
     }
 
-    func export(_ concept: ConceptType) {
+    func export(_ concept: String) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
         panel.prompt = "Export"
