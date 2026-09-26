@@ -8,7 +8,7 @@ import TestSupport
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
 final class FakeModel: ResponsesTransport, @unchecked Sendable {
-    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete, badDirection }
+    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed }
     /// How many directions the planner proposes (2-5).
     var directions = 3
     private let lock = NSLock()
@@ -30,6 +30,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             let b = queue.removeFirst(); script[stage] = queue
             return b
         }
+        if behaviour == .delayed { try await Task.sleep(for: .seconds(1)) }
         if behaviour == .rateLimited { return (429, Data(#"{"error":{"message":"slow down"}}"#.utf8)) }
         let schema = format["schema"]!
         let text: String
@@ -39,6 +40,30 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             let ids = Self.enumValues(schema["properties"]?["results"]?["items"]?["properties"]?["id"])
             if flagCover { lock.withLock { flagged = Array(ids.prefix(3)) } }
             text = Self.triage(schema, flagged: flagCover ? Set(ids.prefix(3)) : [])
+        case ("occasion_split", .splitGroups):
+            let ids = Self.enumValues(schema["properties"]?["groups"]?["items"]?["items"])
+            let half = max(2, ids.count / 2)
+            let left = ids.prefix(half).map { "\"\($0)\"" }.joined(separator: ",")
+            let right = ids.dropFirst(half).map { "\"\($0)\"" }.joined(separator: ",")
+            text = #"{"groups":[[\#(left)],[\#(right)]]}"#
+        case ("occasion_split", .mergeAll):
+            let ids = Self.enumValues(schema["properties"]?["groups"]?["items"]?["items"])
+            text = #"{"groups":[[\#(ids.map { "\"\($0)\"" }.joined(separator: ","))]]}"#
+        case ("occasion_split", _):
+            let ids = Self.enumValues(schema["properties"]?["groups"]?["items"]?["items"])
+            let parts = request["input"]?.arrayValue?.last?["content"]?.arrayValue ?? []
+            var localGroups: [Int: [String]] = [:]
+            for part in parts {
+                guard let line = part["text"]?.stringValue, line.hasPrefix("local event group ") else { continue }
+                let fields = line.split(separator: ",")
+                guard fields.count >= 3,
+                      let group = Int(fields[0].replacingOccurrences(of: "local event group ", with: "").trimmingCharacters(in: .whitespaces)),
+                      let id = fields[2].trimmingCharacters(in: .whitespaces).split(separator: " ").last.map(String.init) else { continue }
+                localGroups[group, default: []].append(id)
+            }
+            let matched = localGroups.keys.sorted().map { localGroups[$0] ?? [] }.filter { $0.count >= 2 }
+            let outputGroups = matched.isEmpty ? [ids] : matched.flatMap { $0.count >= 2 ? [$0] : [] }
+            text = #"{"groups":[\#(outputGroups.map { "[\($0.map { "\"\($0)\"" }.joined(separator: ","))]" }.joined(separator: ","))]}"#
         default:
             let first = lock.withLock { flagged }
             text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first, directions: directions,
@@ -119,8 +144,8 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     #expect(m.directorStatus == "ok", "\(m.warnings)")
-    #expect(model.stages == ["triage", "planner"])
-    #expect(m.providerCalls.count == 2 && m.providerCalls.allSatisfy(\.ok))
+    #expect(model.stages == ["occasion_split", "triage", "planner"])
+    #expect(m.providerCalls.count == 3 && m.providerCalls.allSatisfy(\.ok))
     #expect(m.totalEstimatedCost > 0)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.plans.map(\.id) == ["baseline", "c1", "c2", "c3"])
@@ -130,7 +155,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     #expect(m.funnel?.triaged == m.funnel?.shortlisted)
     // Raw LLM I/O is persisted without image data.
     let llm = try FileManager.default.contentsOfDirectory(atPath: store.url("llm").path).sorted()
-    #expect(llm == ["1-triage.json", "2-planner.json"])
+    #expect(llm == ["0-occasion-split.json", "1-triage.json", "2-planner.json"])
     let raw = try String(contentsOf: store.url("llm/1-triage.json"), encoding: .utf8)
     #expect(raw.contains("thumbnail:a_") && !raw.contains("base64"))
     let exchange = try #require(JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any])
@@ -143,7 +168,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let before = try Data(contentsOf: store.url("slides/baseline/slide-01.png"))
     try RerenderCommand.rerender(runDirectory: store.root, source: tmp.url.appending(path: "trip"))
     #expect(try Data(contentsOf: store.url("slides/baseline/slide-01.png")) == before)
-    #expect(model.stages.count == 2)
+    #expect(model.stages.count == 3)
 }
 
 @Test func invalidPlanTriggersRepairThenValid() async throws {
@@ -151,7 +176,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let model = FakeModel(["planner": [.duplicatePhoto]])
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
-    #expect(model.stages == ["triage", "planner", "repair"])
+    #expect(model.stages == ["occasion_split", "triage", "planner", "repair"])
     #expect(m.directorStatus == "ok")
 }
 
@@ -160,7 +185,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let model = FakeModel(["planner": [.garbage], "repair": [.garbage], "retry": [.garbage]])
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: model, slides: 5)
     let m = try store.read(RunManifest.self, from: "manifest.json")
-    #expect(model.stages == ["triage", "planner", "repair", "retry"])
+    #expect(model.stages == ["occasion_split", "triage", "planner", "repair", "retry"])
     #expect(m.directorStatus == "fallback")
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.plans.map(\.id) == ["baseline"])
@@ -173,7 +198,8 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let model = FakeModel(["triage": [.rateLimited]])
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
-    #expect(m.providerCalls.first?.stage == "triage" && m.providerCalls.first?.retryCount == 1)
+    let triage = try #require(m.providerCalls.first { $0.stage == "triage" })
+    #expect(triage.retryCount == 1)
     #expect(m.directorStatus == "ok")
 }
 
@@ -204,7 +230,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     let model = FakeModel(["planner": [.incomplete]])
     let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
-    #expect(model.stages == ["triage", "planner", "retry"])
+    #expect(model.stages == ["occasion_split", "triage", "planner", "retry"])
     let failed = try #require(m.providerCalls.first { $0.stage == "planner" })
     #expect(!failed.ok && failed.estimatedCost > 0)
     #expect(m.directorStatus == "ok")

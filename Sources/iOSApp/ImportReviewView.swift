@@ -29,6 +29,10 @@ final class ImportReviewModel {
     var selectedIDs: Set<String> = []
     var records: [PhotoRecord] = []
     var events: [EventSegment] = []
+    var isPreparingOccasions = false
+    var occasionSplitResult: OccasionSplitter.Result?
+    private var occasionFeatures: [AssetID: PhotoFeatures] = [:]
+    private var occasionThumbnailURLs: [AssetID: URL] = [:]
     var selectedEventIndex: Int?
     var storyHint = ""
     var importedFolder: URL?
@@ -94,6 +98,9 @@ final class ImportReviewModel {
         selectedIDs = Set(assets.map(\.localIdentifier))
         records = []
         events = []
+        occasionFeatures = [:]
+        occasionThumbnailURLs = [:]
+        occasionSplitResult = nil
         self.options = []
         selectedOptionID = nil
         importCompleted = 0
@@ -145,6 +152,7 @@ final class ImportReviewModel {
             records = result.photos
             events = EventSegmenter.segment(result.photos)
             selectedEventIndex = events.max(by: { $0.photoCount < $1.photoCount })?.index
+            await prepareOccasionChoices(useModel: modelAssist)
             storyHint = ""
             options = []
             selectedOptionID = nil
@@ -165,6 +173,61 @@ final class ImportReviewModel {
         }
     }
 
+    func prepareOccasionChoices(useModel: Bool) async {
+        guard !records.isEmpty, let folder = importedFolder else { return }
+        let client = useModel ? configuredResponsesClient : nil
+        let preserveAllEventsChoice = selectedEventIndex == nil
+        let previouslySelectedIDs = selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } }
+        isPreparingOccasions = true
+        defer { isPreparingOccasions = false }
+        do {
+            let support = try StoryPipeline.applicationSupport().appending(path: "analysis-cache", directoryHint: .isDirectory)
+            let thumbnailer = Thumbnailer(cacheRoot: support)
+            let analyzer = SceneSignatureAnalyzer()
+            var thumbnails = occasionThumbnailURLs
+            var features = occasionFeatures
+            if records.contains(where: { thumbnails[$0.assetID] == nil || features[$0.assetID] == nil }) {
+                thumbnails = [:]
+                features = [:]
+                for (offset, photo) in records.enumerated() {
+                    try Task.checkCancellation()
+                    let url = try thumbnailer.thumbnail(sha: photo.contentSHA256,
+                        source: folder.appending(path: photo.sourceRelativePaths[0]), tier: .analysis)
+                    thumbnails[photo.assetID] = url
+                    progressMessage = "Preparing occasion previews · \(offset + 1) of \(records.count)"
+                    features[photo.assetID] = await analyzer.analyze(photo, thumbnailURL: url)
+                }
+                occasionThumbnailURLs = thumbnails
+                occasionFeatures = features
+            }
+            let local = EventSegmenter.segment(records, features: features)
+            var model: OccasionSplitter.Result?
+            if let client { model = await OccasionSplitter.split(events: local, photos: records, thumbnails: thumbnails, features: features, client: client) }
+            let acceptedModel = useModel && modelAssist ? model : nil
+            occasionSplitResult = acceptedModel
+            let next = acceptedModel?.events ?? local
+            events = next
+            if preserveAllEventsChoice { selectedEventIndex = nil }
+            else if let oldIDs = previouslySelectedIDs,
+                    let best = next.max(by: { Set($0.assetIDs).intersection(oldIDs).count < Set($1.assetIDs).intersection(oldIDs).count }),
+                    !Set(best.assetIDs).intersection(oldIDs).isEmpty { selectedEventIndex = best.index }
+            else { selectedEventIndex = next.max(by: { $0.photoCount < $1.photoCount })?.index }
+            progressMessage = acceptedModel == nil ? "Occasions grouped on this device." : "Occasions separated using small thumbnails."
+        } catch {
+            occasionSplitResult = nil
+            events = EventSegmenter.segment(records)
+            selectedEventIndex = preserveAllEventsChoice ? nil : events.max(by: { $0.photoCount < $1.photoCount })?.index
+            progressMessage = "Using date-based event groups."
+        }
+    }
+
+    var configuredResponsesClient: ResponsesClient? {
+        injectedClient ?? workerEndpoint.flatMap { url in
+            guard !workerInviteToken.isEmpty else { return nil }
+            return ResponsesClient(transport: WorkerTransport(endpoint: url, inviteToken: workerInviteToken))
+        }
+    }
+
     func generateOptions() async -> Bool {
         guard let importedFolder else { return false }
         isGenerating = true
@@ -172,10 +235,7 @@ final class ImportReviewModel {
         retryImport = false
         do {
             let endpoint = workerEndpoint
-            let client = injectedClient ?? endpoint.flatMap { url in
-                guard !workerInviteToken.isEmpty else { return nil }
-                return ResponsesClient(transport: WorkerTransport(endpoint: url, inviteToken: workerInviteToken))
-            }
+            let client = configuredResponsesClient
             let useModelAssistance = modelAssist && client != nil
             let configProvider = useModelAssistance ? (injectedStylePackProvider ?? endpoint.map { url in
                 let configURL = url.appending(path: "v1/config")
@@ -185,7 +245,8 @@ final class ImportReviewModel {
             let generated = try await StoryPipeline(responsesClient: client, stylePackProvider: configProvider)
                 .run(folder: importedFolder, modelAssist: useModelAssistance, importDuration: importDuration,
                      eventAssetIDs: selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } },
-                     storyHint: storyHint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty) { [weak self] message in
+                     storyHint: storyHint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                     eventSegments: events, occasionResult: occasionSplitResult) { [weak self] message in
                     Task { @MainActor in self?.progressMessage = message }
                 }
             options = generated
@@ -428,6 +489,10 @@ struct ImportReviewView: View {
                     model.alert = .init(title: "Could not continue", message: message)
                     model.state = model.records.isEmpty ? .idle : .ready
                 }
+                .onChange(of: model.modelAssist) { _, enabled in
+                    guard !model.records.isEmpty else { return }
+                    Task { await model.prepareOccasionChoices(useModel: enabled) }
+                }
         }
     }
 
@@ -624,7 +689,10 @@ struct ImportReviewView: View {
 
                 if model.events.count > 1 {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Choose an event").font(.headline)
+                        Text(model.isPreparingOccasions ? "Finding occasions…" : "Choose an event").font(.headline)
+                        if model.isPreparingOccasions {
+                            ProgressView(model.modelAssist ? "Classifying representative thumbnails…" : "Analyzing scene signatures on device…")
+                        }
                         ForEach(model.events, id: \.index) { event in
                             Button {
                                 model.selectedEventIndex = event.index
@@ -642,6 +710,7 @@ struct ImportReviewView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .disabled(model.isPreparingOccasions)
                             .accessibilityLabel("\(event.dateRangeLabel), \(event.photoCount) photos")
                             .accessibilityIdentifier("eventChoice-\(event.index)")
                             .accessibilityAddTraits(model.selectedEventIndex == event.index ? .isSelected : [])

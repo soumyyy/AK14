@@ -68,13 +68,16 @@ public enum EventSegmenter {
                 return a == b ? $0.assetID < $1.assetID : a < b
             }
             let labels = ordered.map { p in signature(features[p.assetID]) }
-            // Strong occasion signatures (wedding ceremony/reception) are meaningful even when
-            // the photos share a date and venue with unrelated travel snapshots.
+            // A repeated celebration signature (attire, table setting, festive decoration,
+            // wedding terms) can separate an occasion even when timestamps and GPS cannot.
             let wedding = labels.map { $0.contains(where: isWeddingLabel) }
-            if wedding.filter({ $0 }).count >= 3, wedding.filter({ !$0 }).count >= 3 {
-                let weddingPhotos = ordered.enumerated().filter { wedding[$0.offset] }.map(\.element)
-                let otherPhotos = ordered.enumerated().filter { !wedding[$0.offset] }.map(\.element)
-                refined.append(contentsOf: [otherPhotos, weddingPhotos].filter { !$0.isEmpty })
+            let gathering = labels.map(isDistinctGatheringSignature)
+            let split = wedding.filter({ $0 }).count >= 3 && wedding.filter({ !$0 }).count >= 3
+                ? wedding : gathering.filter({ $0 }).count >= 5 && gathering.filter({ !$0 }).count >= 5 ? gathering : nil
+            if let split {
+                let gatheringPhotos = ordered.enumerated().filter { split[$0.offset] }.map(\.element)
+                let otherPhotos = ordered.enumerated().filter { !split[$0.offset] }.map(\.element)
+                refined.append(contentsOf: [otherPhotos, gatheringPhotos].filter { !$0.isEmpty })
             } else {
                 refined.append(ordered)
             }
@@ -92,6 +95,14 @@ public enum EventSegmenter {
     private static func isWeddingLabel(_ label: String) -> Bool {
         ["wedding", "bride", "groom", "bridal", "wedding dress", "wedding ceremony", "wedding reception"]
             .contains(where: label.contains)
+    }
+
+    private static func isDistinctGatheringSignature(_ labels: [String]) -> Bool {
+        if labels.contains(where: isWeddingLabel) { return true }
+        let markers = ["sari", "balloon", "ceremony", "chandelier", "bridal", "bride", "groom", "wedding dress"]
+        if labels.contains(where: { label in markers.contains(where: label.contains) }) { return true }
+        let setting = ["tableware", "table", "utensil", "furniture", "textile", "curtain", "interior_room"]
+        return labels.filter { label in setting.contains(where: label.contains) }.count >= 2 && labels.contains("people")
     }
 
     private static func distance(_ a: GeoPoint?, _ b: GeoPoint?) -> Double {

@@ -1,4 +1,5 @@
 import Foundation
+import Analysis
 import Testing
 import TestSupport
 @testable import CLI
@@ -75,6 +76,68 @@ private func eventRun(_ tmp: TempDirectory, folder: URL, model: FakeModel, event
     #expect(events.count == 2)
     #expect(Set(events.map(\.photoCount)) == Set([4]))
     #expect(Set(events.flatMap(\.assetIDs)) == Set(photos.map(\.assetID)))
+}
+
+@Test func localSceneSignaturesSplitDistinctiveGatheringWithoutWeddingWord() throws {
+    let base = Date(timeIntervalSince1970: 1_800_000_000)
+    let photos = (0..<10).map { i in
+        PhotoRecord(assetID: AssetID(rawValue: "gathering\(i)"), contentSHA256: "\(i)", sourceRelativePaths: ["\(i).jpg"],
+                    byteCount: 1, fileType: "public.jpeg", pixelWidth: 20, pixelHeight: 20, exifOrientation: 1,
+                    metadata: CaptureMetadata(capturedAt: base.addingTimeInterval(Double(i) * 600)))
+    }
+    var features: [AssetID: PhotoFeatures] = [:]
+    for (index, photo) in photos.enumerated() {
+        var f = PhotoFeatures(assetID: photo.assetID, analyzerVersion: "fixture")
+        f.labels = (index < 5 ? ["outdoor", "hill", "sky"] : ["sari", "textile", "curtain", "table", "furniture", "people"])
+            .map { SceneLabel(identifier: $0, confidence: 0.9) }
+        features[photo.assetID] = f
+    }
+    #expect(EventSegmenter.segment(photos, features: features).map(\.photoCount).sorted() == [5, 5])
+}
+
+@Test func boundedOccasionModelCanSplitChronologicalRepresentatives() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try eventFixture(tmp, days: [1], counts: [20])
+    let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
+    let events = EventSegmenter.segment(ingest.photos)
+    let thumbs = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, folder.appending(path: $0.sourceRelativePaths[0])) })
+    let model = FakeModel(["occasion_split": [.splitGroups]])
+    let result = await OccasionSplitter.split(events: events, photos: ingest.photos, thumbnails: thumbs,
+                                               client: ResponsesClient(transport: model, sleep: { _ in }))
+    #expect(result?.events.count == 2)
+    #expect(result?.call.imageCount == OccasionSplitter.maxRepresentatives)
+    #expect(model.stages == ["occasion_split"])
+    #expect(Set(result?.events.flatMap(\.assetIDs) ?? []) == Set(ingest.photos.map(\.assetID)))
+}
+
+@Test func representativeLimitTimeoutAndMalformedResponsesFallBack() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try eventFixture(tmp, days: [1], counts: [8])
+    let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
+    let events = EventSegmenter.segment(ingest.photos)
+    let thumbs = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, folder.appending(path: $0.sourceRelativePaths[0])) })
+    let slow = FakeModel(["occasion_split": [.delayed]])
+    let timedOut = await OccasionSplitter.split(events: events, photos: ingest.photos, thumbnails: thumbs,
+                                                 client: ResponsesClient(transport: slow, sleep: { _ in }),
+                                                 timeout: .milliseconds(10))
+    #expect(timedOut == nil)
+    let malformed = FakeModel(["occasion_split": [.garbage]])
+    let invalid = await OccasionSplitter.split(events: events, photos: ingest.photos, thumbnails: thumbs,
+                                                client: ResponsesClient(transport: malformed, sleep: { _ in }))
+    #expect(invalid == nil)
+}
+
+@Test func modelCanMergeSeparatedTimeBlocksIntoOneTrip() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try eventFixture(tmp, days: [1, 5], counts: [6, 6])
+    let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
+    let events = EventSegmenter.segment(ingest.photos)
+    #expect(events.count == 2)
+    let thumbs = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, folder.appending(path: $0.sourceRelativePaths[0])) })
+    let result = await OccasionSplitter.split(events: events, photos: ingest.photos, thumbnails: thumbs,
+                                               client: ResponsesClient(transport: FakeModel(["occasion_split": [.mergeAll]]), sleep: { _ in }))
+    #expect(result?.events.count == 1)
+    #expect(result?.events.first?.photoCount == 12)
 }
 
 @Test func storyHintReachesModelRequestsAndManifestAndLongHintIsRejected() async throws {

@@ -3,7 +3,7 @@ import styleConfig from "./style-config.json" with { type: "json" };
 const encoder = new TextEncoder();
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_IMAGE_PARTS = 100;
-const ALLOWED_SCHEMAS = new Set(["triage", "triage_repair", "planner", "repair", "retry"]);
+const ALLOWED_SCHEMAS = new Set(["triage", "triage_repair", "planner", "repair", "retry", "occasion_split"]);
 
 function json(value, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(value), {

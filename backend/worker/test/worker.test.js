@@ -57,6 +57,14 @@ test("forwards a bounded hashed-token request and returns provider response", as
   assert.ok(env.AK14_USAGE.values.has(`${inviteHash}:${new Date().toISOString().slice(0, 10)}:requests`));
 });
 
+test("allows the bounded occasion split schema", async () => {
+  const occasion = body();
+  occasion.text.format.name = "occasion_split";
+  const response = await createHandler(async () => Response.json({ status: "completed", output: [], usage: {} }))(
+    request(occasion), env);
+  assert.equal(response.status, 200);
+});
+
 test("rejects unsigned requests, unsupported model calls, and rate limit", async () => {
   const handler = createHandler(async () => { throw new Error("must not forward"); });
   assert.equal((await handler(request(body(), "bad-token"), env)).status, 401);

@@ -81,6 +81,15 @@ struct RunPipeline: Sendable {
 
         // Refine timestamp groups with the on-device Vision scene signatures before selection.
         events = EventSegmenter.segment(ingest.photos, features: features)
+        var occasionResult: OccasionSplitter.Result?
+        if options.consent && !options.noLLM, let client {
+            occasionResult = await OccasionSplitter.split(events: events, photos: ingest.photos,
+                                                           thumbnails: thumbByID, features: features, client: client)
+            if let occasionResult {
+                events = occasionResult.events
+                timings.append(StageTiming(stage: "occasion_split", seconds: occasionResult.call.latencySeconds))
+            }
+        }
         if let requested = options.event, !events.contains(where: { $0.index == requested }) {
             throw ArgumentError.invalidEvent("\(requested) (found \(events.count) events)")
         }
@@ -129,11 +138,19 @@ struct RunPipeline: Sendable {
 
         // 6. Director (triage → pool → planning) and Plain render
         var concepts: ConceptsReport?
-        var calls: [ProviderCallRecord] = []
+        var calls: [ProviderCallRecord] = occasionResult.map { [$0.call] } ?? []
         var directorStatus: String
         var versions = ["analyzer": VisionAnalyzer.version, "thumbnailer": Thumbnailer.version,
                         "report": ReportBuilder.version, "manifestSchema": "\(RunManifest.currentSchemaVersion)",
                         "reduction": config.version]
+        if let occasionResult {
+            versions["prompt:occasion-split.system"] = occasionResult.promptVersion
+            versions["model"] = client?.model ?? "unknown"
+            versions["pricing"] = Pricing.version
+            try store.write(JSONValue.object([("request", occasionResult.exchange.request),
+                                              ("response", occasionResult.exchange.response ?? .null)]),
+                            to: "llm/0-occasion-split.json")
+        }
         if options.noLLM {
             directorStatus = "skipped: --no-llm"
         } else if !options.consent {
@@ -149,7 +166,7 @@ struct RunPipeline: Sendable {
                                                    index: index, folder: folder, options: options, stylePack: stylePack,
                                                    aspect: aspect, runID: store.root.lastPathComponent, warnings: &warnings)
             lap("director", start)
-            calls = output.calls
+            calls += output.calls
             directorStatus = output.status
             versions["pricing"] = Pricing.version
             versions["model"] = client!.model
@@ -309,7 +326,8 @@ struct RunPipeline: Sendable {
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,
-                                                   composition: composition, runID: runID, storyHint: options.story))
+                                                   composition: composition, runID: runID, storyHint: options.story,
+                                                   allowMultiEventRecap: options.allEvents))
     }
 
     /// Updates rank scores with triage, records the planning pool and funnel counts.
