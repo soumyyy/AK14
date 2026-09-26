@@ -1,5 +1,7 @@
 # Product Spec — Autonomous Art Director for Camera-Roll Carousels
 
+> **Current implementation note (2026-09-26):** The fixed Plain/Designed/Wildcard concept descriptions below are historical. New runs use open model directions, a deterministic composer, and neutral Option N presentation as specified in [the composer-engine design](superpowers/specs/2026-09-26-composer-engine-design.md). The owner has chosen to defer the Phase 0 participant study and proceed to an iOS 26 app with a Cloudflare Worker proxy. See [the active implementation sheet](phase1-implementation-sheet.md).
+
 > Restructured from the original 73-section spec. Content is preserved; order is grouped by concern.
 > Items marked **[OPEN]** are unresolved ambiguities — see `docs/open-questions.md`.
 

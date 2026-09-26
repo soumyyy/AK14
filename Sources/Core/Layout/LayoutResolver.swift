@@ -80,8 +80,12 @@ public enum LayoutResolver {
             let a = Double(context.photos[e.assetID]!.pixelWidth) / Double(max(1, context.photos[e.assetID]!.pixelHeight))
             let crop = CropPlanner.cover(imageAspect: a, boxAspect: content.w / content.h, features: context.features[e.assetID],
                                          cropIntent: e.cropIntent, anchorIntent: e.anchorIntent)
-            if !CropPlanner.facesFit(context.features[e.assetID], crop: crop) {
-                warnings.append("faces do not fit a full-bleed crop; showing the whole photo as a hero")
+            let landscapeOnPortraitCanvas = a > 1.0 && content.w / content.h < 1.0
+            let cropLoss = 1 - crop.width * crop.height
+            if !CropPlanner.facesFit(context.features[e.assetID], crop: crop) || (landscapeOnPortraitCanvas && cropLoss > 0.30) {
+                warnings.append(landscapeOnPortraitCanvas && cropLoss > 0.30
+                    ? "landscape crop is too severe for a portrait slide; showing the whole photo as a hero"
+                    : "faces do not fit a full-bleed crop; showing the whole photo as a hero")
                 primitive = .hero
             }
         }
@@ -91,7 +95,7 @@ public enum LayoutResolver {
         let usable = Box(x: margin, y: margin, w: c.W - 2 * margin, h: c.H - 2 * margin)
 
         let env = SlideEnv(canvas: c, usable: usable, content: content, context: context,
-                           density: slide.density, minVisible: minVisible)
+                           density: slide.density, minVisible: minVisible, airy: plan.style?.whitespace == "airy")
         func rotation(_ e: PhotoElement) -> Double {
             let magnitude = rng.range(0.6, maxPhotoRot)
             switch e.rotationIntent {

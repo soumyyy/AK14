@@ -1,5 +1,7 @@
 # Open Questions — Phase 0 / Phase 1
 
+> **Current decisions (2026-09-26):** The owner chose an iOS 26 minimum version and a Cloudflare Worker for the API proxy and remote StylePack config. The Phase 0 participant study is deferred while Phase 1 proceeds. New runs use open directions instead of fixed named concept types. See [the implementation sheet](phase1-implementation-sheet.md). Older questions below are retained as design history.
+
 ## Resolved (2026-09-25)
 - App name: **AK14**.
 - Q1: Phase 0 runs on Mac; the user supplies photo folders. A rough TestFlight app comes later for the study.

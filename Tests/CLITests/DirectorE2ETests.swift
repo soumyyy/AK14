@@ -133,6 +133,9 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     #expect(llm == ["1-triage.json", "2-planner.json"])
     let raw = try String(contentsOf: store.url("llm/1-triage.json"), encoding: .utf8)
     #expect(raw.contains("thumbnail:a_") && !raw.contains("base64"))
+    let exchange = try #require(JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any])
+    let request = try #require(exchange["request"] as? [String: Any])
+    #expect(request["store"] as? Bool == false, "photo planning should disable response storage")
     let html = try String(contentsOf: store.url("report.html"), encoding: .utf8)
     #expect(html.contains("slides/baseline/slide-01.png") && html.contains("Model calls") && html.contains("Selection spine"))
 

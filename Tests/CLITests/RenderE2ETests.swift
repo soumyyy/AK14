@@ -2,8 +2,10 @@ import Foundation
 import Testing
 import TestSupport
 @testable import CLI
+@testable import Analysis
 @testable import Core
 @testable import Director
+@testable import Render
 
 private func sceneFolder(_ tmp: TempDirectory, count: Int = 12, dated: Bool = true) throws -> URL {
     let folder = try tmp.sub("trip")
@@ -75,6 +77,29 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(d.plans.allSatisfy { d.renderedSlides[$0.id]?.count == $0.slides.count })
 }
 
+@Test func landscapeFullBleedOnPortraitFallsBackToWholePhotoAndSeededAiryPlacementVaries() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try sceneFolder(tmp, count: 6)
+    let records = try await FolderIngester().ingest(folder: folder, options: IngestOptions()).photos
+    let landscape = try #require(records.first { $0.pixelWidth > $0.pixelHeight })
+    let features = PhotoFeatures(assetID: landscape.assetID, analyzerVersion: "test")
+    let style = StyleVector(density: "balanced", overlap: "none", grouping: "single", decoration: "none", rotation: "none", whitespace: "airy")
+    let direction = Direction(brief: "", style: style, coverAssetID: landscape.assetID, orderedAssetIDs: [landscape.assetID])
+    let slide = SlidePlan(primitive: .fullBleed, mood: "", density: "balanced", photos: [.plain(landscape.assetID)], decorations: [], stamps: [])
+    let plan = CarouselPlan(id: "c1", brief: "", direction: direction, slides: Array(repeating: slide, count: 12))
+    let context = LayoutContext(aspect: .portrait4x5, photos: [landscape.assetID: landscape], features: [landscape.assetID: features],
+                                stylePack: try StylePackLoader.load(), seed: 92814)
+    let first = LayoutResolver.resolve(plan, context: context)
+    let repeated = LayoutResolver.resolve(plan, context: context)
+    #expect(first == repeated, "same layout seed must reproduce every slide")
+    let lead = try #require(first.slides.first)
+    #expect(lead.primitive == .hero && lead.requestedPrimitive == .fullBleed)
+    #expect(lead.warnings.contains { $0.contains("landscape crop is too severe") })
+    #expect(lead.metrics?.maxCropLoss == 0)
+    let positions = Set(first.slides.compactMap { $0.variant }.filter { $0.contains("whole.") })
+    #expect(positions.count > 1, "airy whole-photo layouts should vary position: \(positions)")
+}
+
 // MARK: - M4 review fixes
 
 @Test func stampsUseLocalCaptureDateAndFilmEdgeKeepsContentClear() async throws {
@@ -134,10 +159,12 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     for plan in d.plans where !plan.isBaseline {
         let concept = plan.id
         var families: [String] = []
+        var singlePhotoVariants: Set<String> = []
         for i in plan.slides.indices {
             let s = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", concept, i + 1))
             let m = try #require(s.metrics, "\(concept) slide \(i + 1) has no metrics")
             let variant = try #require(s.variant)
+            if s.primitive == .hero || s.primitive == .framedHero { singlePhotoVariants.insert(variant) }
             report.append("\(concept) \(i + 1) \(variant) cov \(m.coverage) hero \(m.heroShare ?? 0) loss \(m.maxCropLoss)")
             if s.primitive == .asymmetricPair || s.primitive == .inset {
                 #expect((m.heroShare ?? 0) >= 1.5, "\(concept) slide \(i + 1): hero only \(m.heroShare ?? 0)× the support")
@@ -149,6 +176,9 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
         }
         let repeats = zip(families, families.dropFirst()).filter { $0 == $1 && $0 != "bleed" }.count
         #expect(repeats <= 1, "\(concept) repeats an arrangement on consecutive slides \(repeats)×: \(families)")
+        if plan.style?.whitespace == "airy" {
+            #expect(singlePhotoVariants.count > 1, "\(concept) airy single-photo layouts never vary: \(singlePhotoVariants)")
+        }
     }
     print(report.joined(separator: "\n"))
 }

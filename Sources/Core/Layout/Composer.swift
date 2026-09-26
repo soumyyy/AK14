@@ -33,6 +33,7 @@ extension LayoutResolver {
         let context: LayoutContext
         let density: String
         let minVisible: Double
+        let airy: Bool
 
         func aspect(_ id: AssetID) -> Double {
             let p = context.photos[id]!
@@ -83,7 +84,19 @@ extension LayoutResolver {
             env.photo(e, frame: frame, z: 0, border: framed ? 0.025 : 0, shadow: framed, rotation: framed ? rotation : 0, whole: whole)
         }
         let kind = framed ? "framed" : "hero"
-        var out = [Candidate(variant: "\(kind).whole", elements: [style(frame(a), true)], background: "plain")]
+        // Keep single-photo compositions from defaulting to the same dead-centre placement. Airy
+        // directions use a modest optical offset along the axis with available breathing room.
+        // The frame remains inside the safe content box and the source photo is shown whole.
+        let base = frame(a)
+        let offset = env.airy ? 0.055 : 0.035
+        let placements: [(String, Double, Double)] = a >= box.w / box.h
+            ? [("center", 0, 0), ("high", 0, -offset), ("low", 0, offset)]
+            : [("center", 0, 0), ("left", -offset, 0), ("right", offset, 0)]
+        var out = placements.map { name, dx, dy in
+            let x = min(max(base.x + dx * box.w, box.x), box.maxX - base.w)
+            let y = min(max(base.y + dy * box.h, box.y), box.maxY - base.h)
+            return Candidate(variant: "\(kind).whole.\(name)", elements: [style(Box(x: x, y: y, w: base.w, h: base.h), true)], background: "plain")
+        }
         for q in [0.35, 0.7] {
             let target = shaped(a, q)
             guard abs(target / a - 1) > 0.03 else { continue }

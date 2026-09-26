@@ -1,0 +1,47 @@
+name: AK14iOS
+options:
+  minimumXcodeGenVersion: 2.42.0
+  deploymentTarget:
+    iOS: "26.0"
+packages:
+  AK14:
+    path: ..
+targets:
+  AK14iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: ../Sources/iOSApp
+    dependencies:
+      - package: AK14
+        product: Core
+      - package: AK14
+        product: Analysis
+      - package: AK14
+        product: Director
+      - package: AK14
+        product: Render
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ak14.app
+        PRODUCT_NAME: AK14
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_KEY_CFBundleDisplayName: AK14
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: 6.0
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+  AK14iOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: ../Tests/iOSAppUITests
+    dependencies:
+      - target: AK14iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ak14.app.uitests
+        TEST_TARGET_NAME: AK14iOS
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: 6.0

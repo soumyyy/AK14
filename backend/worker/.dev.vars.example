@@ -1,0 +1,2 @@
+OPENAI_API_KEY=replace-with-a-development-key
+INVITE_SIGNING_KEY=replace-with-a-random-secret-of-at-least-32-bytes

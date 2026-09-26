@@ -3,8 +3,13 @@ import PackageDescription
 
 let package = Package(
     name: "AK14",
-    platforms: [.macOS(.v27)],
+    platforms: [.iOS(.v26), .macOS(.v27)],
     products: [
+        .library(name: "Core", targets: ["Core"]),
+        .library(name: "Analysis", targets: ["Analysis"]),
+        .library(name: "Director", targets: ["Director"]),
+        .library(name: "Render", targets: ["Render"]),
+        .library(name: "Session", targets: ["Session"]),
         .executable(name: "ak14", targets: ["CLI"]),
     ],
     targets: [

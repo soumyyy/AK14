@@ -36,3 +36,34 @@ import TestSupport
     let html = try String(contentsOf: store.url("report.html"), encoding: .utf8)
     #expect(html.contains("blackFrame") && html.contains("Funnel") && html.contains("nearDuplicate"))
 }
+
+@Test func reductionSplitsPeopleFramingChangesAndChoosesTheBetterFaceCapture() throws {
+    let ids = (0..<3).map { AssetID(rawValue: "a_burst\($0)") }
+    let base = Date(timeIntervalSince1970: 1_800_000_000)
+    let photos = ids.enumerated().map { i, id in
+        PhotoRecord(assetID: id, contentSHA256: "fixture-\(i)", sourceRelativePaths: ["burst\(i).jpg"],
+                    byteCount: 100, fileType: "public.jpeg", pixelWidth: 400, pixelHeight: 300,
+                    exifOrientation: 1, metadata: CaptureMetadata(capturedAt: base.addingTimeInterval(Double(i))))
+    }
+    var first = PhotoFeatures(assetID: ids[0], analyzerVersion: "fixture")
+    first.sharpness = 0.12; first.aestheticScore = 0
+    first.faces = [FaceRegion(box: UnitRect(x: 0.20, y: 0.20, width: 0.25, height: 0.30), captureQuality: 0.2)]
+    var second = PhotoFeatures(assetID: ids[1], analyzerVersion: "fixture")
+    second.sharpness = 0.105; second.aestheticScore = 0
+    second.faces = [FaceRegion(box: UnitRect(x: 0.21, y: 0.20, width: 0.25, height: 0.30), captureQuality: 0.95)]
+    var changedFraming = PhotoFeatures(assetID: ids[2], analyzerVersion: "fixture")
+    changedFraming.sharpness = 0.12; changedFraming.aestheticScore = 0
+    changedFraming.faces = [FaceRegion(box: UnitRect(x: 0.67, y: 0.61, width: 0.22, height: 0.28), captureQuality: 0.8)]
+    let features = [ids[0]: first, ids[1]: second, ids[2]: changedFraming]
+    let distances: [Set<AssetID>: Double] = [
+        Set([ids[0], ids[1]]): 0.05,
+        Set([ids[0], ids[2]]): 0.18,
+        Set([ids[1], ids[2]]): 0.18,
+    ]
+    let result = ReductionResult.reduce(photos: photos, features: features,
+                                        distance: { a, b in distances[Set([a, b])] })
+    #expect(result.clusters.count == 2)
+    let burst = try #require(result.clusters.first { $0.memberAssetIDs.count == 2 })
+    #expect(burst.representativeAssetID == ids[1])
+    #expect(result.clusters.first { $0.memberAssetIDs == [ids[2]] }?.kind == .single)
+}

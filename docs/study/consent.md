@@ -10,7 +10,7 @@ AK14 is a research prototype that turns the photos from one of your events into 
 - Small, low-resolution copies (160–384 px) of up to about 100 of the shortlisted photos, plus short text notes about them: time within the event, number of faces, scene labels.
 - These go to OpenAI's API (model gpt-6-luna) only to choose and arrange photos for your carousel.
 - Your original photos, GPS coordinates and file names are never sent.
-- OpenAI does not train on API data by default. It may keep it for up to 30 days for abuse monitoring.
+- OpenAI does not train on API data by default. AK14 requests `store: false`, so the response is not saved for later retrieval. Standard abuse-monitoring logs may retain content for up to 30 days; [OpenAI's data controls](https://developers.openai.com/api/docs/guides/your-data) describe the account-specific exceptions. Recheck the account policy before recruiting.
 
 **What we record:**
 - A code for you (for example P07), never your name.

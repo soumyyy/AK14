@@ -21,6 +21,36 @@ public struct OpenAITransport: ResponsesTransport {
     }
 }
 
+/// Sends the same Responses JSON through AK14's Worker; the provider key stays on the server.
+public struct WorkerTransport: ResponsesTransport {
+    public let endpoint: URL
+    public let inviteToken: String
+    public let timeout: TimeInterval
+    let session: URLSession
+
+    public init(endpoint: URL, inviteToken: String, timeout: TimeInterval = 180, session: URLSession = .shared) {
+        self.endpoint = endpoint
+        self.inviteToken = inviteToken
+        self.timeout = timeout
+        self.session = session
+    }
+
+    public func send(_ body: Data) async throws -> (status: Int, body: Data) {
+        let host = endpoint.host?.lowercased() ?? ""
+        guard endpoint.scheme == "https" ||
+                (endpoint.scheme == "http" && (host == "localhost" || host == "127.0.0.1")) else {
+            throw URLError(.unsupportedURL)
+        }
+        var request = URLRequest(url: endpoint.appending(path: "v1/responses"), timeoutInterval: timeout)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(inviteToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+        let (data, response) = try await session.data(for: request)
+        return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
+    }
+}
+
 public enum ContentPart: Sendable {
     case text(String)
     case image(jpeg: Data, assetID: AssetID, detail: String)
@@ -103,6 +133,7 @@ public struct ResponsesClient: Sendable {
                                                       ("strict", .bool(true)), ("schema", schema)]))])),
                 ("reasoning", .object([("effort", .string(reasoning))])),
                 ("max_output_tokens", .int(maxOutputTokens)),
+                ("store", .bool(false)),
             ])
         }
         let data = try JSONEncoder().encode(body(redacted: false))

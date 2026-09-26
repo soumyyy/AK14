@@ -29,13 +29,21 @@ public struct ReductionConfig: Codable, Sendable, Equatable {
         f?.sharpness.map { min(1, $0 / sharpReference) }
     }
 
-    /// 0.5·sharpness + 0.3·face quality (0.5 when no faces) + 0.2·aesthetic, used to pick cluster representatives.
+    /// Balanced local evidence used to pick cluster representatives. Sharpness matters, while
+    /// face quality/presence, subject saliency, aesthetics, and exposure can all change the choice.
     public func technicalScore(_ f: PhotoFeatures?) -> Double {
         let sharp = sharp01(f) ?? 0.5
-        let qualities = f?.faces.compactMap(\.captureQuality) ?? []
-        let face = qualities.isEmpty ? 0.5 : qualities.reduce(0, +) / Double(qualities.count)
+        let faces = f?.faces ?? []
+        let qualities = faces.compactMap(\.captureQuality)
+        let faceQuality = qualities.isEmpty ? 0.5 : qualities.reduce(0, +) / Double(qualities.count)
+        let facePresence = min(1, Double(faces.count) / 2)
+        let faceArea = min(1, faces.reduce(0) { $0 + $1.box.width * $1.box.height } / 0.20)
+        let people = faces.isEmpty ? 0.5 : 0.65 * faceQuality + 0.20 * facePresence + 0.15 * faceArea
+        let salientArea = min(1, (f?.salientRegions ?? []).map { $0.width * $0.height }.max() ?? 0)
+        let subject = max(people, salientArea)
         let aesthetic = f?.aestheticScore.map { ($0 + 1) / 2 } ?? 0.5
-        return 0.5 * sharp + 0.3 * face + 0.2 * aesthetic
+        let exposure = f?.meanLuminance.map { max(0, 1 - abs($0 - 0.48) / 0.48) } ?? 0.5
+        return 0.35 * sharp + 0.25 * people + 0.15 * subject + 0.15 * aesthetic + 0.10 * exposure
     }
 }
 
