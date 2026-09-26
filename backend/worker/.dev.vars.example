@@ -1,2 +1,4 @@
 OPENAI_API_KEY=replace-with-a-development-key
-INVITE_SIGNING_KEY=replace-with-a-random-secret-of-at-least-32-bytes
+INVITE_TOKEN_HASHES=replace-with-sha256-hex-hash
+DAILY_REQUEST_CAP=30
+DAILY_SPEND_CAP_USD=1.00

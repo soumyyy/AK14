@@ -2,11 +2,10 @@
   "name": "ak14-api",
   "main": "src/index.js",
   "compatibility_date": "2026-09-26",
-  "ratelimits": [
-    {
-      "name": "MODEL_LIMIT",
-      "namespace_id": "1001",
-      "simple": { "limit": 5, "period": 60 }
-    }
-  ]
+  "kv_namespaces": [{ "binding": "AK14_USAGE", "id": "2b16fea07a8b4b4eb6fe0067ad51bd0b" }],
+  "vars": {
+    "DAILY_REQUEST_CAP": "30",
+    "DAILY_SPEND_CAP_USD": "1.00",
+    "INVITE_TOKEN_HASHES": ""
+  }
 }
