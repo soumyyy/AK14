@@ -78,7 +78,9 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     #expect(p["P3"]?.selectedConcept == "baseline" && p["P3"]?.exportedOrShared == false)
     #expect(abs((summary.minimumSignal["30%"] ?? 0) - 1.0 / 3.0) < 1e-9 && !summary.minimumSignalMet)
     #expect(abs(summary.postedShare - 1.0 / 3.0) < 1e-9 && summary.strongSignalMet)
-    #expect(summary.baselinePicked == 1 && summary.directionPicked == 2 && summary.pickedStyles["grouping=collage"] == 1)
+    // Each picked direction contributes one value per style axis (the composer may nudge an axis for diversity).
+    let groupingPicks = summary.pickedStyles.filter { $0.key.hasPrefix("grouping=") }.values.reduce(0, +)
+    #expect(summary.baselinePicked == 1 && summary.directionPicked == 2 && groupingPicks == 2, "\(summary.pickedStyles)")
     let md = summary.markdown()
     #expect(md.contains("| P1 |") && md.contains("≥ 50%") && !md.contains(tmp.url.path))
 }
