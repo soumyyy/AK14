@@ -23,6 +23,16 @@ Status: active (2026-09-26). The local iOS flow passed a simulator UI smoke test
 | P1-D | Review and handoff | iPhone displays neutral options, supports existing constrained edits, and saves or shares ordered slides. A real photo set reaches this flow on simulator/device. | Simulator import → options → editor → Save passed; owner device smoke pending |
 | P1-E | Reliability | Interrupted generation resumes or fails clearly, iCloud-backed assets and limited-library changes are handled, source photos remain untouched, and stage timing/cost are recorded. | Planned |
 
+## Delegation waves (Claude plans and reviews; GPT-6 Luna implements via `codex exec` in isolated worktrees)
+
+| Wave | Task | Branch | Scope (files) | Acceptance | Status |
+| --- | --- | --- | --- | --- | --- |
+| 1 | T1 Landscape compositions (rest of Q2) | `w1-landscape` | `Sources/Core/Layout/*`, `CarouselAspect` inference, `Tests/CLITests/RenderE2ETests.swift` | Landscape singles and pairs get intentional tall-canvas arrangements (full-width band, stacked full-width pair) with crop ≤ 20% and no people cut; 4:5 is suggested when ≥ 60% of the selected photos are landscape; rerender is byte-identical; `swift test` passes | Running |
+| 1 | T2 iPhone reliability (P1-E) | `w1-ios-reliability` | `Sources/iOSApp/StoryPipeline.swift`, `ImportReviewView.swift` (progress and error states only) | iCloud-only originals download with progress and fail clearly offline; an interrupted generation leaves no half-written run and can be retried; per-run stage timings and model cost are saved; imported originals are removed when a run is deleted; the iOS simulator build succeeds | Running |
+| 1 | T3 Worker deploy readiness (P1-C) | `w1-worker` | `backend/worker/**` | Per-invite-token daily request and spend caps in KV; each call logs model, tokens and estimated cost; README deploy steps (`wrangler secret put`, KV namespace, invite tokens); `npm run check` passes | Running |
+| 2 | Model-assisted flow on device through the deployed Worker | — | iOS settings and Worker URL | Needs the owner's Cloudflare login | Blocked on owner |
+| 2 | Taste calibration from the owner's picks on 2–3 events | — | Composer weights | Needs the owner's picks | Blocked on owner |
+
 ## iPhone interface direction
 
 The installed [apple-design skill](../.agents/skills/apple-design/SKILL.md) is web-oriented, so apply its principles through native SwiftUI controls and system behaviors. Use a photo-first **Photos → Review → Options** navigation flow. Keep the primary action near the bottom safe area, show live stage progress, and keep model transfer opt-in and explained at the moment it is chosen. Option names stay neutral; the baseline's identity and internal style details stay out of participant-facing results. Support Dynamic Type, VoiceOver selection state, Reduce Motion, and native sheets. Avoid decorative custom navigation or animation that competes with the photos.
