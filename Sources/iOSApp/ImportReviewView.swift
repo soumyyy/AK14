@@ -39,8 +39,11 @@ final class ImportReviewModel {
     var successfulSaves = 0
     var storyEditors: [URL: StoryEditingService] = [:]
     var progressMessage = "Preparing…"
+    var failureMessage: String?
+    private var retryImport = false
     var importCompleted = 0
     var importTotal = 0
+    private var importDuration: Double = 0
     var modelAssist = false
     var shareURLs: [URL] = []
     var sharePresented = false
@@ -52,6 +55,7 @@ final class ImportReviewModel {
 
     init(client: ResponsesClient? = nil,
          stylePackProvider: (@Sendable () async throws -> LoadedStylePack)? = nil) {
+        StoryPipeline.cleanupStaleStaging()
         injectedClient = client
         injectedStylePackProvider = stylePackProvider
     }
@@ -98,9 +102,12 @@ final class ImportReviewModel {
         let chosen = assets.filter { selectedIDs.contains($0.localIdentifier) }
         guard !chosen.isEmpty else { return false }
         state = .importing
+        failureMessage = nil
+        retryImport = true
         importCompleted = 0
         importTotal = chosen.count
         var destination: URL?
+        let importStart = ContinuousClock().now
         do {
             let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
                 .appending(path: "AK14/imports", directoryHint: .isDirectory)
@@ -110,8 +117,14 @@ final class ImportReviewModel {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             for (index, asset) in chosen.enumerated() {
                 try Task.checkCancellation()
-                progressMessage = "Copying photo \(index + 1) of \(chosen.count)…"
-                try await copyOriginal(asset, to: folder.appending(path: String(format: "photo-%04d.%@", index, fileExtension(asset))))
+                let photoNumber = index + 1
+                let totalPhotos = chosen.count
+                progressMessage = "Downloading photo \(index + 1) of \(chosen.count)…"
+                try await copyOriginal(asset, to: folder.appending(path: String(format: "photo-%04d.%@", index, fileExtension(asset)))) { fraction in
+                    Task { @MainActor in
+                        self.progressMessage = String(format: "Downloading photo %d of %d · %d%%", photoNumber, totalPhotos, Int(fraction * 100))
+                    }
+                }
                 importCompleted = index + 1
             }
             try Task.checkCancellation()
@@ -120,6 +133,7 @@ final class ImportReviewModel {
                 try? FileManager.default.removeItem(at: old)
             }
             importedFolder = folder
+            importDuration = (ContinuousClock().now - importStart).seconds
             records = result.photos
             options = []
             selectedOptionID = nil
@@ -133,7 +147,9 @@ final class ImportReviewModel {
             return false
         } catch {
             if let destination { try? FileManager.default.removeItem(at: destination) }
-            state = .failed("Photo import failed: \(error.localizedDescription)")
+            let failure = ImportFailure.iCloudDownloadFailed(error.localizedDescription)
+            failureMessage = failure.localizedDescription
+            state = .failed(failure.localizedDescription)
             return false
         }
     }
@@ -141,6 +157,8 @@ final class ImportReviewModel {
     func generateOptions() async -> Bool {
         guard let importedFolder else { return false }
         isGenerating = true
+        failureMessage = nil
+        retryImport = false
         do {
             let endpoint = workerEndpoint
             let client = injectedClient ?? endpoint.flatMap { url in
@@ -154,7 +172,7 @@ final class ImportReviewModel {
             }) : nil
             progressMessage = "Preparing your photos…"
             let generated = try await StoryPipeline(responsesClient: client, stylePackProvider: configProvider)
-                .run(folder: importedFolder, modelAssist: useModelAssistance) { [weak self] message in
+                .run(folder: importedFolder, modelAssist: useModelAssistance, importDuration: importDuration) { [weak self] message in
                     Task { @MainActor in self?.progressMessage = message }
                 }
             options = generated
@@ -165,11 +183,17 @@ final class ImportReviewModel {
             isGenerating = false
             return true
         } catch {
+            failureMessage = "Option generation failed. Retry to start a clean run. (\(error.localizedDescription))"
             state = .failed("Could not build options: \(error.localizedDescription)")
             progressMessage = "Preparing…"
             isGenerating = false
             return false
         }
+    }
+
+    func retry() async -> Bool {
+        if retryImport { return await importSelection() }
+        return await generateOptions()
     }
 
     func saveSelectedOption() async {
@@ -260,13 +284,14 @@ final class ImportReviewModel {
         return ext
     }
 
-    private func copyOriginal(_ asset: PHAsset, to destination: URL) async throws {
+    private func copyOriginal(_ asset: PHAsset, to destination: URL, progress: @escaping @Sendable (Double) -> Void) async throws {
         let resources = PHAssetResource.assetResources(for: asset)
         guard let resource = resources.first(where: { $0.type == .fullSizePhoto }) ?? resources.first else {
             throw ImportFailure.noResource
         }
         let options = PHAssetResourceRequestOptions()
         options.isNetworkAccessAllowed = true
+        options.progressHandler = progress
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             PHAssetResourceManager.default().writeData(for: resource, toFile: destination, options: options) { error in
                 if let error { continuation.resume(throwing: error) }
@@ -277,10 +302,12 @@ final class ImportReviewModel {
 
     private enum ImportFailure: LocalizedError {
         case noResource, noReadablePhotos
+        case iCloudDownloadFailed(String)
         var errorDescription: String? {
             switch self {
             case .noResource: "The selected photo has no readable original."
             case .noReadablePhotos: "None of the selected photos could be read. Choose another selection and try again."
+            case .iCloudDownloadFailed(let detail): "iCloud photo download failed. Check your internet connection and retry. (\(detail))"
             }
         }
     }
@@ -458,13 +485,26 @@ struct ImportReviewView: View {
                     ProgressView(value: Double(model.importCompleted), total: Double(max(1, model.importTotal)))
                         .tint(.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Copying photos").font(.subheadline.weight(.semibold))
+                        Text(model.progressMessage).font(.subheadline.weight(.semibold))
+                            .accessibilityAddTraits(.updatesFrequently)
                         Text("\(model.importCompleted) of \(model.importTotal)").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button("Cancel", role: .cancel) { importTask?.cancel() }
                         .accessibilityHint("Stops after the photo currently being copied")
                 }
+                .padding(.horizontal, 18).padding(.vertical, 12)
+            } else if let failure = model.failureMessage {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(failure, systemImage: "exclamationmark.icloud")
+                        .font(.footnote).foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Retry import") {
+                        importTask = Task { if await model.retry() { path.append(.review) } }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 18).padding(.vertical, 12)
             } else if model.authorization != .authorized && model.authorization != .limited {
                 Button {
@@ -569,6 +609,18 @@ struct ImportReviewView: View {
                     Text(model.progressMessage).font(.subheadline)
                         .accessibilityAddTraits(.updatesFrequently)
                         .accessibilityLabel("Generation progress: \(model.progressMessage)")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18).padding(.vertical, 12)
+            } else if let failure = model.failureMessage {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(failure, systemImage: "exclamationmark.triangle")
+                        .font(.footnote).foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Retry generation") {
+                        Task { if await model.retry() { path.append(.options) } }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 18).padding(.vertical, 12)
