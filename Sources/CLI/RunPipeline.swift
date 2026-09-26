@@ -98,6 +98,7 @@ struct RunPipeline: Sendable {
         var early = RunManifest(runID: store.root.lastPathComponent, createdAt: now, sourceFolderLabel: options.folder.lastPathComponent)
         early.studyCode = options.studyCode
         try store.write(early, to: "manifest.json")
+        try store.write(IngestResult(photos: ingest.photos.map { $0.redactingLocation() }, skipped: ingest.skipped), to: "input-index.json")
 
         // 6. Director (triage → pool → planning) and Plain render
         var concepts: ConceptsReport?
@@ -249,15 +250,16 @@ struct RunPipeline: Sendable {
             return DiversitySelector.select(ranked: adjusted, target: poolTarget, photos: photoByID, features: features,
                                             distance: index.distance, config: config).map(\.assetID)
         }
+        // Only the event's length is sent: no folder name (it may contain a study code or a name) and no calendar dates.
         let dates = shortlistPhotos.compactMap(\.metadata.capturedAt)
-        var span = "dates unknown"
+        var span = "duration unknown"
         if let first = dates.min(), let last = dates.max() {
-            let f = DateFormatter(); f.dateFormat = "d MMM yyyy"; f.locale = Locale(identifier: "en_US_POSIX")
-            span = "\(f.string(from: first)) – \(f.string(from: last))"
+            let days = Int(last.timeIntervalSince(first) / 86_400) + 1
+            span = days <= 1 ? "a single day" : "\(days) days"
         }
 
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
-        return await director.direct(DirectorInput(storyLabel: options.folder.lastPathComponent, dateSpan: span,
+        return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool))
     }
 

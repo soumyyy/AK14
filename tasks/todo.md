@@ -136,3 +136,14 @@ Spec: `docs/superpowers/specs/2026-09-26-ak14-phase0-design.md`
   - report shows the events; 0 absolute paths
   - delete kept the shared cache that older runs use
 - Open item for you: verify OpenAI's current API data-retention terms before recruiting (protocol §Privacy).
+
+### M6 review fixes (all 10 findings)
+- A study run must be completed, consented and have concepts. No-consent or failed runs are reported separately and never count as the study run or repeat demand.
+- The model gets "a personal event" and a day count only, never the folder name (which could contain a code or a name) or calendar dates.
+- `ak14 delete` refuses anything that isn't a single run. `ak14 delete --study-code` removes all of a participant's runs, including interrupted ones. `input-index.json` is written early so their cache can be purged.
+- Follow-up records `--posted-days`. Posted within 7 days requires days 0–7 and a hand-off of the selected concept.
+- Metrics score the plan snapshotted at hand-off (`handoffs/`). A reroll counts only if it came before the hand-off.
+- Share is logged only on `didShareItems`, not when a service is picked.
+- Follow-ups are read across all of a participant's runs.
+- The median is correct for even counts. Unknown metrics count as not successful.
+- E2E: 39 tests passing.

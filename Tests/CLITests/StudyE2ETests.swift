@@ -42,8 +42,8 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     let r1 = try await run(tmp, source, code: "P1")
     let s1 = try RunSession(runDirectory: r1.root); try s1.setSource(source)
     try s1.select(.designed); try s1.export(.designed, to: tmp.url.appending(path: "out1"))
-    try Followup.record(runDirectory: r1.root, posted: true, platform: "instagram", reusedAnotherEvent: nil, linkSeen: true,
-                        now: Date().addingTimeInterval(3 * 86_400))
+    try Followup.record(runDirectory: r1.root, posted: true, postedDaysAfterHandoff: 3, platform: "instagram",
+                        reusedAnotherEvent: nil, linkSeen: true)
     _ = try await run(tmp, source, code: "P1")
 
     // P2: picks Wildcard but replaces most photos before exporting → substantially rebuilt.
@@ -57,7 +57,7 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     }
     try s2.reroll(.wildcard)
     try s2.select(.wildcard); try s2.export(.wildcard, to: tmp.url.appending(path: "out2"))
-    try Followup.record(runDirectory: r2.root, posted: false, platform: nil, reusedAnotherEvent: false, linkSeen: nil)
+    try Followup.record(runDirectory: r2.root, posted: false, postedDaysAfterHandoff: nil, platform: nil, reusedAnotherEvent: false, linkSeen: nil)
 
     // P3: picks Plain, never exports.
     let r3 = try await run(tmp, source, code: "P3")
@@ -74,7 +74,7 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     #expect(summary.incompleteRunsSkipped == 1 && summary.runsWithoutStudyCode == 1)
     let p = Dictionary(uniqueKeysWithValues: summary.participants.map { ($0.studyCode, $0) })
     #expect(p["P1"]?.success["30%"] == true && p["P1"]?.postedWithin7Days == true && p["P1"]?.repeatDemand == true)
-    #expect(p["P2"]?.rerolled == true && p["P2"]?.success["30%"] == false && p["P2"]?.exportedOrShared == true)
+    #expect(p["P2"]?.rerolledBeforeHandoff == true && p["P2"]?.success["30%"] == false && p["P2"]?.exportedOrShared == true)
     #expect(p["P3"]?.selectedConcept == "plainDump" && p["P3"]?.exportedOrShared == false)
     #expect(abs((summary.minimumSignal["30%"] ?? 0) - 1.0 / 3.0) < 1e-9 && !summary.minimumSignalMet)
     #expect(abs(summary.postedShare - 1.0 / 3.0) < 1e-9 && summary.strongSignalMet)
@@ -103,4 +103,74 @@ private func run(_ tmp: TempDirectory, _ source: URL, code: String?, consent: Bo
     let remaining = FileManager.default.enumerator(at: cache, includingPropertiesForKeys: nil)!.compactMap { ($0 as? URL)?.deletingPathExtension().lastPathComponent }
     #expect(removed > 0 && unique.allSatisfy { !remaining.contains($0) })
     #expect(aShas.allSatisfy { remaining.contains($0) })
+}
+
+// MARK: - M6 review fixes
+
+@Test func ineligibleRunsNeverBecomeTheStudyRunOrRepeatDemand() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let source = try folder(tmp, "trip")
+    _ = try await run(tmp, source, code: "P9", consent: false)             // operator answered N first
+    let real = try await run(tmp, source, code: "P9")
+    let s = try RunSession(runDirectory: real.root); try s.setSource(source)
+    try s.select(.designed)
+    try s.export(.designed, to: tmp.url.appending(path: "o"))
+    // Playing with a reroll *after* hand-off must not count against what was handed off.
+    try s.reroll(.designed)
+    try Followup.record(runDirectory: real.root, posted: true, postedDaysAfterHandoff: 2, platform: "instagram", reusedAnotherEvent: nil, linkSeen: nil)
+    let summary = StudySummary.compute(runsDirectory: tmp.url.appending(path: "runs"))
+    #expect(summary.ineligibleRunsSkipped == 1)
+    let p = try #require(summary.participants.first)
+    #expect(p.runs == 1 && !p.repeatDemand && p.runID == real.root.lastPathComponent)
+    #expect(!p.rerolledBeforeHandoff && p.success["30%"] == true && p.postedWithin7Days)
+}
+
+@Test func postingWithoutAHandoffOrAfterDay7DoesNotCount() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let source = try folder(tmp, "trip")
+    let a = try await run(tmp, source, code: "A1")
+    try RunSession(runDirectory: a.root).select(.plainDump)              // never exported
+    try Followup.record(runDirectory: a.root, posted: true, postedDaysAfterHandoff: 1, platform: nil, reusedAnotherEvent: nil, linkSeen: nil)
+    let b = try await run(tmp, source, code: "B1")
+    let sb = try RunSession(runDirectory: b.root); try sb.setSource(source)
+    try sb.select(.plainDump); try sb.export(.plainDump, to: tmp.url.appending(path: "o"))
+    try Followup.record(runDirectory: b.root, posted: true, postedDaysAfterHandoff: 9, platform: nil, reusedAnotherEvent: nil, linkSeen: nil)
+    let summary = StudySummary.compute(runsDirectory: tmp.url.appending(path: "runs"))
+    #expect(summary.participants.allSatisfy { !$0.postedWithin7Days })
+    #expect(summary.postedShare == 0 && !summary.strongSignalMet)
+}
+
+@Test func modelNeverSeesTheFolderNameOrCalendarDates() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let source = try folder(tmp, "Sarah30th")
+    let store = try await run(tmp, source, code: "P5")
+    for file in try FileManager.default.contentsOfDirectory(atPath: store.url("llm").path) {
+        let text = try String(contentsOf: store.url("llm/\(file)"), encoding: .utf8)
+        for token in ["Sarah30th", "May 2026", "2026:05", "Jun 2026", "2026-05"] {
+            #expect(!text.contains(token), "\(file) leaks \(token)")
+        }
+    }
+}
+
+@Test func deleteRefusesNonRunsAndDeletesEveryRunForACode() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let source = try folder(tmp, "trip", scenes: 0..<12)
+    let runs = tmp.url.appending(path: "runs")
+    let first = try await run(tmp, source, code: "P7", consent: false)
+    let second = try await run(tmp, source, code: "P7")
+    var m = try second.read(RunManifest.self, from: "manifest.json"); m.completedAt = nil      // an interrupted run
+    try second.write(m, to: "manifest.json")
+    let other = try await run(tmp, try folder(tmp, "other", scenes: 20..<24), code: "P8", consent: false)
+
+    #expect(throws: (any Error).self) { try RunDeletion.delete(runDirectory: runs, cacheDirectory: nil) }       // the runs root
+    #expect(throws: (any Error).self) { try RunDeletion.delete(runDirectory: source, cacheDirectory: nil) }     // not a run
+    #expect(FileManager.default.fileExists(atPath: first.root.path))
+
+    let (count, removed) = try RunDeletion.delete(studyCode: "P7", runsDirectory: runs, cacheDirectory: tmp.url.appending(path: "cache"))
+    #expect(count == 2 && removed > 0)
+    #expect(!FileManager.default.fileExists(atPath: first.root.path) && !FileManager.default.fileExists(atPath: second.root.path))
+    #expect(FileManager.default.fileExists(atPath: other.root.path))
+    #expect(throws: ArgumentError.missingValue("--posted-days (days after hand-off they posted)")) {
+        try Arguments.parse(["followup", "runs/x", "--posted", "yes"], cwd: tmp.url)
+    }
 }

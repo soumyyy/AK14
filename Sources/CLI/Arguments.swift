@@ -22,9 +22,10 @@ enum Command: Equatable {
     case run(RunOptions)
     case report(runDirectory: URL)
     case rerender(runDirectory: URL, source: URL, seed: UInt64?)
-    case followup(runDirectory: URL, posted: Bool, platform: String?, reused: Bool?, linkSeen: Bool?)
+    case followup(runDirectory: URL, posted: Bool, postedDays: Int?, platform: String?, reused: Bool?, linkSeen: Bool?)
     case studySummary(runsDirectory: URL, out: URL?)
     case delete(runDirectory: URL, cache: URL?)
+    case deleteStudyCode(code: String, runsDirectory: URL, cache: URL?)
     case versions
     case help
 }
@@ -57,9 +58,10 @@ enum Arguments {
       ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
       ak14 rerender <runDir> --source <folder> [--seed HEX]
-      ak14 followup <runDir> --posted yes|no [--platform instagram|other] [--reused-another-event yes|no] [--link-seen yes|no]
+      ak14 followup <runDir> --posted yes|no [--posted-days N] [--platform instagram|other] [--reused-another-event yes|no] [--link-seen yes|no]
       ak14 study summary [runsDir] [--out DIR]
-      ak14 delete <runDir> [--purge-cache [--cache DIR]]
+      ak14 delete <runDir> [--purge-cache] [--cache DIR]
+      ak14 delete --study-code CODE [--runs DIR] [--purge-cache] [--cache DIR]
       ak14 versions
     """
 
@@ -93,10 +95,17 @@ enum Arguments {
         case "followup":
             guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
             rest.removeFirst()
-            let f = try flags(["--posted", "--platform", "--reused-another-event", "--link-seen"])
-            guard let posted = f["--posted"] else { throw ArgumentError.missingValue("--posted") }
+            let f = try flags(["--posted", "--posted-days", "--platform", "--reused-another-event", "--link-seen"])
+            guard let postedText = f["--posted"] else { throw ArgumentError.missingValue("--posted") }
+            let posted = try yesNo(postedText, "--posted")
             if let p = f["--platform"], !["instagram", "other"].contains(p) { throw ArgumentError.invalidValue("--platform", p) }
-            return .followup(runDirectory: path(dir), posted: try yesNo(posted, "--posted"), platform: f["--platform"],
+            var days: Int?
+            if let d = f["--posted-days"] {
+                guard let n = Int(d), n >= 0 else { throw ArgumentError.invalidValue("--posted-days", d) }
+                days = n
+            }
+            if posted && days == nil { throw ArgumentError.missingValue("--posted-days (days after hand-off they posted)") }
+            return .followup(runDirectory: path(dir), posted: posted, postedDays: days, platform: f["--platform"],
                              reused: try f["--reused-another-event"].map { try yesNo($0, "--reused-another-event") },
                              linkSeen: try f["--link-seen"].map { try yesNo($0, "--link-seen") })
         case "study":
@@ -107,10 +116,16 @@ enum Arguments {
             let f = try flags(["--out"])
             return .studySummary(runsDirectory: runs, out: f["--out"].map(path))
         case "delete":
-            guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
-            rest.removeFirst()
-            let f = try flags(["--cache"], switches: ["--purge-cache"])
-            return .delete(runDirectory: path(dir), cache: f["--purge-cache"] != nil ? path(f["--cache"] ?? ".ak14-cache") : nil)
+            var dir: String?
+            if let first = rest.first, !first.hasPrefix("--") { dir = first; rest.removeFirst() }
+            let f = try flags(["--cache", "--study-code", "--runs"], switches: ["--purge-cache"])
+            let cache = f["--purge-cache"] != nil ? path(f["--cache"] ?? ".ak14-cache") : nil
+            if let code = f["--study-code"] {
+                guard dir == nil, StudyCode.isValid(code) else { throw ArgumentError.invalidStudyCode(code) }
+                return .deleteStudyCode(code: code, runsDirectory: path(f["--runs"] ?? "runs"), cache: cache)
+            }
+            guard let dir else { throw ArgumentError.missingRunDirectory }
+            return .delete(runDirectory: path(dir), cache: cache)
         case "report":
             guard let dir = rest.first else { throw ArgumentError.missingRunDirectory }
             return .report(runDirectory: path(dir))

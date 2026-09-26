@@ -223,7 +223,7 @@ struct ShareButton: NSViewRepresentable {
         context.coordinator.onShare = onShare
     }
 
-    final class Coordinator: NSObject, NSSharingServicePickerDelegate {
+    final class Coordinator: NSObject, NSSharingServicePickerDelegate, NSSharingServiceDelegate {
         var urls: [URL] = []
         var onShare: (String) -> Void = { _ in }
 
@@ -233,8 +233,13 @@ struct ShareButton: NSViewRepresentable {
             picker.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
         }
 
-        func sharingServicePicker(_ picker: NSSharingServicePicker, didChoose service: NSSharingService?) {
-            if let service { onShare(service.title) }
+        /// Become the chosen service's delegate so we only log a share that actually completed (not a cancelled AirDrop).
+        func sharingServicePicker(_ picker: NSSharingServicePicker, delegateFor sharingService: NSSharingService) -> (any NSSharingServiceDelegate)? {
+            self
+        }
+
+        func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
+            onShare(sharingService.title)
         }
     }
 }

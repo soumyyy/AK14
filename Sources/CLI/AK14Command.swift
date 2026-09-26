@@ -20,8 +20,9 @@ struct AK14Command {
                 try RerenderCommand.rerender(runDirectory: dir, source: source, seed: seed)
                 try ReportCommand.rebuild(runDirectory: dir)
                 print(dir.appending(path: "report.html").path)
-            case .followup(let dir, let posted, let platform, let reused, let linkSeen):
-                try Followup.record(runDirectory: dir, posted: posted, platform: platform, reusedAnotherEvent: reused, linkSeen: linkSeen)
+            case .followup(let dir, let posted, let days, let platform, let reused, let linkSeen):
+                try Followup.record(runDirectory: dir, posted: posted, postedDaysAfterHandoff: days, platform: platform,
+                                    reusedAnotherEvent: reused, linkSeen: linkSeen)
                 print("follow-up recorded")
             case .studySummary(let runs, let out):
                 let summary = StudySummary.compute(runsDirectory: runs)
@@ -33,6 +34,10 @@ struct AK14Command {
             case .delete(let dir, let cache):
                 let removed = try RunDeletion.delete(runDirectory: dir, cacheDirectory: cache)
                 print("deleted run\(cache == nil ? "" : " and \(removed) cache files")")
+            case .deleteStudyCode(let code, let runs, let cache):
+                let (count, removed) = try RunDeletion.delete(studyCode: code, runsDirectory: runs, cacheDirectory: cache)
+                print("deleted \(count) runs for \(code)\(cache == nil ? "" : " and \(removed) cache files")")
+                print("Also delete: the participant's intake photo folder, any folders you exported slides to, and Studio's remembered source folder (Runs > Source folder… is per run).")
             case .versions:
                 for (k, v) in Versions.all.sorted(by: { $0.key < $1.key }) { print("\(k)\t\(v)") }
             case .report(let dir):

@@ -150,10 +150,21 @@ public final class RunSession: @unchecked Sendable {
     public func presented(source: String = "operator") throws {
         try operation.withLock { try record("concepts_presented", nil, source: source) }
     }
+    /// Call only after the share actually completed (not when a service was merely picked).
     public func shared(_ c: ConceptType, service: String, source: String = "operator") throws {
         try operation.withLock {
-            try record("carousel_shared", c, after: [service], source: source); try? RunReport.rebuild(runDirectory: root)
+            let snapshot = try snapshotHandoff(c)
+            try record("carousel_shared", c, after: [service, "snapshot=\(snapshot)"], source: source)
+            try? RunReport.rebuild(runDirectory: root)
         }
+    }
+
+    /// Saves exactly what was handed to the participant, so study metrics score the handed-off plan.
+    private func snapshotHandoff(_ c: ConceptType) throws -> String {
+        guard let p = plan(c) else { throw Failure.unavailable(c.rawValue) }
+        let id = UUID().uuidString
+        try store.write(p, to: "handoffs/\(c.rawValue)-\(id).json")
+        return id
     }
 
     /// Copies the concept's current slides, in order, to `folder`, replacing any earlier export of this concept there.
@@ -174,7 +185,8 @@ public final class RunSession: @unchecked Sendable {
                 try fm.copyItem(at: url, to: target)
                 out.append(target)
             }
-            try record("carousel_exported", c, after: ["\(out.count) slides"], source: source)
+            let snapshot = try snapshotHandoff(c)
+            try record("carousel_exported", c, after: ["\(out.count) slides", "snapshot=\(snapshot)"], source: source)
             try? RunReport.rebuild(runDirectory: root)
             return out
         }

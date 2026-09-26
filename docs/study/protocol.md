@@ -25,7 +25,7 @@ A human-made reference carousel may be produced separately to estimate the desig
 
 ## Pre-registered go/no-go bar
 
-Computed with `ak14 study summary`. Each participant's **first** completed run is the study run.
+Computed with `ak14 study summary`. Each participant's **first eligible** run is the study run: completed, consented, and with concepts. Later eligible runs count as repeat demand. Runs without consent, and failed runs, are reported separately and never counted. Metrics are scored on the exact plan that was handed off (snapshotted at export or share of the selected concept), not on later edits.
 
 | Signal | Definition | Bar |
 |---|---|---|
@@ -47,7 +47,7 @@ A Plain win is valid evidence, not a failure.
 
 ## Posting verification
 
-The participant self-reports at day 7. The operator may look at the post if the participant shows it (`--link-seen yes`), but the URL is never stored.
+The participant self-reports at day 7, including how many days after hand-off they posted (`--posted-days`). A post counts only if it was 0–7 days after hand-off and the selected concept was exported or shared. The operator may look at the post if the participant shows it (`--link-seen yes`), but the URL is never stored. A share is logged only when the macOS share actually completes, not when a service is picked.
 
 ## Frozen versions
 

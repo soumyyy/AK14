@@ -28,6 +28,8 @@ Don't use WhatsApp, Messages or screenshots: they strip the metadata. Videos are
 - **Consent prompt:** the disclosure prints, then `Send thumbnails to the model? [y/N]`. Answer `y` only with the participant's consent.
 - **Time:** about 1–2 minutes for 500 photos on the first run (analysis is cached after that). The model costs well under $0.05.
 - **Interrupted run:** just run it again. Local work is reused, and the interrupted run shows as incomplete and isn't counted.
+- **No consent or no model:** runs made without consent, or where the model was skipped, have no concepts. They never count as the participant's study run or as repeat demand.
+- **What the model sees:** the model gets "a personal event" and its length in days, never the folder name or calendar dates. It's still good practice to name intake folders by study code only.
 
 ## 4. Review in Studio (with the participant)
 
@@ -58,11 +60,13 @@ On the phone, the slides arrive in order, ready for an Instagram carousel. The s
 
 ## 6. Day-7 follow-up
 
-Ask whether they posted it, where, and whether they'd use AK14 for another event. Then record it:
+Ask whether they posted it, **how many days after receiving it**, where, and whether they'd use AK14 for another event. Record it on the participant's study run:
 
 ```bash
-.build/release/ak14 followup runs/<runID> --posted yes --platform instagram --reused-another-event yes --link-seen yes
+.build/release/ak14 followup runs/<runID> --posted yes --posted-days 3 --platform instagram --reused-another-event yes --link-seen yes
 ```
+
+`--posted-days` is required when `--posted yes`. Posting counts toward the strong signal only if it happened 0–7 days after hand-off and the selected concept was exported or shared.
 
 If they want to try another event, run it with the **same** study code. That counts as repeat demand.
 
@@ -77,8 +81,8 @@ This writes `study-summary.md` and `study-summary.json`: the go/no-go table, the
 ## 8. Deletion (end of study, or on request)
 
 ```bash
-.build/release/ak14 delete runs/<runID> --purge-cache
+.build/release/ak14 delete --study-code P07 --purge-cache
 rm -rf ~/Study/P07
 ```
 
-This removes the run and any cached thumbnails or analysis that no other run uses.
+This removes **every** run recorded under that code, including interrupted and no-consent runs, plus any cached thumbnails or analysis that no other run uses. Also delete any folders you exported their slides to. If you used a non-default `--cache DIR` for `run`, pass the same `--cache DIR` here. `ak14 delete` refuses anything that isn't a single run directory.
