@@ -30,8 +30,16 @@ Status: active (2026-09-26). The local iOS flow passed a simulator UI smoke test
 | 1 | T1 Landscape compositions (rest of Q2) | `w1-landscape` | `Sources/Core/Layout/*`, `CarouselAspect` inference, `Tests/CLITests/RenderE2ETests.swift` | Landscape singles and pairs get intentional tall-canvas arrangements (full-width band, stacked full-width pair) with crop ≤ 20% and no people cut; 4:5 is suggested when ≥ 60% of the selected photos are landscape; rerender is byte-identical; `swift test` passes | Running |
 | 1 | T2 iPhone reliability (P1-E) | `w1-ios-reliability` | `Sources/iOSApp/StoryPipeline.swift`, `ImportReviewView.swift` (progress and error states only) | iCloud-only originals download with progress and fail clearly offline; an interrupted generation leaves no half-written run and can be retried; per-run stage timings and model cost are saved; imported originals are removed when a run is deleted; the iOS simulator build succeeds | Running |
 | 1 | T3 Worker deploy readiness (P1-C) | `w1-worker` | `backend/worker/**` | Per-invite-token daily request and spend caps in KV; each call logs model, tokens and estimated cost; README deploy steps (`wrangler secret put`, KV namespace, invite tokens); `npm run check` passes | Running |
+| 2 | TE-1 Eval harness (taste engine) | `w2-eval` | new `Sources/Core/Taste/*`, `Sources/CLI/EvalCommand.swift`, `Arguments.swift` and `AK14Command.swift` (eval subcommand only), new `Tests/CLITests/EvalE2ETests.swift` | `ak14 eval pairs / label / import / score` work on fixture runs; the composer-only baseline score and 95% CI are reported; `swift test` passes | Scheduled 19:20 |
+| 3 | TE-2 Candidate pool and strips | `w3-candidates` | `Sources/Core/Compose/ComposerEngine.swift` (top-N API only), new `Sources/Render/StripRenderer.swift`, tests | N safe candidates per direction, deterministic strips | After TE-1 merges |
+| 3 | TE-4 iOS interaction logging | `w3-ios-events` | `Sources/iOSApp/*` event calls, UI test | Studio-equivalent events written in order on the simulator | After T2 merges |
+| 3 | TE-5 StylePack v2 (constitution, references, trend notes, judge config) | `w3-stylepack2` | `Core/Plan/StylePack.swift`, `Render/StyleConfigClient.swift`, `backend/worker/**`, planner prompt | old and new packs decode; pinning holds; Worker checks pass | After T3 merges |
+| 4 | TE-3 Judge stage | `w4-judge` | new `Director/Judge.swift`, `judge.system.md`, `Schemas.swift`, `ArtDirector.swift`, CLI eval config | FakeModel e2e; owner runs live `ak14 eval score` | After TE-2 |
+| 5 | TE-6 Preference memory, TE-7 references on iOS, TE-8 trend refresh | see spec §10 | see spec §10 | see spec §10 | After TE-3/4/5 |
 | 2 | Model-assisted flow on device through the deployed Worker | — | iOS settings and Worker URL | Needs the owner's Cloudflare login | Blocked on owner |
 | 2 | Taste calibration from the owner's picks on 2–3 events | — | Composer weights | Needs the owner's picks | Blocked on owner |
+
+Taste engine: [spec](superpowers/specs/2026-09-26-taste-engine-design.md). Task briefs are written when a task's dependencies have merged, so they describe the code as it actually is.
 
 ## iPhone interface direction
 
