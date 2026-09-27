@@ -4,6 +4,7 @@ final class ImportGenerateReviewUITests: XCTestCase {
     @MainActor
     func testImportGenerateAndReviewOptions() throws {
         let app = XCUIApplication()
+        app.launchArguments += ["-ak14.modelAssist", "NO"]   // deterministic on-device flow; no Worker in the simulator
         app.launch()
 
         let access = app.buttons["photosPermissionCTA"]
@@ -47,7 +48,6 @@ final class ImportGenerateReviewUITests: XCTestCase {
         review.tap()
         XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 60))
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'All '")).firstMatch.exists)
-        if app.switches["Use AI-assisted story planning"].exists { app.switches["Use AI-assisted story planning"].tap() }
 
         if app.buttons["allEventsChoice"].waitForExistence(timeout: 2) {
             let eventChoice = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'eventChoice-'" )).firstMatch
@@ -121,7 +121,7 @@ final class ImportGenerateReviewUITests: XCTestCase {
     @MainActor
     func testIncomingBatchOpensExactReview() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--seed-incoming-batch"]
+        app.launchArguments = ["--seed-incoming-batch", "-ak14.modelAssist", "NO"]
         app.launch()
         XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 30))
         XCTAssertTrue(app.staticTexts["All 3 photos will be used"].exists)

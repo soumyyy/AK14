@@ -59,7 +59,7 @@ final class ImportReviewModel {
     var importCompleted = 0
     var importTotal = 0
     private var importDuration: Double = 0
-    var modelAssist = UserDefaults.standard.object(forKey: "ak14.modelAssist") as? Bool ?? true
+    var modelAssist = UserDefaults.standard.object(forKey: "ak14.modelAssist") == nil ? true : UserDefaults.standard.bool(forKey: "ak14.modelAssist")
     var shareURLs: [URL] = []
     var sharePresented = false
     var showWorkerSettings = false
