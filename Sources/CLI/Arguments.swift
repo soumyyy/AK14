@@ -21,6 +21,7 @@ struct RunOptions: Equatable, Sendable {
     var story: String? = nil
     var exact: Bool = false
     var keepOrder: Bool = false
+    var judge: Bool? = nil
 }
 
 enum Command: Equatable {
@@ -67,7 +68,7 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
 enum Arguments {
     static let usage = """
     usage:
-      ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--exact [--keep-order]] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--event N | --all-events] [--story TEXT] [--runs DIR] [--cache DIR]
+      ak14 run <folder> [--study-code CODE] [--yes] [--slides 5-20] [--exact [--keep-order]] [--judge|--no-judge] [--no-llm] [--recursive] [--aspect auto|3:4|1:1|4:5] [--event N | --all-events] [--story TEXT] [--runs DIR] [--cache DIR]
       ak14 report <runDir>
       ak14 rerender <runDir> --source <folder> [--seed HEX] [--recompose]
       ak14 followup <runDir> --posted yes|no [--posted-days N] [--platform instagram|other] [--reused-another-event yes|no] [--link-seen yes|no]
@@ -225,6 +226,8 @@ enum Arguments {
                     guard v.count <= 280 else { throw ArgumentError.invalidStory(v) }
                     o.story = v
                 case "--no-llm": o.noLLM = true
+                case "--judge": o.judge = true
+                case "--no-judge": o.judge = false
                 case "--yes": o.assumeYes = true; o.consent = true
                 case "--study-code":
                     let v = try value()

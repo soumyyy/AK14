@@ -36,6 +36,9 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         let text: String
         switch (stage, behaviour) {
         case (_, .garbage), (_, .incomplete): text = "not json"
+        case ("judge", _):
+            let labels = Self.enumValues(schema["properties"]?["ranking"]?["items"])
+            text = #"{"ranking":[\#(labels.map { "\"\($0)\"" }.joined(separator: ","))],"reasons":["hierarchy"]}"#
         case ("triage", _), ("triage_repair", _):
             let ids = Self.enumValues(schema["properties"]?["results"]?["items"]?["properties"]?["id"])
             if flagCover { lock.withLock { flagged = Array(ids.prefix(3)) } }
@@ -126,7 +129,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     }
 }
 
-private func sceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {
+func directorSceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {
     let folder = try tmp.sub("trip")
     for i in 0..<count {
         var exif = FixtureFactory.Exif(); exif.date = String(format: "2026:05:29 %02d:10:00", 8 + i)
@@ -135,9 +138,11 @@ private func sceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {
     return folder
 }
 
-private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: Int? = nil) async throws -> RunStore {
+func directorRun(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: Int? = nil, judge: Bool = false) async throws -> RunStore {
     var o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
     o.slides = slides
+    o.allEvents = true
+    o.judge = judge ? true : nil
     let client = ResponsesClient(transport: model, sleep: { _ in })
     return try await RunPipeline.live(options: o, client: client, log: { _ in }).run(o)
 }
@@ -145,7 +150,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 @Test func happyPathProducesThreeConceptsAndPlainSlides() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let model = FakeModel()
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     #expect(m.directorStatus == "ok", "\(m.warnings)")
     #expect(model.stages == ["occasion_split", "triage", "planner"])
@@ -179,7 +184,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 @Test func invalidPlanTriggersRepairThenValid() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let model = FakeModel(["planner": [.duplicatePhoto]])
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     #expect(model.stages == ["occasion_split", "triage", "planner", "repair"])
     #expect(m.directorStatus == "ok")
@@ -188,7 +193,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 @Test func garbageEverywhereFallsBackToPlain() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let model = FakeModel(["planner": [.garbage], "repair": [.garbage], "retry": [.garbage]])
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: model, slides: 5)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model, slides: 5)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     #expect(model.stages == ["occasion_split", "triage", "planner", "repair", "retry"])
     #expect(m.directorStatus == "fallback")
@@ -201,7 +206,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 @Test func rateLimitIsRetriedAndRecorded() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let model = FakeModel(["triage": [.rateLimited]])
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     let triage = try #require(m.providerCalls.first { $0.stage == "triage" })
     #expect(triage.retryCount == 1)
@@ -210,8 +215,8 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 
 @Test func tinyFolderStillProducesAPlainDump() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
-    let folder = try sceneFolder(tmp, count: 3)
-    let store = try await run(tmp, folder: folder, model: FakeModel(["planner": [.garbage], "repair": [.garbage], "retry": [.garbage]]))
+    let folder = try directorSceneFolder(tmp, count: 3)
+    let store = try await directorRun(tmp, folder: folder, model: FakeModel(["planner": [.garbage], "repair": [.garbage], "retry": [.garbage]]))
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.baselineSlides.count == 3)
 }
@@ -221,7 +226,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 
 @Test func flaggedCoverIsNeverRendered() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(flagCover: true))
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: FakeModel(flagCover: true))
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     let flagged = Set(d.triage.filter { !$0.value.safety.isEmpty }.keys)
     #expect(flagged.count == 3)
@@ -233,7 +238,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 @Test func failedFirstPlannerCallIsRetriedAndBilled() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let model = FakeModel(["planner": [.incomplete]])
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: model)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
     let m = try store.read(RunManifest.self, from: "manifest.json")
     #expect(model.stages == ["occasion_split", "triage", "planner", "retry"])
     let failed = try #require(m.providerCalls.first { $0.stage == "planner" })
@@ -244,7 +249,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 
 @Test func requestedSlideCountIsEnforced() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(), slides: 5)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: FakeModel(), slides: 5)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect((d.spine?.orderedAssetIDs.count ?? 99) <= 5)
     #expect(d.plans.allSatisfy { $0.slides.count <= 5 })
@@ -253,7 +258,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 @Test func invalidSpineLeavesOnlyTheBaseline() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     // 6-photo spine against a 5-slide request stays invalid through repair and retry.
-    let store = try await run(tmp, folder: try sceneFolder(tmp), model: FakeModel(), slides: 5)
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: FakeModel(), slides: 5)
     let d = try store.read(ConceptsReport.self, from: "plans/director.json")
     #expect(d.status == "fallback")
     #expect(d.plans.map(\.id) == ["baseline"])
@@ -261,7 +266,7 @@ private func run(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
 
 @Test func oldManifestsStillOpenInReport() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
-    let folder = try sceneFolder(tmp, count: 2)
+    let folder = try directorSceneFolder(tmp, count: 2)
     let o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"),
                        cacheDirectory: tmp.url.appending(path: "cache"), noLLM: true)
     let store = try await RunPipeline.live(options: o, log: { _ in }).run(o)

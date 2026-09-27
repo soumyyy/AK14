@@ -15,7 +15,7 @@ let package = Package(
     targets: [
         .target(name: "Core"),
         .target(name: "Analysis", dependencies: ["Core"]),
-        .target(name: "Director", dependencies: ["Core"], resources: [.copy("Resources/Prompts")]),
+        .target(name: "Director", dependencies: ["Core", "Render"], resources: [.copy("Resources/Prompts")]),
         .target(name: "Render", dependencies: ["Core"], resources: [.copy("Resources/StylePacks"), .copy("Resources/Assets")]),
         .target(name: "Session", dependencies: ["Core", "Render"]),
         .executableTarget(name: "CLI", dependencies: ["Core", "Analysis", "Director", "Render", "Session"]),

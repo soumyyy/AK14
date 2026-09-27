@@ -2,6 +2,13 @@ import Core
 
 /// Strict JSON schemas. Candidate IDs and decoration IDs are enums so the model cannot invent them.
 enum Schemas {
+    static let judgeReasons = ["hierarchy", "rhythm", "cover", "whitespace", "colour-harmony", "energy", "story-fit", "variety"]
+
+    static func judge(labels: [String]) -> JSONValue {
+        .obj([("ranking", .arr(.str(labels), min: labels.count, max: labels.count)),
+              ("reasons", .arr(.str(judgeReasons), min: 1, max: 8))])
+    }
+
     static let triageTags = ["people", "group", "selfie", "food", "drink", "sign", "text", "venue", "detail", "landscape",
                              "architecture", "night", "flash", "motion", "mirror", "animal", "vehicle", "nature", "celebration",
                              "candid", "characterful", "gesture", "portrait", "personality"]

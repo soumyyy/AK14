@@ -3,7 +3,7 @@ import styleConfig from "./style-config.json" with { type: "json" };
 const encoder = new TextEncoder();
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_IMAGE_PARTS = 100;
-const ALLOWED_SCHEMAS = new Set(["triage", "triage_repair", "planner", "repair", "retry", "occasion_split"]);
+const ALLOWED_SCHEMAS = new Set(["triage", "triage_repair", "planner", "repair", "retry", "occasion_split", "judge"]);
 const EVENT_NAMES = new Set(["app_opened", "moment_suggested", "generation_started", "generation_completed", "generation_failed", "option_selected", "editor_opened", "design_exported", "carousel_shared", "carousel_saved", "onboarding_completed", "paywall_viewed"]);
 const FUNNEL = ["generation_started", "generation_completed", "option_selected", ["design_exported", "carousel_shared", "carousel_saved"]];
 
