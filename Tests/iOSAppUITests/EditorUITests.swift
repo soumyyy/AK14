@@ -37,7 +37,8 @@ final class EditorUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS 'doodle-star'")).firstMatch.tap()
         let layer = app.otherElements.matching(NSPredicate(format: "label CONTAINS 'Text: Munnar' OR label == 'Sticker layer'" )).firstMatch
         XCTAssertTrue(layer.waitForExistence(timeout: 5))
-        layer.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.6)))
+        layer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.6)))
         app.buttons["Undo"].tap(); app.buttons["Redo"].tap()
         app.buttons["Save to Photos"].tap()
         XCTAssertTrue(app.alerts["Saved to Photos"].waitForExistence(timeout: 90))

@@ -1569,7 +1569,7 @@ private struct SlidePreview: View {
     }
 }
 
-private struct ActivityShareSheet: UIViewControllerRepresentable {
+struct ActivityShareSheet: UIViewControllerRepresentable {
     let items: [URL]
     let onCompletion: @MainActor (UIActivity.ActivityType?, Bool) -> Void
     func makeUIViewController(context: Context) -> UIActivityViewController {

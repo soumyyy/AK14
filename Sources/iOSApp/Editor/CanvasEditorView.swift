@@ -19,32 +19,8 @@ struct CanvasEditorView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                HStack {
-                    Button("Undo", systemImage: "arrow.uturn.backward") { model.undo() }.disabled(!model.canUndo)
-                    Button("Redo", systemImage: "arrow.uturn.forward") { model.redo() }.disabled(!model.canRedo)
-                    Spacer()
-                    Text("Slide \(model.visibleSlide + 1) of \(model.document.slideCount)").font(.subheadline)
-                }.padding(.horizontal).padding(.vertical, 10)
-                GeometryReader { geo in
-                    let slideW = geo.size.height * Double(model.document.aspect.exportWidth) / Double(model.document.aspect.exportHeight)
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 0) {
-                            ForEach(0..<model.document.slideCount, id: \.self) { index in
-                                ZStack(alignment: .topLeading) {
-                                    Rectangle().fill(Color(hex: backgroundColour(index)))
-                                    ForEach(model.document.layers(onSlide: index), id: \.id) { layer in
-                                        layerView(layer, slide: index, width: slideW * CGFloat(model.document.slideCount), height: geo.size.height)
-                                    }
-                                    Rectangle().stroke(Color.primary.opacity(0.35), lineWidth: 1).allowsHitTesting(false)
-                                    Text("\(index + 1)").font(.caption).padding(5).background(.regularMaterial, in: Capsule()).padding(7).accessibilityHidden(true)
-                                }
-                                .frame(width: slideW, height: geo.size.height)
-                                .overlay(alignment: .trailing) { Rectangle().fill(.white.opacity(0.9)).frame(width: 2) }
-                                .contentShape(Rectangle()).onTapGesture { model.visibleSlide = index }
-                            }
-                        }
-                    }.scrollIndicators(.hidden)
-                }.padding(.vertical, 10)
+                header
+                canvasArea
                 toolbar
             }
             .navigationTitle("Edit design").navigationBarTitleDisplayMode(.inline)
@@ -59,6 +35,48 @@ struct CanvasEditorView: View {
                 Button("OK", role: .cancel) { model.alert = nil }
             } message: { Text(model.alert ?? "") }
             .sheet(isPresented: $sharePresented) { ActivityShareSheet(items: shareItems) { _, _ in } }
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            Button("Undo", systemImage: "arrow.uturn.backward") { model.undo() }.disabled(!model.canUndo)
+            Button("Redo", systemImage: "arrow.uturn.forward") { model.redo() }.disabled(!model.canRedo)
+            Spacer()
+            Text("Slide \(model.visibleSlide + 1) of \(model.document.slideCount)").font(.subheadline)
+        }.padding(.horizontal).padding(.vertical, 10)
+    }
+
+    private var canvasArea: some View {
+        GeometryReader { (geo: GeometryProxy) -> AnyView in
+            let slideW: CGFloat = geo.size.height * CGFloat(self.model.document.aspect.exportWidth) / CGFloat(self.model.document.aspect.exportHeight)
+            let content = ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    ForEach(0..<self.model.document.slideCount, id: \.self) { (index: Int) in
+                        self.slideCell(index: index, slideWidth: slideW, height: geo.size.height)
+                    }
+                }
+            }.scrollIndicators(.hidden)
+            return AnyView(content)
+        }.padding(.vertical, 10)
+    }
+
+    private func slideCell(index: Int, slideWidth: CGFloat, height: CGFloat) -> some View {
+        let totalWidth = slideWidth * CGFloat(model.document.slideCount)
+        return ZStack(alignment: .topLeading) {
+            Rectangle().fill(Color(hex: backgroundColour(index)))
+            slideLayers(index: index, totalWidth: totalWidth, height: height)
+            Rectangle().stroke(Color.primary.opacity(0.35), lineWidth: 1).allowsHitTesting(false)
+            Text("\(index + 1)").font(.caption).padding(5).background(.regularMaterial, in: Capsule()).padding(7).accessibilityHidden(true)
+        }
+        .frame(width: slideWidth, height: height)
+        .overlay(alignment: .trailing) { Rectangle().fill(.white.opacity(0.9)).frame(width: 2) }
+        .contentShape(Rectangle()).onTapGesture { model.visibleSlide = index }
+    }
+
+    private func slideLayers(index: Int, totalWidth: CGFloat, height: CGFloat) -> some View {
+        ForEach(model.document.layers(onSlide: index), id: \.id) { (layer: DocumentLayer) in
+            layerView(layer, slide: index, width: totalWidth, height: height)
         }
     }
 
