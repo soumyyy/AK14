@@ -42,6 +42,25 @@ public enum LayoutResolver {
                                 slides: slides)
     }
 
+    /// Which planned slides `resolve` would place on an imported template, without laying out the others.
+    /// Template placement reads only the plan, the context and the templates already used, never the primitive
+    /// path's state, so this matches `resolve` exactly at a fraction of the cost.
+    static func templateHosted(_ plan: CarouselPlan, context: LayoutContext) -> [Bool] {
+        var hosted = Array(repeating: false, count: plan.slides.count)
+        guard !plan.isBaseline && !context.vocabulary.isEmpty else { return hosted }
+        var usedTemplateIDs = Set<String>()
+        var index = 0
+        while index < plan.slides.count {
+            if let placed = TemplateVocabulary.place(plan: plan, start: index, context: context, usedTemplateIDs: &usedTemplateIDs) {
+                for offset in placed.indices { hosted[index + offset] = true }
+                index += placed.count
+            } else {
+                index += 1
+            }
+        }
+        return hosted
+    }
+
     static func applyGrade(_ slides: [ResolvedSlide], plan: CarouselPlan, features: [AssetID: PhotoFeatures]) -> [ResolvedSlide] {
         var seen = Set<AssetID>()
         let photoIDs = plan.photoAssetIDs.filter { seen.insert($0).inserted }

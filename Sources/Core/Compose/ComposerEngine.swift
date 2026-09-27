@@ -264,13 +264,12 @@ public enum ComposerEngine {
         // Each pass adds slides, so this ends.
         var plan = plan
         while plan.slides.contains(where: { $0.photos.count > 1 }) {
-            let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+            let hosted = LayoutResolver.templateHosted(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: seed, vocabulary: context.vocabulary))
             var groups: [[AssetID]] = [], split = false
             for (index, slide) in plan.slides.enumerated() {
                 let ids = slide.photos.map(\.assetID)
-                let hosted = layout.slides.indices.contains(index) && layout.slides[index].variant?.hasPrefix("template.") == true
-                if ids.count > 1 && !hosted { groups += ids.map { [$0] }; split = true } else { groups.append(ids) }
+                if ids.count > 1 && !hosted[index] { groups += ids.map { [$0] }; split = true } else { groups.append(ids) }
             }
             guard split, groups.count <= max(1, min(context.maxSlides ?? 20, 20)) else { return plan }
             plan = build(groups, id: plan.id, direction: d, context: context, rng: &rng)
