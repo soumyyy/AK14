@@ -82,6 +82,10 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
 /// This deliberately has no bundled fallback. Callers choose offline behavior explicitly by
 /// catching an error and then calling `StylePackLoader.load()` if that is appropriate.
 public enum StyleConfigClient {
+    /// Config versions this build understands. The Worker must serve one of these (checked by WorkerConfigE2ETests),
+    /// because shipped apps cannot be updated when the server moves on.
+    public static let supportedConfigVersions: ClosedRange<Int> = 1...1
+
     public static func fetch(from url: URL, session: URLSession = .shared) async throws -> LoadedStylePack {
         let scheme = url.scheme?.lowercased() ?? ""
         let host = url.host?.lowercased() ?? ""
@@ -99,7 +103,7 @@ public enum StyleConfigClient {
         do { config = try JSONDecoder().decode(StyleConfigDocument.self, from: data) }
         catch { throw StyleConfigError.invalidResponse }
 
-        guard config.configVersion == 1 else { throw StyleConfigError.unsupportedConfigVersion(config.configVersion) }
+        guard supportedConfigVersions.contains(config.configVersion) else { throw StyleConfigError.unsupportedConfigVersion(config.configVersion) }
         guard isValidID(config.activeStylePack) else { throw StyleConfigError.invalidActiveStylePackID(config.activeStylePack) }
         let matches = config.stylePacks.filter { $0.id == config.activeStylePack }
         guard matches.count == 1 else { throw StyleConfigError.missingOrDuplicateActivePack(config.activeStylePack) }
