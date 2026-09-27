@@ -21,6 +21,8 @@ targets:
         product: Director
       - package: AK14
         product: Render
+      - target: AK14ShareExtension
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ak14.app
@@ -32,6 +34,23 @@ targets:
         SWIFT_VERSION: 6.0
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
+        DEVELOPMENT_TEAM: 4W769MPDJ6
+        CODE_SIGN_ENTITLEMENTS: AK14iOS.entitlements
+  AK14ShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../Sources/ShareExtension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ak14.app.share
+        PRODUCT_NAME: AK14 Share
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: ShareExtension-Info.plist
+        SWIFT_VERSION: 6.0
+        TARGETED_DEVICE_FAMILY: "1,2"
+        DEVELOPMENT_TEAM: 4W769MPDJ6
+        CODE_SIGN_ENTITLEMENTS: AK14ShareExtension.entitlements
   AK14iOSUITests:
     type: bundle.ui-testing
     platform: iOS

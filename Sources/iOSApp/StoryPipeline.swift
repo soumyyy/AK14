@@ -32,6 +32,7 @@ struct StoryPipeline: Sendable {
              eventAssetIDs: Set<AssetID>? = nil, storyHint: String? = nil,
              eventSegments: [EventSegment]? = nil,
              occasionResult: OccasionSplitter.Result? = nil,
+             exactSet: Bool = false, keepOrder: Bool = false,
              progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> [StoryOption] {
         let clock = ContinuousClock()
         var timings: [StageTiming] = []
@@ -40,9 +41,9 @@ struct StoryPipeline: Sendable {
         let ingest = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
         timings.append(StageTiming(stage: "import", seconds: importDuration + (clock.now - stageStart).seconds))
         guard !ingest.photos.isEmpty else { throw PipelineFailure.noPhotos }
-        let events = eventSegments ?? EventSegmenter.segment(ingest.photos)
+        let events = exactSet ? [] : (eventSegments ?? EventSegmenter.segment(ingest.photos))
         let chosenEvent = eventAssetIDs.flatMap { ids in events.first { Set($0.assetIDs) == ids }?.index }
-        let photos = eventAssetIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos
+        let photos = exactSet ? ingest.photos : (eventAssetIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos)
         guard !photos.isEmpty else { throw PipelineFailure.noPhotos }
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
         let support = try Self.applicationSupport()
@@ -74,7 +75,11 @@ struct StoryPipeline: Sendable {
         let features = Dictionary(uniqueKeysWithValues: featuresList.map { ($0.assetID, $0) })
         let index = FeaturePrintIndex(cacheRoot: cacheRoot, features: features)
         var reduction = ReductionResult.reduce(photos: photos, features: features, distance: index.distance)
-        guard !reduction.shortlist.isEmpty else { throw PipelineFailure.noUsablePhotos }
+        if exactSet {
+            let ranked = Dictionary(uniqueKeysWithValues: reduction.ranked.map { ($0.assetID, $0) })
+            reduction.shortlist = photos.compactMap { ranked[$0.assetID] }
+        }
+        guard exactSet || !reduction.shortlist.isEmpty else { throw PipelineFailure.noUsablePhotos }
         timings.append(StageTiming(stage: "reduction", seconds: (clock.now - stageStart).seconds))
 
         let loadedStylePack = try await stylePackProvider?()
@@ -101,54 +106,59 @@ struct StoryPipeline: Sendable {
         stageStart = clock.now
         if modelAssist, let client = responsesClient {
             progress("Preparing a private photo summary for the model…")
-            let candidates = reduction.triageCandidates(photos: photos, features: features)
-            let triageURLs = try thumbnailerURLs(candidates, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
+            let candidates = exactSet ? [] : reduction.triageCandidates(photos: photos, features: features)
+            let candidateIDs = exactSet ? photos.map(\.assetID) : candidates.map(\.assetID)
+            let triageURLs = try thumbnailerURLs(candidateIDs, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
                                                  tier: .triage, progressName: "Preparing triage thumbnails", progress: progress)
-            let planningURLs = try thumbnailerURLs(candidates, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
+            let planningURLs = try thumbnailerURLs(candidateIDs, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
                                                    tier: .planning, progressName: "Preparing planning thumbnails", progress: progress)
-            let eventStart = candidates.compactMap { photoByID[$0.assetID]?.metadata.capturedAt }.min()
-            let cards = candidates.map { candidate -> CandidateCard in
-                let photo = photoByID[candidate.assetID]
+            let eventStart = candidateIDs.compactMap { photoByID[$0]?.metadata.capturedAt }.min()
+            let cards = candidateIDs.compactMap { id -> CandidateCard? in
+                guard let photo = photoByID[id] else { return nil }
                 let relativeDay: String
-                if let date = photo?.metadata.capturedAt, let start = eventStart {
+                if let date = photo.metadata.capturedAt, let start = eventStart {
                     relativeDay = "day \(max(1, Int(date.timeIntervalSince(start) / 86_400) + 1))"
                 } else { relativeDay = "day unknown" }
-                let summary = [photo?.orientation.rawValue ?? "unknown orientation", relativeDay,
-                               features[candidate.assetID]?.labels.prefix(3).map(\.identifier).joined(separator: ", ")]
+                let summary = [photo.orientation.rawValue, relativeDay,
+                    features[id]?.labels.prefix(3).map(\.identifier).joined(separator: ", ")]
                     .compactMap { $0 }.joined(separator: " · ")
-                return CandidateCard(assetID: candidate.assetID, summary: summary,
-                                     capturedAt: photo?.metadata.capturedAt,
-                                     triageJPEG: triageURLs[candidate.assetID].flatMap { try? Data(contentsOf: $0) },
-                                     planningJPEG: planningURLs[candidate.assetID].flatMap { try? Data(contentsOf: $0) })
+                return CandidateCard(assetID: id, summary: summary,
+                                     capturedAt: photo.metadata.capturedAt,
+                                     triageJPEG: triageURLs[id].flatMap { try? Data(contentsOf: $0) },
+                                     planningJPEG: planningURLs[id].flatMap { try? Data(contentsOf: $0) })
             }
             let poolCount = min(candidates.count, max(8, min(30, candidates.count / 2)))
             let reductionConfig = reduction.config
             let candidatePhotos = photoByID
             let poolSelector: @Sendable ([AssetID: TriageScore]) -> [AssetID] = { triage in
-                DiversitySelector.selectPlanningPool(ranked: candidates, triage: triage, target: poolCount,
+                if exactSet { return keepOrder ? photos.map(\.assetID) : candidateIDs }
+                return DiversitySelector.selectPlanningPool(ranked: candidates, triage: triage, target: poolCount,
                                                      photos: candidatePhotos, features: features, distance: index.distance,
                                                      config: reductionConfig).map(\.assetID)
             }
             let dateSpan: String
-            let dates = candidates.compactMap { photoByID[$0.assetID]?.metadata.capturedAt }
+            let dates = candidateIDs.compactMap { photoByID[$0]?.metadata.capturedAt }
             if let first = dates.min(), let last = dates.max() {
                 let days = Int(last.timeIntervalSince(first) / 86_400) + 1
                 dateSpan = days == 1 ? "a single day" : "\(days) days"
             } else { dateSpan = "duration unknown" }
             let context = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:],
-                                             flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil)
+                                             flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil,
+                                             exactSet: exactSet, keepOrder: keepOrder)
             progress("Building options…")
-            let output = await ArtDirector(client: client, stylePack: stylePack).direct(
-                DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
+            var directorInput = DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
                               shortlist: cards, selectPool: poolSelector, composition: context, runID: runID,
                               storyHint: modelAssist ? storyHint : nil,
-                              allowMultiEventRecap: eventSegments.map { $0.count > 1 } == true && eventAssetIDs == nil))
+                              allowMultiEventRecap: !exactSet && eventSegments.map { $0.count > 1 } == true && eventAssetIDs == nil,
+                              exactSet: exactSet, keepOrder: keepOrder)
+            if exactSet { directorInput.maxPlanningImages = cards.count }
+            let output = await ArtDirector(client: client, stylePack: stylePack).direct(directorInput)
             guard !output.plans.isEmpty else { throw PipelineFailure.directorProducedNoPlans }
             providerCalls += output.calls
-            let adjusted = CandidateRanker.applyTriage(candidates, triage: output.triage, config: reductionConfig)
+            let adjusted = exactSet ? [] : CandidateRanker.applyTriage(candidates, triage: output.triage, config: reductionConfig)
             let adjustedByID = Dictionary(uniqueKeysWithValues: adjusted.map { ($0.assetID, $0) })
             reduction.planningPool = output.pool.compactMap { adjustedByID[$0] }
-            reduction.funnel.shortlisted = candidates.count
+            reduction.funnel.shortlisted = candidateIDs.count
             reduction.funnel.triaged = output.triage.count
             reduction.funnel.planningPool = output.pool.count
             plans = output.plans
@@ -161,7 +171,10 @@ struct StoryPipeline: Sendable {
             generationMode = output.plans.contains { !$0.isBaseline } ? .modelDirected : .photosOnly
         } else {
             progress("Composing local options…")
-            let ordered = reduction.shortlist.map(\.assetID).prefix(10).map { $0 }
+            let exactRankedIDs = reduction.ranked.map(\.assetID)
+            let rankedThenRemaining = exactRankedIDs + photos.map(\.assetID).filter { !Set(exactRankedIDs).contains($0) }
+            let ordered = exactSet ? (keepOrder ? photos.map(\.assetID) : rankedThenRemaining)
+                : Array(reduction.shortlist.map(\.assetID).prefix(10))
             let spine = SelectionSpine(orderedAssetIDs: ordered,
                                        sequenceIntent: ordered.indices.map { index in
                                            index == 0 ? .opener : index == ordered.count - 1 ? .closer : .build
@@ -169,7 +182,7 @@ struct StoryPipeline: Sendable {
                                        rationale: [])
             let context = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:],
                                              flagged: [], sequenceIntent: Dictionary(uniqueKeysWithValues: zip(ordered, spine.sequenceIntent)),
-                                             stylePack: stylePack, maxSlides: nil)
+                                             stylePack: stylePack, maxSlides: nil, exactSet: exactSet, keepOrder: keepOrder)
             let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: runID)
             plans = set.plans
             timings.append(StageTiming(stage: "director", seconds: 0))
@@ -222,6 +235,7 @@ struct StoryPipeline: Sendable {
         timings.append(StageTiming(stage: "render", seconds: (clock.now - stageStart).seconds))
         var manifest = RunManifest(runID: runID, createdAt: Date(), sourceFolderLabel: folder.lastPathComponent)
         manifest.photoCount = photos.count
+        manifest.exactSet = exactSet
         manifest.events = events.map(EventSegmentSummary.init)
         manifest.chosenEvent = chosenEvent
         manifest.storyHint = storyHint
@@ -262,16 +276,16 @@ struct StoryPipeline: Sendable {
         }
     }
 
-    private func thumbnailerURLs(_ candidates: [RankedCandidate], photos: [AssetID: PhotoRecord], folder: URL,
+    private func thumbnailerURLs(_ candidateIDs: [AssetID], photos: [AssetID: PhotoRecord], folder: URL,
                                  thumbnailer: Thumbnailer, tier: ThumbnailTier, progressName: String,
                                  progress: @escaping @Sendable (String) -> Void) throws -> [AssetID: URL] {
         var result: [AssetID: URL] = [:]
-        for (offset, candidate) in candidates.enumerated() {
+        for (offset, id) in candidateIDs.enumerated() {
             try Task.checkCancellation()
-            guard let photo = photos[candidate.assetID] else { continue }
+            guard let photo = photos[id] else { continue }
             let source = folder.appending(path: photo.sourceRelativePaths[0])
-            result[candidate.assetID] = try? thumbnailer.thumbnail(sha: photo.contentSHA256, source: source, tier: tier)
-            progress("\(progressName) · \(offset + 1) of \(candidates.count)")
+            result[id] = try? thumbnailer.thumbnail(sha: photo.contentSHA256, source: source, tier: tier)
+            progress("\(progressName) · \(offset + 1) of \(candidateIDs.count)")
         }
         return result
     }
