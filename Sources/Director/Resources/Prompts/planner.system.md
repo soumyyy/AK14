@@ -33,7 +33,7 @@ Direction rules:
   - rotation: none, some (photos slightly tilted, like prints)
   - whitespace: tight (photos reach the edges), airy (generous margins)
 - coverAssetID: the photo that opens this direction. It must be in orderedAssetIDs and must not be a socially flagged photo of someone else when an alternative exists.
-- orderedAssetIDs: the photos of this direction in story order. Usually the spine; you may drop a weak one or add a few candidates that suit this direction. Never repeat a photo.
+- orderedAssetIDs: the photos of this direction in story order. Each direction is its own edit of the event, not a reshuffle of the spine: give it an angle (for example the people, the place and its atmosphere, the day as it happened, or the small details) and choose the candidates that tell that angle best. When the pool allows, at least a third of a direction's photos must differ from every other direction's photos, and no two directions may use the same photos in the same order. Never repeat a photo within a direction. (Exact sets and preserved order are the exception: there every direction uses exactly the supplied photos.)
 - keepTogether: optional groups of 2-4 photos that belong on the same slide (a sequence, a pair that answers each other). Use an empty list when none.
 - emphasisAssetIDs: optional photos that deserve a slide of their own. Use an empty list when none.
 - Page grammar the layout engine already knows. Describe the story so it can use this. Do not name a template or give coordinates.

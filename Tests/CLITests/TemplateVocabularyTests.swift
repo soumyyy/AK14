@@ -339,3 +339,17 @@ import Testing
                          crossesSeam: crosses, roleHint: role)
     }
 }
+
+@Test func placeholderTitleIdeasNeverReachASlide() throws {
+    for placeholder in ["null", "None", " n/a ", "Untitled"] {
+        let direction = Direction(brief: "b", style: .baseline, coverAssetID: AssetID(rawValue: "a"),
+                                  orderedAssetIDs: [AssetID(rawValue: "a")], titleIdea: placeholder)
+        #expect(direction.titleIdea == nil, "\(placeholder) survived as a title")
+        let decoded = try JSONDecoder().decode(Direction.self, from: JSONEncoder().encode(direction))
+        #expect(decoded.titleIdea == nil)
+    }
+    let json = #"{"brief":"b","style":{"density":"balanced","overlap":"none","grouping":"single","decoration":"none","rotation":"none","whitespace":"tight"},"coverAssetID":"a","orderedAssetIDs":["a"],"titleIdea":"null"}"#
+    #expect(try JSONDecoder().decode(Direction.self, from: Data(json.utf8)).titleIdea == nil)
+    #expect(Direction(brief: "b", style: .baseline, coverAssetID: AssetID(rawValue: "a"), orderedAssetIDs: [AssetID(rawValue: "a")],
+                      titleIdea: "Up in the clouds").titleIdea == "Up in the clouds")
+}

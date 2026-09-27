@@ -149,6 +149,10 @@ public enum ComposerEngine {
             return a.coverAssetID != b.coverAssetID
         }
         guard PlanMetrics.diversity(a, b).passes else { return false }
+        // The same photos in a different order still reads as one option to the owner.
+        let photosA = Set(a.photoAssetIDs), photosB = Set(b.photoAssetIDs)
+        let overlap = Double(photosA.intersection(photosB).count) / Double(max(1, photosA.union(photosB).count))
+        if !context.exactSet && overlap > 0.7 && context.photos.count > photosA.union(photosB).count { return false }
         guard !context.vocabulary.isEmpty else { return true }
         let familiesA = templateFamilies(a, context: context).subtracting(["layouts"])
         let familiesB = templateFamilies(b, context: context).subtracting(["layouts"])

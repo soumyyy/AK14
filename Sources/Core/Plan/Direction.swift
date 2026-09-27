@@ -81,6 +81,16 @@ public struct Direction: Codable, Sendable, Equatable {
                 keepTogether: [[AssetID]] = [], emphasisAssetIDs: [AssetID] = [], seamless: Bool = false, titleIdea: String? = nil) {
         self.brief = brief; self.style = style; self.coverAssetID = coverAssetID; self.orderedAssetIDs = orderedAssetIDs
         self.keepTogether = keepTogether; self.emphasisAssetIDs = emphasisAssetIDs
-        self.seamless = seamless; self.titleIdea = titleIdea.map { String($0.prefix(40)) }
+        self.seamless = seamless; self.titleIdea = Self.cleanTitle(titleIdea)
+    }
+}
+
+extension Direction {
+    /// Models sometimes write a placeholder instead of JSON null. Such a word must never reach a slide.
+    static func cleanTitle(_ raw: String?) -> String? {
+        guard let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        let placeholders: Set<String> = ["null", "nil", "none", "n/a", "na", "untitled", "no title", "title"]
+        guard !placeholders.contains(text.lowercased()) else { return nil }
+        return String(text.prefix(40))
     }
 }
