@@ -167,6 +167,29 @@ final class EditorModel {
         }
     }
 
+    func adjust(_ id: String, _ adjustments: PhotoAdjustments) {
+        guard document.layers.contains(where: { $0.id == id && $0.kind == .photo }) else { return }
+        change("photo_adjusted", layerID: id) { doc in
+            guard let index = doc.layers.firstIndex(where: { $0.id == id }), doc.layers[index].kind == .photo else { return }
+            doc.layers[index].adjustments = adjustments
+        }
+    }
+
+    func applyLookToAll(from id: String) {
+        guard let source = document.layers.first(where: { $0.id == id && $0.kind == .photo }) else { return }
+        let look = source.adjustments ?? PhotoAdjustments()
+        change("look_applied_all", layerID: id) { doc in
+            for index in doc.layers.indices where doc.layers[index].kind == .photo {
+                var next = doc.layers[index].adjustments ?? PhotoAdjustments()
+                next.exposure = look.exposure
+                next.contrast = look.contrast
+                next.warmth = look.warmth
+                next.saturation = look.saturation
+                doc.layers[index].adjustments = next
+            }
+        }
+    }
+
     var canEditSlidesSafely: Bool { !document.seamless && !hasSeamCrossingLayers }
     var selectedPhotoEditingSafe: Bool { selectedLayer?.kind == .photo && !document.seamless }
 

@@ -15,6 +15,9 @@ struct CanvasEditorView: View {
     @State private var cropSession: CropSession?
     @State private var cropGestureStart: UnitRect?
     @State private var cropImage: UIImage?
+    @State private var adjustDraft: AdjustDraft?
+    @State private var adjustDragging = false
+    @State private var adjustCommitTask: Task<Void, Never>?
 
     init(option: StoryOption, records: [PhotoRecord]) throws {
         _model = State(initialValue: try EditorModel(option: option, records: records))
@@ -53,6 +56,7 @@ struct CanvasEditorView: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Slide \(page + 1) of \(model.document.slideCount)")
                     }
+                    adjustmentPanel
                 }
                 .frame(width: pageWidth, height: pageHeight)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -76,6 +80,18 @@ struct CanvasEditorView: View {
             model.selectedLayerID = nil
             transformPreview = nil
             cropSession = nil
+            adjustDraft = nil
+            adjustDragging = false
+        }
+        .onChange(of: model.selectedLayerID) { _, id in
+            if adjustDraft?.layerID != id {
+                adjustDraft = nil
+                adjustDragging = false
+            }
+        }
+        .onChange(of: adjustmentSignature) { _, _ in
+            guard !adjustDragging else { return }
+            scheduleAdjustCommit()
         }
         .sensoryFeedback(.selection, trigger: page)
         .alert("Design", isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })) {
@@ -192,6 +208,8 @@ struct CanvasEditorView: View {
 
     private func beginCrop(for layer: DocumentLayer) {
         guard layer.kind == .photo, !model.document.seamless else { return }
+        adjustDraft = nil
+        adjustDragging = false
         let crop = layer.crop ?? UnitRect(x: 0, y: 0, width: 1, height: 1)
         cropSession = CropSession(layerID: layer.id, originalCrop: crop, crop: crop)
         cropImage = nil
@@ -222,17 +240,24 @@ struct CanvasEditorView: View {
             if let cropSession, cropSession.layerID == layer.id {
                 cropOverlay(layer: layer, crop: cropSession.crop, frame: baseFrame, size: size)
             } else {
-                transformOverlay(layer: layer, frame: localFrame, size: size)
+                let wash = liveWash(for: layer)
+                transformOverlay(layer: layer, frame: localFrame, size: size, wash: wash)
                     .gesture(transformGesture(size: size))
                     .simultaneousGesture(TapGesture(count: 2).onEnded { beginCrop(for: layer) })
             }
         }
     }
 
-    private func transformOverlay(layer: DocumentLayer, frame: CGRect, size: CGSize) -> some View {
+    private func transformOverlay(layer: DocumentLayer, frame: CGRect, size: CGSize, wash: PhotoAdjustments?) -> some View {
         let previewing = transformPreview?.layerID == layer.id
         let rotation = transformPreview?.rotation ?? layer.rotation
         return ZStack {
+            if let wash {
+                AdjustmentWash(adjustments: wash)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
             RoundedRectangle(cornerRadius: 5, style: .continuous)
                 .fill(previewing ? AK14Palette.accent.opacity(0.13) : .clear)
             if previewing {
@@ -291,6 +316,16 @@ struct CanvasEditorView: View {
                 Label(layer.kind == .photo ? "Photo" : "Text", systemImage: layer.kind == .photo ? "photo" : "textformat")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
+                if layer.kind == .photo {
+                    Button {
+                        toggleAdjust(for: layer)
+                    } label: {
+                        Label("Adjust", systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("adjustPhotoButton")
+                }
             }
             if layer.kind == .text {
                 HStack {
@@ -383,6 +418,115 @@ struct CanvasEditorView: View {
         }
     }
 
+    @ViewBuilder
+    private var adjustmentPanel: some View {
+        if let draft = adjustDraft, cropSession == nil, model.selectedLayer?.id == draft.layerID {
+            PhotoAdjustPanel(
+                exposure: adjustBinding(\.exposure),
+                contrast: adjustBinding(\.contrast),
+                warmth: adjustBinding(\.warmth),
+                saturation: adjustBinding(\.saturation),
+                onEditingChanged: sliderEditing(_:),
+                onReset: resetAdjustments,
+                onApplyAll: applyLookFromDraft
+            )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private var adjustmentSignature: String {
+        guard let draft = adjustDraft else { return "" }
+        return "\(draft.layerID)|\(draft.exposure)|\(draft.contrast)|\(draft.warmth)|\(draft.saturation)"
+    }
+
+    private func adjustBinding(_ keyPath: WritableKeyPath<AdjustDraft, Double>) -> Binding<Double> {
+        Binding {
+            adjustDraft?[keyPath: keyPath] ?? 0
+        } set: { newValue in
+            guard var draft = adjustDraft else { return }
+            draft[keyPath: keyPath] = newValue
+            adjustDraft = draft
+        }
+    }
+
+    private func toggleAdjust(for layer: DocumentLayer) {
+        if adjustDraft?.layerID == layer.id {
+            adjustDraft = nil
+            adjustDragging = false
+            return
+        }
+        let current = layer.adjustments ?? PhotoAdjustments()
+        adjustDragging = false
+        adjustDraft = AdjustDraft(
+            layerID: layer.id,
+            exposure: current.exposure,
+            contrast: current.contrast,
+            warmth: current.warmth,
+            saturation: current.saturation,
+            grain: current.grain,
+            filmLook: current.filmLook
+        )
+    }
+
+    private func sliderEditing(_ editing: Bool) {
+        adjustDragging = editing
+        adjustCommitTask?.cancel()
+        adjustCommitTask = nil
+        if !editing { commitAdjustmentsIfIdle() }
+    }
+
+    private func scheduleAdjustCommit() {
+        adjustCommitTask?.cancel()
+        adjustCommitTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, !adjustDragging else { return }
+            commitAdjustmentsIfIdle()
+        }
+    }
+
+    private func resetAdjustments() {
+        guard var draft = adjustDraft else { return }
+        adjustDragging = false
+        draft.exposure = 0
+        draft.contrast = 0
+        draft.warmth = 0
+        draft.saturation = 0
+        adjustDraft = draft
+        commitAdjustmentsIfIdle()
+    }
+
+    private func applyLookFromDraft() {
+        guard let draft = adjustDraft, !adjustDragging else { return }
+        commitAdjustmentsIfIdle()
+        model.applyLookToAll(from: draft.layerID)
+    }
+
+    private func liveWash(for layer: DocumentLayer) -> PhotoAdjustments? {
+        guard adjustDragging, let draft = adjustDraft, draft.layerID == layer.id else { return nil }
+        return adjustments(from: draft)
+    }
+
+    private func adjustments(from draft: AdjustDraft) -> PhotoAdjustments {
+        PhotoAdjustments(
+            exposure: draft.exposure,
+            contrast: draft.contrast,
+            warmth: draft.warmth,
+            saturation: draft.saturation,
+            grain: draft.grain,
+            filmLook: draft.filmLook
+        )
+    }
+
+    private func commitAdjustmentsIfIdle() {
+        guard let draft = adjustDraft, !adjustDragging else { return }
+        guard let layer = model.document.layers.first(where: { $0.id == draft.layerID }), layer.kind == .photo else { return }
+        let next = adjustments(from: draft)
+        let current = layer.adjustments ?? PhotoAdjustments()
+        guard current != next else { return }
+        model.adjust(draft.layerID, next)
+    }
+
     private func photoStrip(for layer: DocumentLayer) -> some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
@@ -432,6 +576,99 @@ struct CanvasEditorView: View {
                       width: frame.width * scale, height: frame.height)
     }
 
+}
+
+private struct AdjustDraft {
+    var layerID: String
+    var exposure: Double
+    var contrast: Double
+    var warmth: Double
+    var saturation: Double
+    var grain: Double
+    var filmLook: Double
+}
+
+private struct PhotoAdjustPanel: View {
+    @Binding var exposure: Double
+    @Binding var contrast: Double
+    @Binding var warmth: Double
+    @Binding var saturation: Double
+    var onEditingChanged: (Bool) -> Void
+    var onReset: () -> Void
+    var onApplyAll: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            LookSlider(title: "Brightness", value: $exposure, range: -1...1, span: 1, onEditingChanged: onEditingChanged)
+            LookSlider(title: "Contrast", value: $contrast, range: -0.5...0.5, span: 0.5, onEditingChanged: onEditingChanged)
+            LookSlider(title: "Warmth", value: $warmth, range: -0.5...0.5, span: 0.5, onEditingChanged: onEditingChanged)
+            LookSlider(title: "Saturation", value: $saturation, range: -0.6...0.6, span: 0.6, onEditingChanged: onEditingChanged)
+            HStack(spacing: 8) {
+                Button("Reset", action: onReset)
+                Button("Apply look to all photos", action: onApplyAll)
+                    .lineLimit(1)
+            }
+            .font(.caption)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .padding(.top, 4)
+        }
+        .padding(10)
+        .background(Color.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct LookSlider: View {
+    let title: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let span: Double
+    let onEditingChanged: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .frame(width: 78, alignment: .leading)
+                .accessibilityHidden(true)
+            Slider(value: $value, in: range, onEditingChanged: onEditingChanged)
+                .controlSize(.small)
+                .accessibilityLabel(title)
+                .accessibilityValue(spoken)
+            Text(signed)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 46, alignment: .trailing)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var spoken: String {
+        let percent = Int((value / span * 100).rounded())
+        return "\(percent) percent"
+    }
+
+    private var signed: String {
+        if abs(value) < 0.005 { return "0" }
+        return String(format: "%+.2f", value)
+    }
+}
+
+private struct AdjustmentWash: View {
+    let adjustments: PhotoAdjustments
+
+    var body: some View {
+        ZStack {
+            Color.white.opacity(max(0, adjustments.exposure) * 0.35)
+            Color.black.opacity(max(0, -adjustments.exposure) * 0.4)
+            Color.white.opacity(max(0, adjustments.contrast) * 0.16)
+            Color.black.opacity(max(0, -adjustments.contrast) * 0.2)
+            Color.orange.opacity(max(0, adjustments.warmth) * 0.55)
+            Color(red: 0.45, green: 0.75, blue: 1).opacity(max(0, -adjustments.warmth) * 0.5)
+            Color.gray.opacity(max(0, -adjustments.saturation) * 0.55)
+        }
+    }
 }
 
 private struct TransformPreview {
