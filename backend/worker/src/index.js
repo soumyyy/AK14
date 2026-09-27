@@ -110,7 +110,7 @@ export function createHandler(fetchUpstream = fetch) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true });
     if (request.method === "GET" && url.pathname === "/v1/config") {
-      const etag = '"starter-editorial-1.0.0-config-1"';
+      const etag = `"starter-editorial-1.0.0-config-${styleConfig.configVersion}"`;
       if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: { etag } });
       return json(styleConfig, 200, { etag, "cache-control": "public, max-age=300" });
     }

@@ -1,5 +1,5 @@
 {
-  "configVersion": 1,
+  "configVersion": 2,
   "activeStylePack": "starter-editorial",
   "stylePacks": [
     {
@@ -2343,7 +2343,8 @@
             }
           ]
         }
-      ]
+      ],
+      "designedSetsFile": "designed-sets"
     }
   ]
 }

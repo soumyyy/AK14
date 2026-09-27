@@ -126,7 +126,7 @@ test("serves a versioned style config matching the bundled style pack", async ()
   assert.deepEqual(config.stylePacks[0].referenceImages, []);
   assert.deepEqual(config.stylePacks[0].trendNotes, []);
   assert.deepEqual(config.stylePacks[0].judge, { enabled: false, candidates: 6 });
-  assert.equal(response.headers.get("etag"), '"starter-editorial-1.0.0-config-1"');
+  assert.equal(response.headers.get("etag"), '"starter-editorial-1.0.0-config-2"');
 });
 
 test("serves hash-addressed reference assets and rejects missing or corrupt bytes", async () => {
