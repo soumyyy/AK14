@@ -10,4 +10,11 @@ public enum StylePackLoader {
         }
         return try JSONDecoder().decode(StylePack.self, from: Data(contentsOf: url))
     }
+
+    public static func loadDesignedSets(file: String = "designed-sets") throws -> DesignedSetLibrary {
+        guard let url = Bundle.module.url(forResource: file, withExtension: "json", subdirectory: "StylePacks") else {
+            throw CocoaError(.fileNoSuchFile, userInfo: [NSLocalizedDescriptionKey: "unknown designed set library \(file)"])
+        }
+        return try JSONDecoder().decode(DesignedSetLibrary.self, from: Data(contentsOf: url))
+    }
 }

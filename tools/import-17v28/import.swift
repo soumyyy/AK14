@@ -1,0 +1,194 @@
+#!/usr/bin/env swift
+import AppKit
+import Foundation
+
+struct Point: Decodable { let x: Double; let y: Double }
+struct Size: Decodable { let width: Double; let height: Double }
+struct RawLayer: Decodable { let placeholderCenter: Point?; let placeholderSize: Size? }
+struct RawTemplate: Decodable {
+    let id: String; let frameType: String; let numberOfFrames: Int
+    let backgroundColor: String?; let layers: [RawLayer]
+}
+struct RawLayout: Decodable {
+    struct Placeholder: Decodable {
+        struct Frame: Decodable { let origin: Point; let size: Size }
+        let frame: Frame
+    }
+    let id: String; let placeholders: [Placeholder]
+}
+struct Rect: Codable {
+    let x: Double; let y: Double; let width: Double; let height: Double
+}
+struct Slot: Codable {
+    let frame: Rect; let aspect: Double; let z: Int; let rotation: Double
+    let crossesSeam: Bool; let roleHint: String; let components: [Component]?
+}
+struct Component: Codable {
+    let frame: Rect; let aspect: Double; let z: Int; let rotation: Double
+    let crossesSeam: Bool; let roleHint: String
+}
+struct SetRecord: Codable {
+    let id: String; let sourceRef: String; let aspect: String; let slideCount: Int
+    let background: String; let slots: [Slot]; let version: Int
+}
+struct Library: Codable {
+    let version: Int; let frameInference: String; let sets: [SetRecord]
+}
+struct Box { let x: Double; let y: Double; let width: Double; let height: Double }
+
+let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+let source = URL(fileURLWithPath: "/Applications/app17v28.app/Wrapper/app17v28.app")
+let output = root.appendingPathComponent("Sources/Render/Resources/StylePacks/designed-sets.json")
+let bleed = 0.03
+
+func lenientDecode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+    let text = String(decoding: data, as: UTF8.self)
+    let regex = try NSRegularExpression(pattern: ",\\s*([}\\]])")
+    let clean = regex.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "$1")
+    return try JSONDecoder().decode(type, from: Data(clean.utf8))
+}
+
+func templateFiles() throws -> [URL] {
+    try FileManager.default.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+        .filter { $0.lastPathComponent.range(of: "^template-[0-9]+\\.json$", options: .regularExpression) != nil }
+        .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+}
+
+func canvas(frameType: String) -> (Double, Double, String)? {
+    switch frameType {
+    case "portrait": return (216, 270, "4:5")
+    case "portrait2": return (216, 288, "3:4")
+    case "square": return (216, 216, "1:1")
+    default: return nil
+    }
+}
+
+func normalized(_ boxes: [Box], canvasWidth: Double, canvasHeight: Double, slideCount: Int, aspect: String, unitSpace: Bool = false) -> [Slot]? {
+    guard !boxes.isEmpty else { return nil }
+    let prepared = boxes.enumerated().map { index, b in
+        let f = Rect(x: b.x / canvasWidth, y: b.y / canvasHeight,
+                     width: b.width / canvasWidth, height: b.height / canvasHeight)
+        let ratio = (b.width / b.height) * (unitSpace ? (aspect == "4:5" ? 4.0 / 5.0 : aspect == "3:4" ? 3.0 / 4.0 : 1.0) : 1)
+        return (index, f, ratio, f.width * f.height)
+    }
+    guard prepared.allSatisfy({ _, f, _, _ in f.width > 0 && f.height > 0 && f.x >= -bleed && f.y >= -bleed && f.x + f.width <= Double(slideCount) + bleed && f.y + f.height <= 1 + bleed }) else { return nil }
+    let order = prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }
+    let roles = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element.0, $0.offset == 0 ? "hero" : "support") })
+    return prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }.map { index, frame, ratio, _ in
+        let seams = (1..<slideCount).contains { Double($0) > frame.x + 0.000001 && Double($0) < frame.x + frame.width - 0.000001 }
+        return Slot(frame: frame, aspect: ratio, z: index, rotation: 0, crossesSeam: seams, roleHint: roles[index]!, components: nil)
+    }
+}
+
+func packDenseLayout(_ slots: [Slot], slideCount: Int, aspect: String) -> [Slot] {
+    guard slideCount == 1, slots.count > 12 else { return slots }
+    let groupCount = slots.count - 11
+    let ordinary = Array(slots.dropLast(groupCount))
+    let grouped = Array(slots.suffix(groupCount))
+    let minX = grouped.map(\.frame.x).min()!, minY = grouped.map(\.frame.y).min()!
+    let maxX = grouped.map { $0.frame.x + $0.frame.width }.max()!
+    let maxY = grouped.map { $0.frame.y + $0.frame.height }.max()!
+    let frame = Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    let rate = aspect == "4:5" ? 0.8 : aspect == "3:4" ? 0.75 : 1.0
+    let components = grouped.enumerated().map { i, s in
+        Component(frame: s.frame, aspect: s.aspect, z: s.z, rotation: s.rotation, crossesSeam: s.crossesSeam, roleHint: s.roleHint)
+    }
+    let z = grouped.map(\.z).min() ?? ordinary.count
+    let packed = ordinary + [Slot(frame: frame, aspect: frame.width / frame.height * rate, z: z, rotation: 0,
+                                  crossesSeam: false, roleHint: grouped.contains(where: { $0.roleHint == "hero" }) ? "hero" : "support", components: components)]
+    return packed.sorted {
+        let a = $0.components?.reduce(0) { $0 + $1.frame.width * $1.frame.height } ?? $0.frame.width * $0.frame.height
+        let b = $1.components?.reduce(0) { $0 + $1.frame.width * $1.frame.height } ?? $1.frame.width * $1.frame.height
+        return a == b ? $0.z < $1.z : a > b
+    }
+}
+
+func main() throws {
+    let files = try templateFiles()
+    var records: [SetRecord] = []
+    var rejected: [(String, String)] = []
+    for file in files {
+        let t = try lenientDecode(RawTemplate.self, from: Data(contentsOf: file))
+        guard let (width, height, aspect) = canvas(frameType: t.frameType) else { continue }
+        let boxes = t.layers.compactMap { layer -> Box? in
+            guard let c = layer.placeholderCenter, let s = layer.placeholderSize else { return nil }
+            return Box(x: c.x - s.width / 2, y: c.y - s.height / 2, width: s.width, height: s.height)
+        }
+        guard let slots = normalized(boxes, canvasWidth: width, canvasHeight: height, slideCount: t.numberOfFrames, aspect: aspect) else {
+            rejected.append(("template-\(t.id)", "empty or degenerate/outside geometry")); continue
+        }
+        records.append(SetRecord(id: "17v28-template-\(t.id)", sourceRef: "17v28:template-\(t.id)", aspect: aspect,
+                                 slideCount: t.numberOfFrames, background: "#" + (t.backgroundColor ?? "FFFFFF").trimmingCharacters(in: CharacterSet(charactersIn: "#")),
+                                 slots: slots, version: 1))
+    }
+
+    let layoutsURL = source.appendingPathComponent("layouts.json")
+    let layouts = try lenientDecode([RawLayout].self, from: Data(contentsOf: layoutsURL))
+    for layout in layouts {
+        let boxes = layout.placeholders.map { p in Box(x: p.frame.origin.x, y: p.frame.origin.y, width: p.frame.size.width, height: p.frame.size.height) }
+        guard let slots = normalized(boxes, canvasWidth: 1, canvasHeight: 1, slideCount: 1, aspect: "4:5", unitSpace: true) else {
+            rejected.append(("layout-\(layout.id)", "empty or degenerate/outside geometry")); continue
+        }
+        records.append(SetRecord(id: "17v28-layout-\(layout.id)", sourceRef: "17v28:layout-\(layout.id)", aspect: "4:5",
+                                 slideCount: 1, background: "#FFFFFF", slots: packDenseLayout(slots, slideCount: 1, aspect: "4:5"), version: 1))
+    }
+    records.sort { $0.id < $1.id }
+    let library = Library(version: 1,
+        frameInference: "Canvas width is 216pt. Single-frame portrait templates with full-bleed placeholders consistently measure 216×270pt (4:5); square measures 216×216pt. portrait2 is mapped to 216×288pt (3:4), supported by full-height placeholders measuring 216×288pt in multi-frame template-196; its sole single-frame example (template-201) has an inset 216×162.7pt placeholder and does not reveal canvas bounds. Multi-frame coordinates are treated as one continuous canvas whose width is frame width × numberOfFrames. Layouts use their supplied unit square. Source files are decoded after removing trailing commas; no raw source data is included.",
+        sets: records)
+    let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try encoder.encode(library).write(to: output)
+    try renderContactSheets(records)
+    print("Imported \(records.count) sets (\(records.filter { $0.sourceRef.contains(":template-") }.count) templates, \(layouts.count) layouts); rejected \(rejected.count): \(rejected)")
+    print("Wrote \(output.path)")
+}
+
+func renderContactSheets(_ records: [SetRecord]) throws {
+    for aspect in ["3:4", "4:5", "1:1"] {
+        let subset = records.filter { $0.aspect == aspect }
+        guard !subset.isEmpty else { continue }
+        let cols = 6, rows = (subset.count + cols - 1) / cols
+        let cellW = 190, cellH = 260, margin = 20
+        let image = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: cols * cellW + margin * 2,
+            pixelsHigh: rows * cellH + margin * 2, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+            isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: image)
+        NSColor(calibratedWhite: 0.88, alpha: 1).setFill(); NSBezierPath(rect: NSRect(x: 0, y: 0, width: image.pixelsWide, height: image.pixelsHigh)).fill()
+        for (idx, record) in subset.enumerated() {
+            let cx = margin + (idx % cols) * cellW, cy = margin + (idx / cols) * cellH
+            let totalPreviewWidth: CGFloat = 142, ratio: CGFloat = aspect == "3:4" ? 0.75 : aspect == "4:5" ? 0.8 : 1
+            let slideW = totalPreviewWidth / CGFloat(record.slideCount)
+            let slideH = totalPreviewWidth / ratio
+            for slide in 0..<record.slideCount {
+                let x0 = CGFloat(cx) + CGFloat(slide) * slideW
+                let y0 = CGFloat(cy) + 8
+                NSColor.white.setFill(); NSBezierPath(rect: NSRect(x: x0, y: y0, width: slideW, height: slideH)).fill()
+                NSColor(calibratedWhite: 0.35, alpha: 1).setStroke()
+                let border = NSBezierPath(rect: NSRect(x: x0, y: y0, width: slideW, height: slideH)); border.lineWidth = 1; border.stroke()
+                if slide > 0 { let seam = NSBezierPath(); seam.move(to: NSPoint(x: x0, y: y0)); seam.line(to: NSPoint(x: x0, y: y0 + slideH)); seam.lineWidth = 1; seam.stroke() }
+            }
+            for (slotIndex, slot) in record.slots.enumerated() {
+                let displayedParts = slot.components?.map { ($0.frame, $0.z) } ?? [(slot.frame, slotIndex)]
+                for (partFrame, partOrder) in displayedParts {
+                let f = partFrame, scaleX = slideW, scaleY = slideH
+                let rect = NSRect(x: CGFloat(cx) + CGFloat(f.x) * scaleX,
+                                  y: CGFloat(cy + 8) + (1 - CGFloat(f.y + f.height)) * scaleY,
+                                  width: CGFloat(f.width) * scaleX, height: CGFloat(f.height) * scaleY)
+                NSColor(calibratedWhite: 0.7, alpha: 0.7).setFill(); NSBezierPath(rect: rect).fill()
+                NSColor.darkGray.setStroke(); let outline = NSBezierPath(rect: rect); outline.lineWidth = 1; outline.stroke()
+                let label = "\(partOrder + 1)" as NSString
+                label.draw(at: NSPoint(x: rect.midX - 4, y: rect.midY - 7), withAttributes: [.font: NSFont.boldSystemFont(ofSize: 11), .foregroundColor: NSColor.black])
+                }
+            }
+            (record.id as NSString).draw(at: NSPoint(x: cx, y: cy + 8 + Int(totalPreviewWidth / ratio) + 12), withAttributes: [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.black])
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        let dest = URL(fileURLWithPath: "/tmp/ak14-designed-sets-\(aspect.replacingOccurrences(of: ":", with: "x")).png")
+        try image.representation(using: .png, properties: [:])!.write(to: dest)
+        print("Preview: \(dest.path)")
+    }
+}
+
+try main()
