@@ -17,11 +17,31 @@ public enum ConceptRendering {
 
     public static func renderAll(_ plans: [CarouselPlan], runID: String, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
                           features: [AssetID: PhotoFeatures], stylePack: StylePack, sourceFolder: URL, into root: URL,
-                          seedOverride: UInt64? = nil) throws -> Result {
+                          seedOverride: UInt64? = nil, storyHint: String? = nil) throws -> Result {
         var result = Result()
         let store = RunStore.open(root)
         for plan in plans {
             let concept = plan.id
+            if !plan.isBaseline, let recipeID = plan.recipeID, let direction = plan.direction,
+               let recipe = stylePack.recipes?.first(where: { $0.id == recipeID }) {
+                let documentURL = store.url("documents/\(concept).json")
+                let document: CanvasDocument
+                if FileManager.default.fileExists(atPath: documentURL.path), let data = try? Data(contentsOf: documentURL),
+                   let saved = try? JSONDecoder().decode(CanvasDocument.self, from: data) { document = saved }
+                else {
+                    let composition = CompositionContext(aspect: aspect, photos: photos, features: features, triage: [:],
+                        flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil, storyHint: storyHint)
+                    document = RecipeFiller.fill(plan: plan, direction: direction, recipe: recipe, context: composition,
+                                                 seed: seedOverride ?? seed(runID: runID, concept: concept))
+                    try store.write(document, to: "documents/\(concept).json")
+                }
+                let outcome = try DocumentRenderer().render(document, photos: photos, sourceFolder: sourceFolder,
+                                                            outputDirectory: store.url("slides/\(concept)"))
+                result.slides[concept] = outcome.names.map { "slides/\(concept)/\($0)" }
+                result.warnings += outcome.failures.map { "\(concept) render: \($0)" }
+                if !outcome.failures.isEmpty { result.failed = true }
+                continue
+            }
             let context = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
                                         seed: seedOverride ?? seed(runID: runID, concept: plan.id))
             let carousel = LayoutResolver.resolve(plan, context: context)
