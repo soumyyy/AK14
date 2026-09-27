@@ -15,3 +15,6 @@ Rules for AK14 pages:
 2. A page is used only when the photos fit its slots after face-safe cropping (people kept whole, crop at most about 35%). Otherwise the photo gets a clean full-bleed or white-border slide.
 3. At most 1–3 designed pages or seamless sets per carousel. The rest stay clean.
 4. Every page ships only after it has been rendered with real photos and reviewed by eye.
+
+## Permission (2026-09-27)
+The owner states that the 17V28 account owner (the team) permits AK14 to use 17V28's templates and assets. On that basis AK14 may convert 17V28 template geometry (photo placeholders, frames, layouts) into its own designed-set format. Keep the written confirmation from the account owner on file. Raw 17V28 files are not committed; only converted AK14 data is. Decorative assets (stickers, frames, fonts that are not OFL) come from the team's source files, with their provenance recorded in the asset manifest.
