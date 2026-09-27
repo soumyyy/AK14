@@ -220,6 +220,7 @@
 						DevelopmentTeam = 4W769MPDJ6;
 					};
 					288DFDE4C1A01179FA2949E4 = {
+						DevelopmentTeam = 4W769MPDJ6;
 						TestTargetID = 29308B24E954B86D3C8BBA94;
 					};
 					29308B24E954B86D3C8BBA94 = {
@@ -334,6 +335,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 4W769MPDJ6;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -352,6 +354,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 4W769MPDJ6;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
