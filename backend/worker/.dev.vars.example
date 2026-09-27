@@ -2,3 +2,7 @@ OPENAI_API_KEY=replace-with-a-development-key
 INVITE_TOKEN_HASHES=replace-with-sha256-hex-hash
 DAILY_REQUEST_CAP=30
 DAILY_SPEND_CAP_USD=1.00
+MONTHLY_RUN_CAP=60
+APPLE_BUNDLE_ID=com.ak14.app
+# Set locally as a secret value; do not commit the real token.
+ADMIN_TOKEN=replace-with-a-local-admin-token

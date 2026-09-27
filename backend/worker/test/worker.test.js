@@ -76,7 +76,7 @@ test("rejects unsigned requests, unsupported model calls, and rate limit", async
   await handler(request(), cappedEnv);
   const capped = await handler(request(), cappedEnv);
   assert.equal(capped.status, 429);
-  assert.deepEqual(await capped.json(), { error: "daily usage limit reached" });
+  assert.equal((await capped.json()).limit, "daily_requests");
 });
 
 test("authenticates by configured SHA-256 token hash and denies unknown tokens", async () => {
@@ -93,7 +93,7 @@ test("rejects requests after the per-token daily spend cap is reached", async ()
     ...env, AK14_USAGE: kv, DAILY_SPEND_CAP_USD: "0.25",
   });
   assert.equal(response.status, 429);
-  assert.deepEqual(await response.json(), { error: "daily usage limit reached" });
+  assert.equal((await response.json()).limit, "daily_spend");
 });
 
 test("rejects a streamed body over the limit before parsing or forwarding it", async () => {
