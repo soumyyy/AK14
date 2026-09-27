@@ -135,9 +135,17 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
         return ["conceptType": old, "conceptNote": p["brief"]!, "slides": p["slides"]!]
     }
     var rendered: [String: Any] = [:]
+    let fm = FileManager.default
     for (new, old) in names {
         rendered[old] = ((json["renderedSlides"] as! [String: [String]])[new] ?? []).map { $0.replacingOccurrences(of: "slides/\(new)/", with: "slides/\(old)/") }
-        for dir in ["slides", "layouts"] { try FileManager.default.moveItem(at: store.url("\(dir)/\(new)"), to: store.url("\(dir)/\(old)")) }
+        // A recipe-filled concept (spec §3) has no `layouts/<id>`, only `documents/<id>.json`; rename whichever exists.
+        for dir in ["slides", "layouts"] where fm.fileExists(atPath: store.url("\(dir)/\(new)").path) {
+            try fm.moveItem(at: store.url("\(dir)/\(new)"), to: store.url("\(dir)/\(old)"))
+        }
+        let doc = store.url("documents/\(new).json")
+        if fm.fileExists(atPath: doc.path) {
+            try fm.moveItem(at: doc, to: store.url("documents/\(old).json"))
+        }
     }
     json["renderedSlides"] = rendered
     json["diversity"] = (json["diversity"] as! [[String: Any]]).first.map { d in d.filter { !["a", "b", "styleDistance"].contains($0.key) } }
@@ -177,7 +185,13 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     d.plans[i].id = "c9"
     d.presentationOrder = d.presentationOrder.map { $0 == "c2" ? "c9" : $0 }
     d.renderedSlides["c9"] = d.renderedSlides.removeValue(forKey: "c2")?.map { $0.replacingOccurrences(of: "/c2/", with: "/c9/") }
-    for dir in ["slides", "layouts"] { try FileManager.default.moveItem(at: store.url("\(dir)/c2"), to: store.url("\(dir)/c9")) }
+    let fm = FileManager.default
+    // A recipe-filled concept (spec §3) has no `layouts/<id>`, only `documents/<id>.json`; move whichever exists.
+    for dir in ["slides", "layouts"] where fm.fileExists(atPath: store.url("\(dir)/c2").path) {
+        try fm.moveItem(at: store.url("\(dir)/c2"), to: store.url("\(dir)/c9"))
+    }
+    let doc = store.url("documents/c2.json")
+    if fm.fileExists(atPath: doc.path) { try fm.moveItem(at: doc, to: store.url("documents/c9.json")) }
     try store.write(d, to: "plans/director.json")
     try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
     let after = try store.read(ConceptsReport.self, from: "plans/director.json")

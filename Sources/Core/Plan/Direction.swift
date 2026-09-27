@@ -58,10 +58,13 @@ public struct Direction: Codable, Sendable, Equatable {
     public var keepTogether: [[AssetID]]
     /// Photos that deserve a slide of their own.
     public var emphasisAssetIDs: [AssetID]
+    public var seamless: Bool
+    public var titleIdea: String?
 
     public init(brief: String, style: StyleVector, coverAssetID: AssetID, orderedAssetIDs: [AssetID],
-                keepTogether: [[AssetID]] = [], emphasisAssetIDs: [AssetID] = []) {
+                keepTogether: [[AssetID]] = [], emphasisAssetIDs: [AssetID] = [], seamless: Bool = false, titleIdea: String? = nil) {
         self.brief = brief; self.style = style; self.coverAssetID = coverAssetID; self.orderedAssetIDs = orderedAssetIDs
         self.keepTogether = keepTogether; self.emphasisAssetIDs = emphasisAssetIDs
+        self.seamless = seamless; self.titleIdea = titleIdea.map { String($0.prefix(40)) }
     }
 }

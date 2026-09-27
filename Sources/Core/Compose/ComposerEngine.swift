@@ -14,14 +14,16 @@ public struct CompositionContext: Sendable {
     public var maxSlides: Int?
     public var exactSet: Bool
     public var keepOrder: Bool
+    public var storyHint: String?
 
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
                 triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
-                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false) {
+                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false, storyHint: String? = nil) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
         self.sequenceIntent = sequenceIntent; self.stylePack = stylePack; self.maxSlides = maxSlides
         self.exactSet = exactSet
         self.keepOrder = keepOrder
+        self.storyHint = storyHint
     }
 }
 
@@ -30,7 +32,7 @@ public struct CompositionContext: Sendable {
 /// several whole compositions through the layout engine and keeps one of the best. Every direction, and the
 /// baseline, is held to the same scoring.
 public enum ComposerEngine {
-    public static let version = "composer-1"
+    public static let version = "composer-2"
     static let candidateCount = 6
 
     public struct Composition: Sendable {
@@ -164,7 +166,7 @@ public enum ComposerEngine {
         guard !generated.ranked.isEmpty else { return generated.empty }
         let near = generated.ranked.filter { $0.score <= generated.ranked[0].score + 0.04 }
         let pick = near[Int(generated.rng.next() % UInt64(near.count))]
-        return composition(pick, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings)
+        return composition(pick, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings, context: context)
     }
 
     /// Returns distinct, safe whole-carousel candidates ranked by composer score.
@@ -179,14 +181,20 @@ public enum ComposerEngine {
             guard !layout.slides.contains(where: { slide in
                 slide.warnings.contains { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }
             }) else { return }
-            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings))
+            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings, context: context))
         }
     }
 
     private static func composition(_ candidate: (plan: CarouselPlan, score: Double), direction: Direction, id: String,
-                                    seed: UInt64, warnings: [String]) -> Composition {
+                                    seed: UInt64, warnings: [String], context: CompositionContext) -> Composition {
         var plan = candidate.plan
         plan.compositionSeed = String(seed, radix: 16)
+        // Recipe selection (spec §3/§4) happens for every composed plan, so any path that produces one —
+        // composeSet, recompose, a diversity-remedy retry, or a raw `compose` call — assigns it the same way.
+        if let recipes = context.stylePack.recipes,
+           let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
+            plan.recipeID = recipe.id
+        }
         return Composition(plan: plan, score: candidate.score, warnings: warnings)
     }
 
