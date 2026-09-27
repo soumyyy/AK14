@@ -90,10 +90,12 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
     public var direction: Direction?
     /// Hex seed the composer used; with `direction` it reproduces the plan exactly (nil for legacy plans).
     public var compositionSeed: String?
+    public var recipeID: String?
     public var slides: [SlidePlan]
 
-    public init(id: String, brief: String, direction: Direction?, compositionSeed: String? = nil, slides: [SlidePlan]) {
+    public init(id: String, brief: String, direction: Direction?, compositionSeed: String? = nil, recipeID: String? = nil, slides: [SlidePlan]) {
         self.id = id; self.brief = brief; self.direction = direction; self.compositionSeed = compositionSeed; self.slides = slides
+        self.recipeID = recipeID
     }
 
     public var style: StyleVector? { direction?.style }
@@ -104,7 +106,7 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
         slides.first.flatMap { s in (s.photos.first { $0.role == "hero" } ?? s.photos.first)?.assetID }
     }
 
-    enum CodingKeys: String, CodingKey { case id, brief, direction, compositionSeed, slides, conceptType, conceptNote }
+    enum CodingKeys: String, CodingKey { case id, brief, direction, compositionSeed, recipeID, slides, conceptType, conceptNote }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -112,6 +114,7 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
         brief = try c.decodeIfPresent(String.self, forKey: .brief) ?? c.decodeIfPresent(String.self, forKey: .conceptNote) ?? ""
         direction = try c.decodeIfPresent(Direction.self, forKey: .direction)
         compositionSeed = try c.decodeIfPresent(String.self, forKey: .compositionSeed)
+        recipeID = try c.decodeIfPresent(String.self, forKey: .recipeID)
         slides = try c.decode([SlidePlan].self, forKey: .slides)
     }
 
@@ -119,6 +122,7 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id); try c.encode(brief, forKey: .brief)
         try c.encodeIfPresent(direction, forKey: .direction); try c.encodeIfPresent(compositionSeed, forKey: .compositionSeed)
+        try c.encodeIfPresent(recipeID, forKey: .recipeID)
         try c.encode(slides, forKey: .slides)
     }
 }

@@ -204,7 +204,7 @@ struct RunPipeline: Sendable {
                 let result = try ConceptRendering.renderAll(
                     output.plans, runID: store.root.lastPathComponent, aspect: aspect,
                     photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
-                    features: features, stylePack: stylePack, sourceFolder: folder, into: store.root)
+                    features: features, stylePack: stylePack, sourceFolder: folder, into: store.root, storyHint: options.story)
                 rendered = result.slides
                 warnings += result.warnings
             } catch {
@@ -333,7 +333,7 @@ struct RunPipeline: Sendable {
 
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
                                              sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides,
-                                             exactSet: options.exact, keepOrder: options.keepOrder)
+                                             exactSet: options.exact, keepOrder: options.keepOrder, storyHint: options.story)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,

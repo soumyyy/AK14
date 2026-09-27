@@ -27,6 +27,8 @@ enum Schemas {
             ("orderedAssetIDs", .arr(id, min: 1, max: 20)),
             ("keepTogether", .arr(.arr(id, min: 2, max: 4))),
             ("emphasisAssetIDs", .arr(id)),
+            ("seamless", .object([("type", .string("boolean"))])),
+            ("titleIdea", .object([("type", .array([.string("string"), .string("null")])), ("maxLength", .int(40))])),
         ])
         return .obj([
             ("recommendedSlideCount", .integer(1, 20)),

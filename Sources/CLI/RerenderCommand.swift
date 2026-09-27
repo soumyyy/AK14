@@ -56,11 +56,15 @@ enum RerenderCommand {
         let fm = FileManager.default
         let staging = store.url(".rerender")
         try? fm.removeItem(at: staging)
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        if fm.fileExists(atPath: store.url("documents").path) {
+            try fm.copyItem(at: store.url("documents"), to: staging.appending(path: "documents"))
+        }
         let result = try ConceptRendering.renderAll(
             concepts.plans, runID: manifest.runID, aspect: manifest.aspectRatio, photos: photos,
             features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }),
             stylePack: try StylePackLoader.load(id: concepts.stylePackID), sourceFolder: folder, into: staging,
-            seedOverride: seed)
+            seedOverride: seed, storyHint: manifest.storyHint)
         guard !result.failed else {
             try? fm.removeItem(at: staging)
             throw Failure.render(result.warnings)

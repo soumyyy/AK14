@@ -14,14 +14,16 @@ public struct CompositionContext: Sendable {
     public var maxSlides: Int?
     public var exactSet: Bool
     public var keepOrder: Bool
+    public var storyHint: String?
 
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
                 triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
-                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false) {
+                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false, storyHint: String? = nil) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
         self.sequenceIntent = sequenceIntent; self.stylePack = stylePack; self.maxSlides = maxSlides
         self.exactSet = exactSet
         self.keepOrder = keepOrder
+        self.storyHint = storyHint
     }
 }
 
@@ -30,7 +32,7 @@ public struct CompositionContext: Sendable {
 /// several whole compositions through the layout engine and keeps one of the best. Every direction, and the
 /// baseline, is held to the same scoring.
 public enum ComposerEngine {
-    public static let version = "composer-1"
+    public static let version = "composer-2"
     static let candidateCount = 6
 
     public struct Composition: Sendable {
@@ -69,6 +71,10 @@ public enum ComposerEngine {
         for (i, d) in directions.enumerated() {
             let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
             var comp = compose(d, id: id, context: context, seed: seed)
+            if let recipes = context.stylePack.recipes, let direction = comp.plan.direction,
+               let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
+                comp.plan.recipeID = recipe.id
+            }
             warnings += comp.warnings.map { "\(id): \($0)" }
             // Every direction must also differ from the photos-only baseline, or the study comparison is empty.
             let others = [base.plan] + kept

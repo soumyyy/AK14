@@ -119,7 +119,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             let cover = list.first { !first.contains($0) } ?? list[0]
             let keep = k == 1 ? quoted([list[1], list[2]]) : ""
             let emphasis = k == 0 ? quoted([list[3]]) : "[]"
-            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(list)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis)}"#
+            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(list)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis),"seamless":false,"titleIdea":null}"#
         }
         let spineJSON = #"{"orderedAssetIDs":\#(quoted(spine)),"sequenceIntent":[\#(spine.map { _ in "\"build\"" }.joined(separator: ","))],"rationale":[]}"#
         return #"{"recommendedSlideCount":\#(spine.count),"spine":\#(spineJSON),"directions":[\#(items.joined(separator: ","))]}"#
