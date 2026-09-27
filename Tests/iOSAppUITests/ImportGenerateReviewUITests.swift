@@ -23,13 +23,16 @@ final class ImportGenerateReviewUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Choose photos for your story."].waitForExistence(timeout: 20),
                       "The permission action should return to the Photos stage")
         let findPhotos = app.buttons["Find photos"]
-        XCTAssertTrue(findPhotos.waitForExistence(timeout: 20), "Photos access should reveal the date controls")
-        if findPhotos.isEnabled { findPhotos.tap() }
+        // With access already granted the app may load the recent library straight away; "Find photos" is optional.
+        if findPhotos.waitForExistence(timeout: 10), findPhotos.isEnabled { findPhotos.tap() }
         let selected = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'photos selected'")).firstMatch
         XCTAssertTrue(selected.waitForExistence(timeout: 20), "Expected a visible selected-photo count")
         let firstPhoto = app.buttons["photo-1"]
         XCTAssertTrue(firstPhoto.waitForExistence(timeout: 10), "Expected a photo tile to select")
         firstPhoto.tap()
+        // Exact mode needs at least two photos so a reorder is possible.
+        let secondPhoto = app.buttons["photo-2"]
+        if secondPhoto.waitForExistence(timeout: 5) { secondPhoto.tap() }
 
         let exactMode = app.segmentedControls.buttons["Use exactly these"]
         XCTAssertTrue(exactMode.waitForExistence(timeout: 2))
@@ -61,7 +64,8 @@ final class ImportGenerateReviewUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Choose an option"].waitForExistence(timeout: 300),
                       "Expected the generated option review screen")
         // Pick an option that has at least two slides so a reorder is possible; the simulator library varies.
-        let optionButtons = app.buttons.matching(NSPredicate(format: "label CONTAINS ' slides'"))
+        // Option cards only: "Edit slides" also contains " slides".
+        let optionButtons = app.buttons.matching(NSPredicate(format: "label CONTAINS ' slides' AND NOT (label BEGINSWITH 'Edit')"))
         XCTAssertGreaterThan(optionButtons.count, 0, "Expected generated options")
         let multi = optionButtons.allElementsBoundByIndex.first { button in
             let words = button.label.split(separator: " ")
