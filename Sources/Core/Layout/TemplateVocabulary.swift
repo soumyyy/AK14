@@ -52,7 +52,10 @@ enum TemplateVocabulary {
                     if leftPreference != rightPreference { return leftPreference > rightPreference }
                     let leftMismatch = left.map(\.mismatch).min()!
                     let rightMismatch = right.map(\.mismatch).min()!
-                    return leftMismatch == rightMismatch ? $0 < $1 : leftMismatch < rightMismatch
+                    if leftMismatch != rightMismatch { return leftMismatch < rightMismatch }
+                    let leftSeed = SeededRandom.seed(String(context.seed), plan.id, "family", $0)
+                    let rightSeed = SeededRandom.seed(String(context.seed), plan.id, "family", $1)
+                    return leftSeed == rightSeed ? $0 < $1 : leftSeed < rightSeed
                 }.first
             }
             let familyViable = selectedFamily.map { family in
@@ -272,6 +275,158 @@ enum TemplateVocabulary {
         guard let hint = context.storyHint?.trimmingCharacters(in: .whitespacesAndNewlines),
               (3...28).contains(hint.count) else { return nil }
         return hint
+    }
+
+    /// Adds the cover title when no imported page supplied one. Keeping this in the resolver means
+    /// the title remains an editable document text element on both the template and primitive paths.
+    static func addCoverTitleIfNeeded(to slides: inout [ResolvedSlide], plan: CarouselPlan, context: LayoutContext) {
+        guard let first = slides.indices.first else { return }
+        guard let title = storyTitle(plan: plan, context: context) else { return }
+        for index in slides.indices where index != first {
+            slides[index].elements.removeAll { $0.kind == .text && $0.textRole == "title" }
+        }
+        guard !slides[first].elements.contains(where: { $0.kind == .text && $0.textRole == "title" }) else { return }
+        let coverPhotos = slides[first].elements.filter { $0.kind == .photo }
+        guard coverPhotos.count == 1, let photo = coverPhotos.first, let assetID = photo.assetID else { return }
+        if slides[first].variant == "hero.clean" {
+            placeEditorialTitle(title, on: &slides[first], photo: photo, assetID: assetID, plan: plan, context: context)
+            return
+        }
+
+        let crop = photo.crop ?? UnitRect(x: 0, y: 0, width: 1, height: 1)
+        let photoFrame = Box(x: photo.frame.x, y: photo.frame.y, w: photo.frame.width, h: photo.frame.height)
+        let people = CropPlanner.facesOnCanvas(context.features[assetID], crop: crop, frame: photoFrame)
+            + (context.features[assetID]?.humans ?? []).filter { $0.height >= 0.2 }.map {
+                Box(x: photoFrame.x + ($0.x - crop.x) / crop.width * photoFrame.w,
+                    y: photoFrame.y + ($0.y - crop.y) / crop.height * photoFrame.h,
+                    w: $0.width / crop.width * photoFrame.w, h: $0.height / crop.height * photoFrame.h)
+            }
+        let saliency = context.features[assetID]?.salientRegions ?? []
+        let regions = [
+            UnitRect(x: 0.08, y: 0.08, width: 0.72, height: 0.22),
+            UnitRect(x: 0.14, y: 0.08, width: 0.72, height: 0.22),
+            UnitRect(x: 0.08, y: 0.70, width: 0.72, height: 0.22),
+            UnitRect(x: 0.14, y: 0.70, width: 0.72, height: 0.22),
+            UnitRect(x: 0.14, y: 0.39, width: 0.72, height: 0.22),
+        ]
+        var rng = SeededRandom(seed: SeededRandom.seed(String(context.seed), plan.id, "cover-title"))
+        let offset = Int(rng.next() % UInt64(regions.count))
+        let orderedRegions = regions.indices.map { regions[($0 + offset) % regions.count] }
+        func area(_ a: UnitRect) -> Double { a.width * a.height }
+        func intersection(_ a: UnitRect, _ b: UnitRect) -> Double {
+            max(0, min(a.x + a.width, b.x + b.width) - max(a.x, b.x))
+                * max(0, min(a.y + a.height, b.y + b.height) - max(a.y, b.y))
+        }
+        func regionScore(_ region: UnitRect) -> Double {
+            let box = Box(x: region.x, y: region.y, w: region.width, h: region.height)
+            let peoplePenalty = people.contains(where: { $0.intersects(box) }) ? 100.0 : 0
+            let saliencyPenalty = saliency.reduce(0.0) { total, salient in
+                total + intersection(region, salient) / max(area(salient), 0.0001)
+            }
+            return peoplePenalty + saliencyPenalty
+        }
+        guard let region = orderedRegions.first(where: { regionScore($0) < 100 }) else { return }
+
+        let style = Int(SeededRandom.seed(String(context.seed), plan.id, "cover-title-style") % 3)
+        let meanLuminance = context.features[assetID]?.meanLuminance ?? 0.6
+        let colour = meanLuminance < 0.55 ? "#FFFFFF" : "#1A1A1A"
+        let contrast = meanLuminance < 0.55
+            ? (1.0 + 0.05) / (meanLuminance + 0.05)
+            : (meanLuminance + 0.05) / (0.0 + 0.05)
+        guard contrast >= 3 else { return }
+
+        let height = Double(context.aspect.exportHeight)
+        let fontID: String
+        let fontSize: Double
+        let value: String
+        let alignment: String
+        let letterSpacing: Double
+        let lineSpacing: Double
+        switch style {
+        case 0:
+            fontID = rng.bool() ? "font-pinyonscript" : "font-cedarvillecursive"
+            fontSize = height * 0.11
+            value = title
+            alignment = "left"
+            letterSpacing = 0
+            lineSpacing = -fontSize * 0.08
+        case 1:
+            fontID = rng.bool() ? "font-instrumentserif" : "font-instrumentserif-italic"
+            fontSize = height * 0.085
+            value = title
+            alignment = "left"
+            letterSpacing = 0
+            lineSpacing = -fontSize * 0.08
+        default:
+            fontID = rng.bool() ? "font-inter" : "font-dotgothic16"
+            fontSize = height * 0.042
+            value = title.uppercased()
+            alignment = "left"
+            letterSpacing = fontSize * 0.12
+            lineSpacing = fontSize * 0.15
+        }
+        let fittedSize = fitted(value, fontSize: fontSize, width: region.width, style: style, letterSpacing: letterSpacing,
+                                lines: style == 0 ? 2 : 1, height: height, aspect: context.aspect)
+        let titleHeight = style == 2 ? 0.12 : 0.17
+        let titleFrame = UnitRect(x: region.x, y: region.y, width: region.width, height: titleHeight)
+        guard !people.contains(where: { $0.intersects(Box(x: titleFrame.x, y: titleFrame.y,
+                                                           w: titleFrame.width, h: titleFrame.height)) }) else { return }
+        let z = (slides[first].elements.map(\.zIndex).max() ?? 0) + 1
+        slides[first].elements.append(ResolvedElement(kind: .text, assetID: nil, text: value,
+                                                       frame: titleFrame, rotationDegrees: 0, crop: nil,
+                                                       zIndex: max(200, z), opacity: 1, border: 0, shadow: false,
+                                                       fontID: fontID, fontSize: fittedSize, textColor: colour,
+                                                       alignment: alignment, lineSpacing: lineSpacing,
+                                                       letterSpacing: letterSpacing, numberOfLines: style == 0 ? 2 : 1,
+                                                       textRole: "title"))
+
+        guard style == 2, let date = captureCaption(context.photos[assetID]) else { return }
+        let dateFrame = UnitRect(x: region.x, y: region.y + 0.135, width: region.width, height: 0.05)
+        guard !people.contains(where: { $0.intersects(Box(x: dateFrame.x, y: dateFrame.y,
+                                                           w: dateFrame.width, h: dateFrame.height)) }) else { return }
+        slides[first].elements.append(ResolvedElement(kind: .text, assetID: nil, text: date.uppercased(),
+                                                       frame: dateFrame, rotationDegrees: 0, crop: nil,
+                                                       zIndex: max(200, z) + 1, opacity: 1, border: 0, shadow: false,
+                                                       fontID: fontID, fontSize: fittedSize * 0.72, textColor: colour,
+                                                       alignment: alignment, lineSpacing: lineSpacing,
+                                                       letterSpacing: letterSpacing, numberOfLines: 1,
+                                                       textRole: "caption"))
+    }
+
+    /// Largest size, at most `fontSize`, at which `text` fits `lines` lines across `width` of the slide.
+    /// Average advance per character by style: script 0.42, serif 0.48, spaced caps 0.66 (plus tracking).
+    static func fitted(_ text: String, fontSize: Double, width: Double, style: Int, letterSpacing: Double,
+                       lines: Int, height: Double, aspect: CarouselAspect) -> Double {
+        let slideWidth = Double(aspect.exportWidth) * width
+        let advance = style == 0 ? 0.42 : style == 1 ? 0.48 : 0.66
+        let perLine = Double(text.count) / Double(max(1, lines)) + 1
+        let fit = slideWidth / (perLine * advance + perLine * letterSpacing / max(fontSize, 1))
+        return max(height * 0.022, min(fontSize, fit))
+    }
+
+    /// A white-card cover keeps the whole photo, so the title sits in the white band above it,
+    /// editorial style: dark ink, left-aligned to the photo's edge, never over the photo.
+    private static func placeEditorialTitle(_ title: String, on slide: inout ResolvedSlide, photo: ResolvedElement,
+                                            assetID: AssetID, plan: CarouselPlan, context: LayoutContext) {
+        let top = photo.frame.y, bottom = 1 - (photo.frame.y + photo.frame.height)
+        let band = max(top, bottom)
+        guard band >= 0.1 else { return }
+        let height = Double(context.aspect.exportHeight)
+        let style = Int(SeededRandom.seed(String(context.seed), plan.id, "cover-title-style") % 3)
+        let fontID = style == 0 ? "font-pinyonscript" : style == 1 ? "font-instrumentserif" : "font-inter"
+        let value = style == 2 ? title.uppercased() : title
+        let base = style == 0 ? height * 0.075 : style == 1 ? height * 0.062 : height * 0.034
+        let tracking = style == 2 ? base * 0.12 : 0
+        let size = fitted(value, fontSize: base, width: photo.frame.width, style: style, letterSpacing: tracking,
+                          lines: 1, height: height, aspect: context.aspect)
+        let lineHeight = size * 1.35 / height
+        let y = top >= bottom ? max(0.02, top - lineHeight - 0.02) : photo.frame.y + photo.frame.height + 0.02
+        let z = (slide.elements.map(\.zIndex).max() ?? 0) + 1
+        slide.elements.append(ResolvedElement(kind: .text, assetID: nil, text: value,
+            frame: UnitRect(x: photo.frame.x, y: y, width: photo.frame.width, height: lineHeight),
+            rotationDegrees: 0, crop: nil, zIndex: max(200, z), opacity: 1, border: 0, shadow: false,
+            fontID: fontID, fontSize: size, textColor: "#1A1A1A", alignment: "left", lineSpacing: 0,
+            letterSpacing: tracking, numberOfLines: 1, textRole: "title"))
     }
 
     private static func captureCaption(_ photo: PhotoRecord?) -> String? {

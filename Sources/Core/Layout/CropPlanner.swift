@@ -68,6 +68,28 @@ public enum CropPlanner {
         return facesIn && peopleIn
     }
 
+    /// The fraction of a salient region that remains inside a crop. The largest region is the
+    /// subject proxy because small secondary saliency should not veto an otherwise safe cover.
+    public static func salientRetention(_ f: PhotoFeatures?, crop: UnitRect) -> Double {
+        guard let region = f?.salientRegions.max(by: { $0.width * $0.height < $1.width * $1.height }) else {
+            return 1
+        }
+        let x0 = max(region.x, crop.x), y0 = max(region.y, crop.y)
+        let x1 = min(region.x + region.width, crop.x + crop.width)
+        let y1 = min(region.y + region.height, crop.y + crop.height)
+        let intersection = max(0, x1 - x0) * max(0, y1 - y0)
+        return intersection / max(region.width * region.height, 0.0001)
+    }
+
+    /// Shared clean-policy predicate for a single photo filling the carousel canvas.
+    /// Retention is source-area retention, not the inverse of an aspect-ratio delta.
+    public static func fullBleedEligible(imageAspect: Double, boxAspect: Double,
+                                         features: PhotoFeatures?) -> Bool {
+        let crop = cover(imageAspect: imageAspect, boxAspect: boxAspect, features: features)
+        return facesFit(features, crop: crop) && salientRetention(features, crop: crop) >= 0.85
+            && crop.width * crop.height >= 0.58
+    }
+
     /// Face boxes mapped into canvas pixels for a photo drawn with `crop` into `frame`.
     public static func facesOnCanvas(_ f: PhotoFeatures?, crop: UnitRect, frame: Box) -> [Box] {
         (f?.faces ?? []).compactMap { face in

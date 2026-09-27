@@ -37,7 +37,11 @@ public enum PlanMetrics {
         var diffs: [String] = []
         if primitiveMix(a) != primitiveMix(b) { diffs.append("primitiveMix") }
         if abs(multiRatio(a) - multiRatio(b)) > 0.2 { diffs.append("singleMultiRatio") }
-        if a.slides.map(\.density) != b.slides.map(\.density) { diffs.append("densityRhythm") }
+        let densityDiffers = a.style?.density != b.style?.density
+            || a.slides.map(\.density) != b.slides.map(\.density)
+        if densityDiffers { diffs.append("densityRhythm") }
+        let groupingDiffers = a.style?.grouping != b.style?.grouping
+        if groupingDiffers { diffs.append("grouping") }
         if decorationProfile(a) != decorationProfile(b) { diffs.append("decorationProfile") }
         // Style axes (whitespace, rotation, overlap…) change the look even when slides hold the same photos.
         if let sa = a.style, let sb = b.style, sa.distance(to: sb) >= 1.0 / 3 { diffs.append("style") }
@@ -45,9 +49,11 @@ public enum PlanMetrics {
         let order = orderAgreement(a.photoAssetIDs, b.photoAssetIDs)
         return ConceptDistance(a: a.id, b: b.id, styleDistance: a.style.flatMap { sa in b.style.map { sa.distance(to: $0) } },
                                jaccard: jaccard, sameCover: sameCover, orderSimilarity: order, structuralDiffs: diffs,
-                               // Structure is the primary signal (spec §6.5 prefers changing structure over selection):
-                               // with 3+ structural differences, photo overlap from a shared strong spine is fine.
-                               passes: !sameCover && diffs.count >= 2 && (jaccard <= 0.8 || order < 0.5 || diffs.count >= 3))
+                               // A direction must visibly change its density/grouping axis and either its
+                               // selection or sequence. Shared photos are acceptable only when their order
+                               // is materially different because a small pool cannot always meet 0.7 overlap.
+                               passes: !sameCover && (densityDiffers || groupingDiffers)
+                                   && (jaccard <= 0.7 || order <= 0.3))
     }
 
     static func primitiveMix(_ p: CarouselPlan) -> [String: Int] {

@@ -261,6 +261,63 @@ import Testing
         #expect(texts.filter { $0.textRole == "caption" }.count <= 2)
     }
 
+    @Test func directionCoverTitleIsGroundedSafeAndAbsentFromBaseline() throws {
+        let image = photo("cover-title", aspect: 1.0)
+        var features = PhotoFeatures(assetID: image.assetID, analyzerVersion: "test")
+        features.meanLuminance = 0.2
+        features.faces = [FaceRegion(box: UnitRect(x: 0.02, y: 0.06, width: 0.18, height: 0.18), captureQuality: 0.9)]
+        features.humans = [UnitRect(x: 0.01, y: 0.02, width: 0.22, height: 0.55)]
+        let style = StyleVector(density: "balanced", overlap: "none", grouping: "single",
+                                decoration: "none", rotation: "none", whitespace: "tight")
+        let direction = Direction(brief: "cover", style: style, coverAssetID: image.assetID,
+                                 orderedAssetIDs: [image.assetID], titleIdea: "Above the tea hills")
+        let slide = SlidePlan(primitive: .fullBleed, mood: "warm", density: "balanced",
+                              photos: [.plain(image.assetID)], decorations: [], stamps: [])
+        let plan = CarouselPlan(id: "c1", brief: "", direction: direction, slides: [slide])
+        let context = try context(photos: [image], features: [image.assetID: features], vocabulary: [], seed: 42)
+        let resolved = LayoutResolver.resolve(plan, context: context)
+        let repeated = LayoutResolver.resolve(plan, context: context)
+        #expect(resolved == repeated)
+
+        let titles = resolved.slides[0].elements.filter { $0.kind == .text && $0.textRole == "title" }
+        #expect(titles.count == 1)
+        #expect(titles[0].text == "Above the tea hills")
+        #expect(titles[0].textColor == "#FFFFFF")
+        let title = titles[0].frame
+        let face = features.faces[0].box
+        #expect(!rectanglesIntersect(title, face))
+
+        var noTitleDirection = direction
+        noTitleDirection.titleIdea = nil
+        let noTitle = CarouselPlan(id: "c2", brief: "", direction: noTitleDirection, slides: [slide])
+        let noTitleResolved = LayoutResolver.resolve(noTitle, context: context)
+        #expect(noTitleResolved.slides.flatMap(\.elements).filter { $0.textRole == "title" }.isEmpty)
+
+        let baseline = CarouselPlan(id: CarouselPlan.baselineID, brief: "", direction: nil, slides: [slide])
+        let baselineResolved = LayoutResolver.resolve(baseline, context: context)
+        #expect(baselineResolved.slides.flatMap(\.elements).filter { $0.textRole == "title" }.isEmpty)
+    }
+
+    @Test func coverTitleUsesNearBlackOnLightPhotos() throws {
+        let image = photo("light-cover", aspect: 1.0)
+        var features = PhotoFeatures(assetID: image.assetID, analyzerVersion: "test")
+        features.meanLuminance = 0.85
+        let direction = Direction(brief: "cover", style: .baseline, coverAssetID: image.assetID,
+                                  orderedAssetIDs: [image.assetID], titleIdea: "Days in the mist")
+        let plan = CarouselPlan(id: "c1", brief: "", direction: direction, slides: [
+            SlidePlan(primitive: .fullBleed, mood: "", density: "balanced",
+                      photos: [.plain(image.assetID)], decorations: [], stamps: [])
+        ])
+        let resolved = LayoutResolver.resolve(plan, context: try context(photos: [image],
+            features: [image.assetID: features], vocabulary: [], seed: 4))
+        #expect(resolved.slides.flatMap(\.elements).first { $0.textRole == "title" }?.textColor == "#1A1A1A")
+    }
+
+    private func rectanglesIntersect(_ a: UnitRect, _ b: UnitRect) -> Bool {
+        a.x < b.x + b.width && a.x + a.width > b.x &&
+        a.y < b.y + b.height && a.y + a.height > b.y
+    }
+
     private func context(photos: [PhotoRecord], features: [AssetID: PhotoFeatures] = [:], vocabulary: [DesignedSet], seed: UInt64 = 1) throws -> LayoutContext {
         LayoutContext(aspect: .portrait4x5, photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
                       features: features, stylePack: try StylePackLoader.load(), seed: seed, vocabulary: vocabulary)

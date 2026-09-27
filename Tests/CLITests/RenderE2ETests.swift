@@ -93,7 +93,7 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(d.plans.allSatisfy { d.renderedSlides[$0.id]?.count == $0.slides.count })
 }
 
-@Test func landscapeFullBleedOnPortraitFallsBackToWholePhotoAndSeededAiryPlacementVaries() async throws {
+@Test func fourByThreeLandscapeKeepsTheFullBleedRetentionFloor() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let folder = try sceneFolder(tmp, count: 6)
     let records = try await FolderIngester().ingest(folder: folder, options: IngestOptions()).photos
@@ -109,9 +109,9 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let repeated = LayoutResolver.resolve(plan, context: context)
     #expect(first == repeated, "same layout seed must reproduce every slide")
     let lead = try #require(first.slides.first)
-    #expect(lead.primitive == .hero && lead.requestedPrimitive == .fullBleed)
-    #expect(lead.warnings.contains { $0.contains("landscape crop is too severe") })
-    #expect((lead.metrics?.maxCropLoss ?? 1) <= 0.2, "a landscape hero is shown whole or as a band cropped at most 20%")
+    #expect(lead.primitive == .fullBleed && lead.requestedPrimitive == .fullBleed)
+    #expect(!lead.warnings.contains { $0.contains("landscape crop is too severe") })
+    #expect((lead.metrics?.maxCropLoss ?? 1) <= 0.42, "a 4:3 landscape retains at least 58% of its source crop")
     let positions = Set(first.slides.compactMap { $0.variant }.filter { $0.contains("whole.") || $0.hasPrefix("band.") })
     // Clean output uses one consistent white-border card on purpose; variety applies to the designed mode.
     if !ComposerEngine.cleanOutput { #expect(positions.count > 1, "landscape single-photo layouts should vary: \(positions)") }

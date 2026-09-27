@@ -78,36 +78,35 @@ public enum ComposerEngine {
             warnings += comp.warnings.map { "\(id): \($0)" }
             // Every direction must also differ from the photos-only baseline, or the study comparison is empty.
             let others = [base.plan] + kept
-            if let clash = others.first(where: { !PlanMetrics.diversity($0, comp.plan).passes }) {
-                // Recompose away from the earlier carousel: a different cover, other near-best seeds, then one axis nudge.
-                var tries: [Direction] = []
-                if clash.coverAssetID == comp.plan.coverAssetID {
-                    let usedCovers = Set(others.compactMap(\.coverAssetID))
-                    if let alt = d.orderedAssetIDs.filter({ !usedCovers.contains($0) && !context.flagged.contains($0) })
-                        .max(by: { strengthOrder($0, $1, context) }) {
-                        var moved = d; moved.coverAssetID = alt; tries.append(moved)
-                    }
-                }
-                var groupingNudge = tries.last ?? d
-                groupingNudge.style.grouping = d.style.grouping == "single" ? "mixed" : d.style.grouping == "mixed" ? "collage" : "mixed"
+            var conflictAttempts = 0
+            var shouldDrop = false
+            while let clash = others.first(where: { !distinct($0, comp.plan, context: context) }),
+                  conflictAttempts < others.count {
+                conflictAttempts += 1
+                // Recompose away from the earlier carousel: unused cover, rotated story beat,
+                // bounded same-event substitutions, then coherent style nudges.
+                let sourceDirection = comp.plan.direction ?? d
+                var tries = remedyDirections(sourceDirection, against: clash, others: others, context: context)
+                var groupingNudge = tries.last ?? sourceDirection
+                groupingNudge.style.grouping = sourceDirection.style.grouping == "single" ? "mixed" : sourceDirection.style.grouping == "mixed" ? "collage" : "mixed"
                 tries.append(groupingNudge)
                 // If relation constraints send every group to separate slides, grouping alone
                 // cannot distinguish the direction. Try coherent adjacent style axes before
                 // dropping an otherwise valid option.
                 var airyNudge = groupingNudge
-                airyNudge.style.whitespace = d.style.whitespace == "airy" ? "tight" : "airy"
-                airyNudge.style.density = d.style.density == "dense" ? "quiet" : "dense"
+                airyNudge.style.whitespace = sourceDirection.style.whitespace == "airy" ? "tight" : "airy"
+                airyNudge.style.density = sourceDirection.style.density == "dense" ? "quiet" : "dense"
                 tries.append(airyNudge)
                 var finishNudge = airyNudge
-                finishNudge.style.decoration = d.style.decoration == "rich" ? "none" : "rich"
-                finishNudge.style.rotation = d.style.rotation == "some" ? "none" : "some"
+                finishNudge.style.decoration = sourceDirection.style.decoration == "rich" ? "none" : "rich"
+                finishNudge.style.rotation = sourceDirection.style.rotation == "some" ? "none" : "some"
                 tries.append(finishNudge)
                 var fixed = false
                 attempts: for t in tries {
                     for salt in 0..<3 {
                         let alt = compose(t, id: id, context: context,
                                           seed: salt == 0 ? seed : SeededRandom.seed(runID, id, "alt\(salt)"), layoutSeed: seed)
-                        if others.allSatisfy({ PlanMetrics.diversity($0, alt.plan).passes }) {
+                        if others.allSatisfy({ distinct($0, alt.plan, context: context) }) {
                             comp = alt; fixed = true
                             warnings.append("\(id): recomposed to differ from \(clash.id)")
                             break attempts
@@ -117,11 +116,14 @@ public enum ComposerEngine {
                 if !fixed {
                     if kept.count + (directions.count - i - 1) >= 2 {   // dropping still leaves two directions
                         warnings.append("\(id): dropped, too similar to \(clash.id)")
-                        continue
+                        shouldDrop = true
+                        break
                     }
                     warnings.append("\(id): still similar to \(clash.id); kept so at least two directions remain")
+                    break
                 }
             }
+            if shouldDrop { continue }
             kept.append(comp.plan)
         }
 
@@ -137,6 +139,101 @@ public enum ComposerEngine {
         var rng = SeededRandom(seed: SeededRandom.seed(runID, "presentation-order"))
         for i in stride(from: order.count - 1, to: 0, by: -1) { order.swapAt(i, Int(rng.next() % UInt64(i + 1))) }
         return ComposedSet(plans: plans, distances: distances, presentationOrder: order, warnings: warnings)
+    }
+
+    private static func distinct(_ a: CarouselPlan, _ b: CarouselPlan, context: CompositionContext) -> Bool {
+        if a.isBaseline || b.isBaseline {
+            // The baseline is a control, not one of the designed options. Keep its cover
+            // distinct so the comparison remains meaningful, without applying option-only
+            // selection and template-family thresholds to it.
+            return a.coverAssetID != b.coverAssetID
+        }
+        guard PlanMetrics.diversity(a, b).passes else { return false }
+        guard !context.vocabulary.isEmpty else { return true }
+        let familiesA = templateFamilies(a, context: context).subtracting(["layouts"])
+        let familiesB = templateFamilies(b, context: context).subtracting(["layouts"])
+        // If only one option can use an imported family, it is already a visible layout
+        // difference. When both use templates, their family sets must differ.
+        return familiesA.isEmpty || familiesB.isEmpty || familiesA != familiesB
+    }
+
+    private static func templateFamilies(_ plan: CarouselPlan, context: CompositionContext) -> Set<String> {
+        let layout = LayoutResolver.resolve(plan, context: LayoutContext(
+            aspect: context.aspect, photos: context.photos, features: context.features,
+            stylePack: context.stylePack, seed: layoutSeed(runID: plan.id, id: plan.id),
+            storyHint: context.storyHint, vocabulary: plan.isBaseline ? [] : context.vocabulary))
+        return Set(layout.slides.compactMap { slide in
+            guard let variant = slide.variant, variant.hasPrefix("template.") else { return nil }
+            let id = String(variant.dropFirst("template.".count))
+            return context.vocabulary.first(where: { $0.id == id })?.familyID ?? id
+        })
+    }
+
+    private static func remedyDirections(_ direction: Direction, against clash: CarouselPlan,
+                                         others: [CarouselPlan], context: CompositionContext) -> [Direction] {
+        let usedCovers = Set(others.compactMap(\.coverAssetID))
+        let orderedPool = context.photos.keys.sorted { strengthOrder($1, $0, context) }
+        let current = direction.orderedAssetIDs
+        let unusedPool = orderedPool.filter { !current.contains($0) && !context.flagged.contains($0) }
+        var tries: [Direction] = []
+
+        if let alt = current.filter({ !usedCovers.contains($0) && !context.flagged.contains($0) })
+            .max(by: { strengthOrder($0, $1, context) }) {
+            var moved = direction
+            moved.coverAssetID = alt
+            if !context.keepOrder, let index = moved.orderedAssetIDs.firstIndex(of: alt) {
+                moved.orderedAssetIDs.remove(at: index)
+                moved.orderedAssetIDs.insert(alt, at: 0)
+            }
+            tries.append(moved)
+        } else if !context.keepOrder, let alt = unusedPool.first {
+            var moved = direction
+            moved.coverAssetID = alt
+            moved.orderedAssetIDs.insert(alt, at: 0)
+            tries.append(moved)
+        }
+
+        guard !context.keepOrder else { return tries }
+        if current.count > 1 {
+            for offset in 1..<current.count {
+                var rotated = direction
+                rotated.orderedAssetIDs = Array(current[offset...]) + Array(current[..<offset])
+                rotated.coverAssetID = rotated.orderedAssetIDs[0]
+                tries.append(rotated)
+            }
+        }
+
+        guard !context.exactSet else { return tries }
+        let replacements = unusedPool.filter { candidate in
+            current.first.map { sameEvent($0, candidate, context: context) } ?? true
+        }
+        let maxSwaps = Int(Double(current.count) * 0.30)
+        let swapCount = min(maxSwaps, replacements.count)
+        guard swapCount > 0 else { return tries }
+        for count in 1...swapCount {
+            var swapped = direction
+            let positions = Array(swapped.orderedAssetIDs.indices.dropFirst().prefix(count))
+            for (position, replacement) in zip(positions, replacements.prefix(count)) {
+                swapped.orderedAssetIDs[position] = replacement
+            }
+            if !swapped.orderedAssetIDs.contains(swapped.coverAssetID) {
+                swapped.coverAssetID = swapped.orderedAssetIDs[0]
+            }
+            tries.append(swapped)
+        }
+        return tries
+    }
+
+    private static func sameEvent(_ a: AssetID, _ b: AssetID, context: CompositionContext) -> Bool {
+        if let first = context.photos[a]?.metadata.capturedAt,
+           let second = context.photos[b]?.metadata.capturedAt {
+            return abs(first.timeIntervalSince(second)) <= 24 * 60 * 60
+        }
+        let generic: Set<String> = ["outdoor", "indoor", "person", "people", "human", "adult", "child",
+                                    "nature", "landscape", "sky", "land", "ground", "grass", "tree", "vegetation"]
+        let left = Set((context.features[a]?.labels ?? []).filter { $0.confidence >= 0.3 }.map { $0.identifier.lowercased() })
+        let right = Set((context.features[b]?.labels ?? []).filter { $0.confidence >= 0.3 }.map { $0.identifier.lowercased() })
+        return !left.intersection(right).subtracting(generic).isEmpty || (left.isEmpty && right.isEmpty)
     }
 
     /// Rebuilds stored plans from their own direction and composition seed: same ids, no diversity remedies, so a
@@ -420,9 +517,9 @@ public enum ComposerEngine {
         switch others.count {
         case 0:
             let f = context.features[hero]
-            let fits = CropPlanner.facesFit(f, crop: CropPlanner.cover(imageAspect: a, boxAspect: canvas, features: f))
+            let fits = CropPlanner.fullBleedEligible(imageAspect: a, boxAspect: canvas, features: f)
             let airy = style.whitespace == "airy"
-            if cleanOutput { return fits && bleedLoss <= 0.3 ? .fullBleed : .hero }
+            if cleanOutput { return fits ? .fullBleed : .hero }
             costs = [
                 // Dense slides fill the frame even in an airy carousel: that contrast is the rhythm.
                 (.fullBleed, 1.2 * bleedLoss + (fits ? 0 : 5) + (airy && density != "dense" ? 0.5 : 0)
@@ -535,8 +632,8 @@ public enum ComposerEngine {
     /// True when full-bleed on this canvas would crop away more than 30% of the photo (same rule as `choosePrimitive`).
     static func floats(_ id: AssetID, context: CompositionContext) -> Bool {
         let canvas = Double(context.aspect.exportWidth) / Double(context.aspect.exportHeight)
-        let bleedLoss = 1 - min(aspect(id, context) / canvas, canvas / aspect(id, context))
-        return bleedLoss > 0.3
+        return !CropPlanner.fullBleedEligible(imageAspect: aspect(id, context), boxAspect: canvas,
+                                               features: context.features[id])
     }
 
     /// Photo counts `n` for which the vocabulary has a single-slide, all-landscape, seam-safe page on this aspect.

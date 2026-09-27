@@ -327,3 +327,63 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
         + heroCleanCount(plan: emptyMixed, vocabulary: [], seed: emptyMixedSeed)
     #expect(withVocabHero < withoutVocabHero)
 }
+
+@Test func fourByThreeLandscapeCanUseFullBleedAtTheRetentionFloor() throws {
+    let id = AssetID(rawValue: "landscape")
+    let photo = PhotoRecord(assetID: id, contentSHA256: "landscape", sourceRelativePaths: [],
+                            byteCount: 1, fileType: "public.jpeg", pixelWidth: 1200, pixelHeight: 900,
+                            exifOrientation: 1, metadata: CaptureMetadata())
+    var feature = PhotoFeatures(assetID: id, analyzerVersion: "test")
+    feature.salientRegions = [UnitRect(x: 0.30, y: 0.30, width: 0.20, height: 0.20)]
+    let style = try StylePackLoader.load()
+    let context = CompositionContext(aspect: .portrait4x5, photos: [id: photo], features: [id: feature],
+                                     triage: [:], flagged: [], sequenceIntent: [:], stylePack: style,
+                                     maxSlides: nil)
+    var rng = SeededRandom(seed: 7)
+    #expect(ComposerEngine.choosePrimitive(hero: id, others: [], style: .baseline, position: .opener,
+                                           density: "balanced", context: context, rng: &rng) == .fullBleed)
+    #expect(!ComposerEngine.floats(id, context: context))
+
+    var peopleCut = feature
+    peopleCut.humans = [UnitRect(x: 0.05, y: 0.2, width: 0.8, height: 0.5)]
+    let unsafePeople = contextWith(feature: peopleCut, photo: photo, style: style)
+    var peopleRNG = SeededRandom(seed: 7)
+    #expect(ComposerEngine.choosePrimitive(hero: id, others: [], style: .baseline, position: .opener,
+                                           density: "balanced", context: unsafePeople, rng: &peopleRNG) == .hero)
+
+    var salientCut = feature
+    salientCut.salientRegions = [UnitRect(x: 0.1, y: 0.2, width: 0.8, height: 0.4)]
+    let unsafeSaliency = contextWith(feature: salientCut, photo: photo, style: style)
+    var salientRNG = SeededRandom(seed: 7)
+    #expect(ComposerEngine.choosePrimitive(hero: id, others: [], style: .baseline, position: .opener,
+                                           density: "balanced", context: unsafeSaliency, rng: &salientRNG) == .hero)
+    #expect(ComposerEngine.floats(id, context: unsafeSaliency))
+}
+
+@Test func distinctOptionsUseStrictPhotoAndStyleSignals() {
+    let ids = (1...5).map { AssetID(rawValue: "photo-\($0)") }
+    func plan(_ id: String, _ order: [AssetID], _ style: StyleVector) -> CarouselPlan {
+        let direction = Direction(brief: id, style: style, coverAssetID: order[0], orderedAssetIDs: order)
+        return CarouselPlan(id: id, brief: id, direction: direction, slides: order.map {
+            SlidePlan(primitive: .fullBleed, mood: "", density: style.density,
+                      photos: [.plain($0)], decorations: [], stamps: [])
+        })
+    }
+    let dense = StyleVector(density: "dense", overlap: "none", grouping: "single",
+                            decoration: "none", rotation: "none", whitespace: "tight")
+    let quiet = StyleVector(density: "quiet", overlap: "none", grouping: "single",
+                            decoration: "none", rotation: "none", whitespace: "tight")
+    let same = PlanMetrics.diversity(plan("same-a", ids, dense), plan("same-b", ids, quiet))
+    #expect(!same.passes)
+
+    let reversed = PlanMetrics.diversity(plan("reverse-a", ids, dense),
+                                         plan("reverse-b", Array(ids.reversed()), quiet))
+    #expect(reversed.jaccard == 1)
+    #expect(reversed.orderSimilarity <= 0.3)
+    #expect(reversed.passes)
+}
+
+private func contextWith(feature: PhotoFeatures, photo: PhotoRecord, style: StylePack) -> CompositionContext {
+    CompositionContext(aspect: .portrait4x5, photos: [photo.assetID: photo], features: [photo.assetID: feature],
+                       triage: [:], flagged: [], sequenceIntent: [:], stylePack: style, maxSlides: nil)
+}

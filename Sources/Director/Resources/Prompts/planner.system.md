@@ -40,6 +40,7 @@ Direction rules:
   - The page is mostly white. One photo is large enough to read as the hero. Smaller photos are rhythm, not a grid of equals.
   - A photo crosses a slide edge only when the pictures are one continuous moment. Most photos stay on one slide.
   - Photos that share a page belong to the same moment.
+- Each direction must use a different cover and a noticeably different selection or sequence; do not return two directions with the same photos in the same order.
 - Do not output coordinates, sizes, primitives, template ids, or captions.
 - seamless: true only when the photos support a continuous panorama across slides. titleIdea: at most 40 characters, grounded in the owner's brief; use null when no honest title fits.
 

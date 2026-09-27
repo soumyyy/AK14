@@ -39,6 +39,7 @@ public enum LayoutResolver {
                 index += 1
             }
         }
+        TemplateVocabulary.addCoverTitleIfNeeded(to: &slides, plan: plan, context: context)
         if !plan.isBaseline && CarouselGrade.gradeEnabled {
             slides = applyGrade(slides, plan: plan, features: context.features)
         }
@@ -152,8 +153,10 @@ public enum LayoutResolver {
                                          cropIntent: e.cropIntent, anchorIntent: e.anchorIntent)
             let landscapeOnPortraitCanvas = a > 1.0 && content.w / content.h < 1.0
             let cropLoss = 1 - crop.width * crop.height
-            if !CropPlanner.facesFit(context.features[e.assetID], crop: crop) || (landscapeOnPortraitCanvas && cropLoss > 0.30) {
-                warnings.append(landscapeOnPortraitCanvas && cropLoss > 0.30
+            let eligible = CropPlanner.fullBleedEligible(imageAspect: a, boxAspect: content.w / content.h,
+                                                         features: context.features[e.assetID])
+            if !eligible {
+                warnings.append(landscapeOnPortraitCanvas && cropLoss > 0.42
                     ? "landscape crop is too severe for a portrait slide; showing the whole photo as a hero"
                     : "faces do not fit a full-bleed crop; showing the whole photo as a hero")
                 primitive = .hero
