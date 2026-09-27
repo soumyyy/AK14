@@ -1298,13 +1298,6 @@ private struct OptionsReviewStage: View {
 
     private var actionFooter: some View {
         HStack(spacing: 12) {
-            Button { editorPresented = true } label: {
-                Label("Edit slides", systemImage: "arrow.up.arrow.down")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(currentPlan == nil || model.isEditingOption)
-
             Button {
                 guard let option else { return }
                 model.shareURLs = option.slides
