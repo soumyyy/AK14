@@ -54,6 +54,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0BD0F04FE50503C9E97AC215 /* AK14 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AK14; path = ..; sourceTree = SOURCE_ROOT; };
 		24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGenerateReviewUITests.swift; sourceTree = "<group>"; };
 		82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryEditingService.swift; sourceTree = "<group>"; };
 		83C201505BBB60E67089736C /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -61,7 +62,6 @@
 		A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AK14ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B44B3ED10EC74F653144D436 /* AK14iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AK14iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryPipeline.swift; sourceTree = "<group>"; };
-		BCB6010C922A62CF864F22E0 /* w7-ios-exact */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "w7-ios-exact"; path = ..; sourceTree = SOURCE_ROOT; };
 		C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportReviewView.swift; sourceTree = "<group>"; };
 		E8C35761776638637869EAB0 /* InteractionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionRecorder.swift; sourceTree = "<group>"; };
@@ -100,7 +100,7 @@
 		071EEDA1A4FF2C299771D90E /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				BCB6010C922A62CF864F22E0 /* w7-ios-exact */,
+				0BD0F04FE50503C9E97AC215 /* AK14 */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
