@@ -94,6 +94,8 @@ public enum StyleConfigClient {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        // Always revalidate (a cheap 304 when unchanged): a cached copy must never outlive a server-side fix.
+        request.cachePolicy = .reloadRevalidatingCacheData
         request.setValue("application/json", forHTTPHeaderField: "accept")
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw StyleConfigError.invalidResponse }
