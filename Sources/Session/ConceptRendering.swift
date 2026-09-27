@@ -30,9 +30,7 @@ public enum ConceptRendering {
                 result.warnings += slide.warnings.map { "\(concept) slide \(slide.index + 1): \($0)" }
             }
             let outcome = try CarouselRenderer().render(carousel, photos: photos, sourceFolder: sourceFolder,
-                                                        outputDirectory: store.url("slides/\(concept)"),
-                                                        recipe: RecipeSelection.recipe(for: plan, in: stylePack),
-                                                        recipeText: plan.brief)
+                                                        outputDirectory: store.url("slides/\(concept)"))  // recipes only via RecipeFiller documents; never print the internal brief
             result.slides[concept] = outcome.names.map { "slides/\(concept)/\($0)" }
             result.warnings += outcome.failures.map { "\(concept) render: \($0)" }
             if !outcome.failures.isEmpty { result.failed = true }

@@ -82,6 +82,7 @@ public struct CarouselRenderer: Sendable {
             StyleLayer.paper(ctx, size: canvas.size, rng: &rng)
         }
         if slide.background == "paper" { StyleLayer.paper(ctx, size: canvas.size, rng: &rng) }
+        if slide.background == "white" { ctx.setFillColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 1)); ctx.fill(canvas) }
         if slide.background.hasPrefix("wash:"),
            let rawID = slide.background.split(separator: ":").dropFirst().first.map(String.init),
            let record = photos[AssetID(rawValue: rawID)] {
