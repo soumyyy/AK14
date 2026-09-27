@@ -19,7 +19,10 @@
 		93592874EFD9F99ACB5AB0D9 /* StoryEditingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */; };
 		B8CE1FAB8FEEDD376CA77153 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 23FD3CC0E971D9E87CE105C5 /* Core */; };
 		CA7A818FF5528B245AD1A26E /* ImportGenerateReviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */; };
+		D230EE2C3FB10E5FCB17B9AF /* CanvasEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C63D705D22D93F8104E7BB /* CanvasEditorView.swift */; };
+		D44E1E8CE242EAFDC175A53F /* EditorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A97FF1429FAB4D5B46D145 /* EditorUITests.swift */; };
 		DFAC4C01BE2777C74A8253E5 /* AK14ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EF8FAF70670F17EC03A5D604 /* EditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C038D955B0AA4FA87E2AA707 /* EditorModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,7 +57,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0BD0F04FE50503C9E97AC215 /* AK14 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AK14; path = ..; sourceTree = SOURCE_ROOT; };
+		17175425C847D7EE0AFC4674 /* w7-editor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "w7-editor"; path = ..; sourceTree = SOURCE_ROOT; };
+		19A97FF1429FAB4D5B46D145 /* EditorUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorUITests.swift; sourceTree = "<group>"; };
 		24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGenerateReviewUITests.swift; sourceTree = "<group>"; };
 		82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryEditingService.swift; sourceTree = "<group>"; };
 		83C201505BBB60E67089736C /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -62,8 +66,10 @@
 		A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AK14ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B44B3ED10EC74F653144D436 /* AK14iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AK14iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryPipeline.swift; sourceTree = "<group>"; };
+		C038D955B0AA4FA87E2AA707 /* EditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorModel.swift; sourceTree = "<group>"; };
 		C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportReviewView.swift; sourceTree = "<group>"; };
+		D7C63D705D22D93F8104E7BB /* CanvasEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasEditorView.swift; sourceTree = "<group>"; };
 		E8C35761776638637869EAB0 /* InteractionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionRecorder.swift; sourceTree = "<group>"; };
 		F4E8F4E42040AAE7DD421C8F /* AK14App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AK14App.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -92,6 +98,7 @@
 				E8C35761776638637869EAB0 /* InteractionRecorder.swift */,
 				82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */,
 				B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */,
+				7152F08F86126BAC6E315D9E /* Editor */,
 			);
 			name = iOSApp;
 			path = ../Sources/iOSApp;
@@ -100,7 +107,7 @@
 		071EEDA1A4FF2C299771D90E /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				0BD0F04FE50503C9E97AC215 /* AK14 */,
+				17175425C847D7EE0AFC4674 /* w7-editor */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -116,6 +123,15 @@
 			);
 			sourceTree = "<group>";
 		};
+		7152F08F86126BAC6E315D9E /* Editor */ = {
+			isa = PBXGroup;
+			children = (
+				D7C63D705D22D93F8104E7BB /* CanvasEditorView.swift */,
+				C038D955B0AA4FA87E2AA707 /* EditorModel.swift */,
+			);
+			path = Editor;
+			sourceTree = "<group>";
+		};
 		9D7EBF061E82F18B1C3261DD /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -129,6 +145,7 @@
 		C10D2E0F622762DDB6F44E8B /* iOSAppUITests */ = {
 			isa = PBXGroup;
 			children = (
+				19A97FF1429FAB4D5B46D145 /* EditorUITests.swift */,
 				24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */,
 			);
 			name = iOSAppUITests;
@@ -268,6 +285,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D44E1E8CE242EAFDC175A53F /* EditorUITests.swift in Sources */,
 				CA7A818FF5528B245AD1A26E /* ImportGenerateReviewUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -285,6 +303,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				09BB41C9C5227D168712FDEE /* AK14App.swift in Sources */,
+				D230EE2C3FB10E5FCB17B9AF /* CanvasEditorView.swift in Sources */,
+				EF8FAF70670F17EC03A5D604 /* EditorModel.swift in Sources */,
 				579BAE047956EED0CEE6CA62 /* ImportReviewView.swift in Sources */,
 				02BD467FD87C0A2CC66FCE2B /* InteractionRecorder.swift in Sources */,
 				93592874EFD9F99ACB5AB0D9 /* StoryEditingService.swift in Sources */,
