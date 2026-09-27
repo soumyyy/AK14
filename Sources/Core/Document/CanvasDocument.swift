@@ -33,21 +33,23 @@ public struct PhotoAdjustments: Codable, Sendable, Equatable {
     }
 }
 public struct DocumentLayer: Codable, Sendable, Equatable {
-    public enum Kind: String, Codable, Sendable { case photo, text, sticker, shape, texture }
+    public enum Kind: String, Codable, Sendable { case photo, text, sticker, shape, texture, frame }
     public var id: String, kind: Kind
     public var frame: UnitRect
     public var rotation: Double, z: Int, opacity: Double, locked: Bool, slideHint: Int?
     public var assetID: AssetID?, crop: UnitRect?, adjustments: PhotoAdjustments?, border: Double, shadow: Bool, mask: Mask?
     public var string: String?, fontID: String?, size: Double?, colour: String?, alignment: String?, tracking: Double?, lineHeight: Double?
     public var stickerTint: String?, shapeKind: String?, fill: String?, stroke: String?, textureBlend: String?, intensity: Double?
+    public var frameAssetID: String?
     public init(id: String, kind: Kind, frame: UnitRect, rotation: Double = 0, z: Int = 0, opacity: Double = 1, locked: Bool = false, slideHint: Int? = nil,
                 assetID: AssetID? = nil, crop: UnitRect? = nil, adjustments: PhotoAdjustments? = nil, border: Double = 0, shadow: Bool = false, mask: Mask? = nil,
                 string: String? = nil, fontID: String? = nil, size: Double? = nil, colour: String? = nil, alignment: String? = nil, tracking: Double? = nil, lineHeight: Double? = nil,
-                stickerTint: String? = nil, shapeKind: String? = nil, fill: String? = nil, stroke: String? = nil, textureBlend: String? = nil, intensity: Double? = nil) {
+                stickerTint: String? = nil, shapeKind: String? = nil, fill: String? = nil, stroke: String? = nil, textureBlend: String? = nil, intensity: Double? = nil, frameAssetID: String? = nil) {
         self.id=id; self.kind=kind; self.frame=frame; self.rotation=rotation; self.z=z; self.opacity=opacity; self.locked=locked; self.slideHint=slideHint
         self.assetID=assetID; self.crop=crop; self.adjustments=adjustments; self.border=border; self.shadow=shadow; self.mask=mask
         self.string=string; self.fontID=fontID; self.size=size; self.colour=colour; self.alignment=alignment; self.tracking=tracking; self.lineHeight=lineHeight
         self.stickerTint=stickerTint; self.shapeKind=shapeKind; self.fill=fill; self.stroke=stroke; self.textureBlend=textureBlend; self.intensity=intensity
+        self.frameAssetID=frameAssetID
     }
 }
 public struct CanvasDocument: Codable, Sendable, Equatable {
