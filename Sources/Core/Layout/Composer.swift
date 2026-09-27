@@ -72,6 +72,16 @@ extension LayoutResolver {
     // MARK: - Candidates
 
     static func singleCandidates(_ e: PhotoElement, framed: Bool, rotation: Double, env: SlideEnv) -> [Candidate] {
+        if ComposerEngine.cleanOutput {
+            // "No-crop white border": the whole photo, centred, full width minus one uniform margin on every slide.
+            let m = 0.045 * env.canvas.short
+            let box = Box(x: m, y: m, w: env.canvas.W - 2 * m, h: env.canvas.H - 2 * m)
+            let a = env.aspect(e.assetID)
+            var (w, h) = a > box.w / box.h ? (box.w, box.w / a) : (box.h * a, box.h)
+            w = min(w, box.w); h = min(h, box.h)
+            let frame = Box(x: env.canvas.W / 2 - w / 2, y: env.canvas.H / 2 - h / 2, w: w, h: h)
+            return [Candidate(variant: "hero.clean", elements: [env.photo(e, frame: frame, z: 0, whole: true)], background: "white")]
+        }
         let box = framed ? env.usable.inset(0.04 * env.canvas.short) : env.usable
         let a = env.aspect(e.assetID)
         let canvasArea = env.canvas.W * env.canvas.H
@@ -114,9 +124,7 @@ extension LayoutResolver {
                 let element = env.photo(e, frame: band, z: 0)
                 guard let crop = element.crop, 1 - crop.width * crop.height <= 0.2,
                       CropPlanner.facesFit(env.context.features[e.assetID], crop: crop) else { continue }
-                // Carry the same scene into the negative space as a soft, photo-derived field.
-                // The foreground band remains the only scored/cropped photo; the wash is a renderer treatment.
-                out.append(Candidate(variant: "band.\(name)", elements: [element], background: "wash:\(e.assetID.rawValue)"))
+                out.append(Candidate(variant: "band.\(name)", elements: [element], background: "plain"))
             }
         }
         return out

@@ -67,7 +67,8 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     try RerenderCommand.rerender(runDirectory: store.root, source: folder)
     #expect(try digests() == before)
     try RerenderCommand.rerender(runDirectory: store.root, source: folder, seed: 0xABCDEF)
-    #expect(try digests() != before)
+    // Clean output is one consistent card per photo, so a new seed may legitimately change nothing.
+    if !ComposerEngine.cleanOutput { #expect(try digests() != before) }
 }
 
 @Test func undatedPhotosOmitDateStampsGracefully() async throws {
@@ -97,7 +98,8 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(lead.warnings.contains { $0.contains("landscape crop is too severe") })
     #expect((lead.metrics?.maxCropLoss ?? 1) <= 0.2, "a landscape hero is shown whole or as a band cropped at most 20%")
     let positions = Set(first.slides.compactMap { $0.variant }.filter { $0.contains("whole.") || $0.hasPrefix("band.") })
-    #expect(positions.count > 1, "landscape single-photo layouts should vary: \(positions)")
+    // Clean output uses one consistent white-border card on purpose; variety applies to the designed mode.
+    if !ComposerEngine.cleanOutput { #expect(positions.count > 1, "landscape single-photo layouts should vary: \(positions)") }
 }
 
 @Test func singleHeroCardsUsePhotoWashOnlyWhenTheyLeaveSubstantialCanvas() async throws {
@@ -117,17 +119,11 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
                                 features: [landscape.assetID: PhotoFeatures(assetID: landscape.assetID, analyzerVersion: "test")],
                                 stylePack: try StylePackLoader.load(), seed: 92814)
     let resolved = LayoutResolver.resolve(plan, context: context)
-    #expect(resolved == LayoutResolver.resolve(plan, context: context), "photo wash choice must be deterministic")
-    var washedCards = 0
-    for slide in resolved.slides.dropLast() {
-        let coverage = try #require(slide.metrics?.coverage)
-        if coverage < 0.75 {
-            #expect(slide.background == "wash:\(landscape.assetID.rawValue)")
-            washedCards += 1
-        }
+    #expect(resolved == LayoutResolver.resolve(plan, context: context), "background choice must be deterministic")
+    // Owner decision (2026-09-27): no photo-derived blurred washes behind a photo; they read as filler.
+    for slide in resolved.slides {
+        #expect(!slide.background.hasPrefix("wash:"), "slide \(slide.index + 1) uses a blurred photo wash")
     }
-    #expect(washedCards > 0, "landscape single-photo cards should avoid a pale mat when most of the canvas is empty")
-    #expect(resolved.slides.last?.background == "plain", "quiet single-photo slides keep paper for pacing")
 }
 
 @Test func landscapeHeavyRunUsesSafeBandsAndStackedPairsDeterministically() async throws {
@@ -148,20 +144,13 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
             guard let variant = slide.variant, variant.hasPrefix("band.") || variant.hasPrefix("bandpair.") else { continue }
             sawBand = sawBand || variant.hasPrefix("band.")
             sawPair = sawPair || variant.hasPrefix("bandpair.")
-            if variant.hasPrefix("band.") {
-                #expect(slide.background.hasPrefix("wash:"), "landscape bands should use their scene as the surrounding color field")
-                #expect(slide.background == "wash:\(slide.elements.first(where: { $0.kind == .photo })?.assetID?.rawValue ?? "")",
-                        "wash must be derived from the foreground band photo")
-            }
-            if slide.primitive == .inset || slide.primitive == .asymmetricPair || slide.primitive == .overlapCluster {
-                #expect(slide.background.hasPrefix("wash:"), "multi-photo layouts should sit on a field derived from their hero photo")
-            }
+            #expect(!slide.background.hasPrefix("wash:"), "no blurred photo washes (owner decision)")
             #expect((slide.metrics?.maxCropLoss ?? 1) <= 0.2, "\(variant) crop loss exceeds 20%")
             #expect(!slide.warnings.contains { $0.contains("some people are cropped") }, "\(variant) cuts people")
         }
     }
     // Bands compete on the same scoring as every other arrangement; on a landscape-heavy set at least one should win.
-    #expect(sawBand || sawPair, "landscape-heavy fixture never chose a band arrangement")
+    if !ComposerEngine.cleanOutput { #expect(sawBand || sawPair, "landscape-heavy fixture never chose a band arrangement") }
     func renderedBytes() throws -> [String: Data] {
         var bytes: [String: Data] = [:]
         for (id, paths) in d.renderedSlides {
@@ -249,7 +238,9 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
             families.append(variant.split(separator: ".").prefix(2).joined(separator: "."))
         }
         let repeats = zip(families, families.dropFirst()).filter { $0 == $1 && $0 != "bleed" }.count
-        #expect(repeats <= 1, "\(concept) repeats an arrangement on consecutive slides \(repeats)×: \(families)")
+        if !ComposerEngine.cleanOutput {
+            #expect(repeats <= 1, "\(concept) repeats an arrangement on consecutive slides \(repeats)×: \(families)")
+        }
         if plan.style?.whitespace == "airy" {
             #expect(singlePhotoVariants.count > 1, "\(concept) airy single-photo layouts never vary: \(singlePhotoVariants)")
         }

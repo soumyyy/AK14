@@ -226,10 +226,8 @@ struct StoryPipeline: Sendable {
                                        seed: ComposerEngine.layoutSeed(runID: runID, id: plan.id))
             let resolved = LayoutResolver.resolve(plan, context: layout)
             let directory = runRoot.appending(path: "slides/\(plan.id)", directoryHint: .isDirectory)
-            let recipe = RecipeSelection.recipe(for: plan, in: stylePack)
             let result = try CarouselRenderer().render(resolved, photos: photoByID, sourceFolder: folder,
-                                                       outputDirectory: directory, recipe: recipe,
-                                                       recipeText: plan.brief)
+                                                       outputDirectory: directory)
             guard result.failures.isEmpty, !result.names.isEmpty else { throw PipelineFailure.renderFailed(result.failures.joined(separator: "; ")) }
             byID[plan.id] = result.names.map { directory.appending(path: $0) }
             try store.write(resolved.slides, to: "layouts/\(plan.id)/slides.json")

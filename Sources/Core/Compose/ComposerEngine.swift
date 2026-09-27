@@ -144,6 +144,20 @@ public enum ComposerEngine {
 
     // MARK: - One direction
 
+    /// Clean-output policy (owner feedback 2026-09-27: blurred backdrops, mats and forced pairs are not aesthetic).
+    /// Until designed pages replace procedural layouts, every direction is one photo per slide, edge to edge where
+    /// people fit, finished only with subtle grain or a date stamp. Directions still differ in selection, order,
+    /// cover and rhythm.
+    public static let cleanOutput = true
+
+    static func cleaned(_ style: StyleVector) -> StyleVector {
+        guard cleanOutput else { return style }
+        var s = style
+        s.grouping = "single"; s.overlap = "none"; s.rotation = "none"; s.whitespace = "tight"
+        if s.decoration == "rich" { s.decoration = "light" }
+        return s
+    }
+
     public static func compose(_ direction: Direction, id: String, context: CompositionContext, seed: UInt64,
                                layoutSeed: UInt64? = nil) -> Composition {
         var generated = generate(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
@@ -182,7 +196,7 @@ public enum ComposerEngine {
         var rng = SeededRandom(seed: seed)
         var warnings: [String] = []
         var d = direction
-        d.style = d.style.normalized
+        d.style = cleaned(d.style.normalized)
         var seen = Set<AssetID>()
         var ids = d.orderedAssetIDs.filter { context.photos[$0] != nil && seen.insert($0).inserted }
         guard !ids.isEmpty else {
@@ -340,6 +354,7 @@ public enum ComposerEngine {
             let f = context.features[hero]
             let fits = CropPlanner.facesFit(f, crop: CropPlanner.cover(imageAspect: a, boxAspect: canvas, features: f))
             let airy = style.whitespace == "airy"
+            if cleanOutput { return fits && bleedLoss <= 0.3 ? .fullBleed : .hero }
             costs = [
                 // Dense slides fill the frame even in an airy carousel: that contrast is the rhythm.
                 (.fullBleed, 1.2 * bleedLoss + (fits ? 0 : 5) + (airy && density != "dense" ? 0.5 : 0)
@@ -348,7 +363,7 @@ public enum ComposerEngine {
                 (.hero, 0.45 + (airy ? -0.1 : 0.2) + (density == "dense" ? 0.15 : 0)),
             ]
             // A border and shadow are decoration: never on a carousel that asked for none.
-            if style.decoration != "none" {
+            if style.decoration != "none" && !cleanOutput {
                 costs.append((.framedHero, 0.55 + (airy ? -0.1 : 0.2) + (density == "quiet" ? -0.1 : 0)))
             }
         case 1:
@@ -379,13 +394,14 @@ public enum ComposerEngine {
         var stamped = 0
         for (i, _, _) in order.prefix(budget) {
             let s = slides[i]
-            let options: [String] = switch s.primitive {
+            let designed: [String] = switch s.primitive {
             case .hero, .framedHero: ["film-edge", "paper-warm", "date-stamp"]
             case .overlapCluster: ["tape-clear", "paper-warm"]
             case .asymmetricPair: ["paper-warm", "grain-fine"]
             case .inset: ["grain-fine"]                        // an inset's main photo may cover the whole background
             case .fullBleed: ["grain-fine", "date-stamp"]
             }
+            let options = cleanOutput ? ["grain-fine", "date-stamp"] : designed
             let dated = s.photos.first.flatMap { context.photos[$0.assetID]?.metadata.capturedAt } != nil
             let usable = options.filter { pack.contains($0) && ($0 != "date-stamp" || (dated && stamped < (rich ? 2 : 1))) }
             guard !usable.isEmpty else { continue }
