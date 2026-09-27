@@ -40,9 +40,9 @@ async function authenticate(request, env) {
   } catch { return null; }
 }
 
-async function appleKeys(env) {
+async function appleKeys(env, fresh = false) {
   const cacheKey = "apple:jwks";
-  const cached = await env.AK14_USAGE.get(cacheKey);
+  const cached = fresh ? null : await env.AK14_USAGE.get(cacheKey);
   if (cached) { try { return JSON.parse(cached); } catch {} }
   const response = await (env.fetchAppleJWKS || fetch)("https://appleid.apple.com/auth/keys");
   if (!response.ok) throw new Error("Apple key fetch failed");
@@ -60,7 +60,9 @@ async function verifyAppleToken(token, env) {
   const header = decode(parts[0]), claims = decode(parts[1]);
   if (header.alg !== "RS256" || !header.kid || claims.iss !== "https://appleid.apple.com" || claims.aud !== (env.APPLE_BUNDLE_ID || "com.ak14.app")
     || !Number.isFinite(claims.exp) || claims.exp <= Math.floor(Date.now() / 1000) || typeof claims.sub !== "string" || !claims.sub) throw new Error("Invalid Apple identity token");
-  const jwk = (await appleKeys(env)).keys.find(key => key.kid === header.kid && key.kty === "RSA");
+  const findKey = keys => keys.keys.find(key => key.kid === header.kid && key.kty === "RSA");
+  // Apple rotates signing keys: refetch once when the cached set lacks this key ID.
+  const jwk = findKey(await appleKeys(env)) || findKey(await appleKeys(env, true));
   if (!jwk) throw new Error("Apple signing key not found");
   const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
   const signature = Uint8Array.from(atob(parts[2].replace(/-/g, "+").replace(/_/g, "/")), char => char.charCodeAt(0));
