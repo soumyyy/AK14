@@ -32,12 +32,27 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let features = Dictionary(uniqueKeysWithValues: try store.read([PhotoFeatures].self, from: "cache/features.json").map { ($0.assetID, $0) })
     #expect(m.versions["renderer"] == "render-2" && m.versions["resolver"] == "layout-3" && m.versions["composer"] == ComposerEngine.version)
 
+    let fm = FileManager.default
     for plan in d.plans {
         let concept = plan.id
         let slides = try #require(d.renderedSlides[concept])
         #expect(slides.count == plan.slides.count, "\(concept) rendered \(slides.count)/\(plan.slides.count)")
+        // A recipe-filled concept (spec §3) renders from `documents/<id>.json`, not `layouts/<id>/slide-NN.json`;
+        // check the same off-canvas/bounds safety property against its CanvasDocument layers instead.
+        if fm.fileExists(atPath: store.url("documents/\(concept).json").path) {
+            let document = try store.read(CanvasDocument.self, from: "documents/\(concept).json")
+            for i in 0..<max(1, plan.slides.count) {
+                for layer in document.layers(onSlide: i) {
+                    let localX = (layer.frame.x - Double(i) / Double(document.slideCount)) * Double(document.slideCount)
+                    #expect(localX >= -0.001 && layer.frame.y >= -0.05 && localX + layer.frame.width * Double(document.slideCount) <= 1.001
+                            && layer.frame.y + layer.frame.height <= 1.001,
+                            "\(concept) slide \(i + 1) \(layer.kind) out of bounds: \(layer.frame)")
+                }
+            }
+            continue
+        }
         for (i, path) in slides.enumerated() {
-            #expect(FileManager.default.fileExists(atPath: store.url(path).path))
+            #expect(fm.fileExists(atPath: store.url(path).path))
             let layout = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", concept, i + 1))
             for e in layout.elements where !(e.kind == .photo && layout.background == "none" && e.zIndex == 0) {
                 let f = e.frame
@@ -143,6 +158,9 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     #expect(m.aspectRatio != .portrait3x4)
     var sawBand = false, sawPair = false
     for plan in d.plans {
+        // A recipe-filled concept has no ResolvedSlide layouts (spec §3): its bands/pairs are governed by the
+        // recipe's own slot rules and covered separately, so this legacy-primitive rhythm check skips it.
+        guard FileManager.default.fileExists(atPath: store.url("layouts/\(plan.id)").path) else { continue }
         for i in plan.slides.indices {
             let slide = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", plan.id, i + 1))
             guard let variant = slide.variant, variant.hasPrefix("band.") || variant.hasPrefix("bandpair.") else { continue }
@@ -182,7 +200,11 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let store = try await run(tmp, folder: folder)
     // The composer decides decoration; force a film edge and a date stamp onto one slide so both paths are exercised.
     var d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    let i = try #require(d.plans.firstIndex { $0.id == "c1" })
+    // Every non-baseline direction may score high enough to earn a recipe (spec §3/§4) and render as a
+    // CanvasDocument instead, which has no `decorations`/`stamps` to hand-edit; the baseline never does
+    // (RecipeFiller.select always returns nil for it), so it is the one concept guaranteed to stay on the
+    // legacy primitive/decoration path this test exercises.
+    let i = try #require(d.plans.firstIndex { $0.isBaseline })
     d.plans[i].slides[0].decorations = [DecorationElement(decorationID: "film-edge", intensity: "medium")]
     d.plans[i].slides[0].stamps = [StampElement(kind: "date", placement: "bottomRight")]
     try store.write(d, to: "plans/director.json")
@@ -212,11 +234,14 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     let folder = try sceneFolder(tmp)
     let store = try await run(tmp, folder: folder)
     var d = try store.read(ConceptsReport.self, from: "plans/director.json")
-    let i = try #require(d.plans.firstIndex { $0.id == "c1" })
+    // The baseline is the one concept guaranteed to stay on the legacy ResolvedSlide path (see the comment in
+    // stampsUseLocalCaptureDateAndFilmEdgeKeepsContentClear): any direction may earn a recipe (spec §3/§4)
+    // and render as a CanvasDocument instead, which never writes `layouts/<id>`.
+    let i = try #require(d.plans.firstIndex { $0.isBaseline })
     d.plans[i].slides[0].photos = [PhotoElement.plain(AssetID(rawValue: "a_doesnotexist"))]   // hand-edited plan
     try store.write(d, to: "plans/director.json")
     try RerenderCommand.rerender(runDirectory: store.root, source: folder)
-    let slide = try store.read(ResolvedSlide.self, from: "layouts/c1/slide-01.json")
+    let slide = try store.read(ResolvedSlide.self, from: "layouts/\(d.plans[i].id)/slide-01.json")
     #expect(slide.elements.isEmpty && slide.warnings.contains { $0.contains("no usable photos") })
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender-backup").path))
     #expect(!FileManager.default.fileExists(atPath: store.url(".rerender").path))
@@ -232,6 +257,9 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
     var report: [String] = []
     for plan in d.plans where !plan.isBaseline {
         let concept = plan.id
+        // Recipe-filled concepts (spec §3) place photos through the recipe's slot rules, not the primitive/
+        // hierarchy scoring below; their look is judged instead by the visual sample-and-review pass.
+        guard FileManager.default.fileExists(atPath: store.url("layouts/\(concept)").path) else { continue }
         var families: [String] = []
         var singlePhotoVariants: Set<String> = []
         for i in plan.slides.indices {

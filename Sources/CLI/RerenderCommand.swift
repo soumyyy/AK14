@@ -69,18 +69,23 @@ enum RerenderCommand {
             try? fm.removeItem(at: staging)
             throw Failure.render(result.warnings)
         }
-        // Swap both directories together: move current output aside, move staged in, roll back on any failure.
+        // Swap output directories together: move current output aside, move staged in, roll back on any failure.
+        // `layouts` (legacy resolved-slide plans) only exists for non-recipe concepts and `documents`
+        // (CanvasDocuments, spec §3) only for recipe-filled ones, so neither is required on either side.
+        let dirs = ["slides", "layouts", "documents"]
         let backup = store.url(".rerender-backup")
         try? fm.removeItem(at: backup)
         try fm.createDirectory(at: backup, withIntermediateDirectories: true)
         var moved: [String] = []
         do {
-            for dir in ["slides", "layouts"] where fm.fileExists(atPath: store.url(dir).path) {
+            for dir in dirs where fm.fileExists(atPath: store.url(dir).path) {
                 try fm.moveItem(at: store.url(dir), to: backup.appending(path: dir)); moved.append(dir)
             }
-            for dir in ["slides", "layouts"] { try fm.moveItem(at: staging.appending(path: dir), to: store.url(dir)) }
+            for dir in dirs where fm.fileExists(atPath: staging.appending(path: dir).path) {
+                try fm.moveItem(at: staging.appending(path: dir), to: store.url(dir))
+            }
         } catch {
-            for dir in ["slides", "layouts"] { try? fm.removeItem(at: store.url(dir)) }
+            for dir in dirs { try? fm.removeItem(at: store.url(dir)) }
             for dir in moved { try? fm.moveItem(at: backup.appending(path: dir), to: store.url(dir)) }
             try? fm.removeItem(at: staging); try? fm.removeItem(at: backup)
             throw error

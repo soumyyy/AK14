@@ -10,6 +10,10 @@ public enum BundledFonts {
         return CTFontCreateWithName(name as CFString, CGFloat(size), nil)
     }
 
+    /// Every asset-manifest font id that registered successfully with Core Text, for tests that need to
+    /// exercise the whole typography kit without duplicating `Bundle.module` asset-manifest lookup.
+    public static var registeredIDs: [String] { names.keys.sorted() }
+
     private static func register() -> [String: String] {
         var names: [String: String] = [:]
         guard let manifestURL = Bundle.module.url(forResource: "manifest", withExtension: "json", subdirectory: "Assets"),

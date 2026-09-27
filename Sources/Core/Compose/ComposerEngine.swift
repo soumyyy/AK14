@@ -71,10 +71,6 @@ public enum ComposerEngine {
         for (i, d) in directions.enumerated() {
             let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
             var comp = compose(d, id: id, context: context, seed: seed)
-            if let recipes = context.stylePack.recipes, let direction = comp.plan.direction,
-               let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
-                comp.plan.recipeID = recipe.id
-            }
             warnings += comp.warnings.map { "\(id): \($0)" }
             // Every direction must also differ from the photos-only baseline, or the study comparison is empty.
             let others = [base.plan] + kept
@@ -156,7 +152,7 @@ public enum ComposerEngine {
         guard !generated.ranked.isEmpty else { return generated.empty }
         let near = generated.ranked.filter { $0.score <= generated.ranked[0].score + 0.04 }
         let pick = near[Int(generated.rng.next() % UInt64(near.count))]
-        return composition(pick, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings)
+        return composition(pick, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings, context: context)
     }
 
     /// Returns distinct, safe whole-carousel candidates ranked by composer score.
@@ -171,14 +167,20 @@ public enum ComposerEngine {
             guard !layout.slides.contains(where: { slide in
                 slide.warnings.contains { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }
             }) else { return }
-            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings))
+            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings, context: context))
         }
     }
 
     private static func composition(_ candidate: (plan: CarouselPlan, score: Double), direction: Direction, id: String,
-                                    seed: UInt64, warnings: [String]) -> Composition {
+                                    seed: UInt64, warnings: [String], context: CompositionContext) -> Composition {
         var plan = candidate.plan
         plan.compositionSeed = String(seed, radix: 16)
+        // Recipe selection (spec §3/§4) happens for every composed plan, so any path that produces one —
+        // composeSet, recompose, a diversity-remedy retry, or a raw `compose` call — assigns it the same way.
+        if let recipes = context.stylePack.recipes,
+           let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
+            plan.recipeID = recipe.id
+        }
         return Composition(plan: plan, score: candidate.score, warnings: warnings)
     }
 

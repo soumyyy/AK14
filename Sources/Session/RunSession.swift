@@ -222,7 +222,15 @@ public final class RunSession: @unchecked Sendable {
         let concept = stagingRoot.appending(path: "concept")
         try fm.createDirectory(at: concept, withIntermediateDirectories: true)
         try fm.moveItem(at: stagingRoot.appending(path: "slides/\(c)"), to: concept.appending(path: "slides"))
-        try fm.moveItem(at: stagingRoot.appending(path: "layouts/\(c)"), to: concept.appending(path: "layouts"))
+        let stagedLayout = stagingRoot.appending(path: "layouts/\(c)")
+        let stagedDocument = stagingRoot.appending(path: "documents/\(c).json")
+        // A recipe-filled concept renders from a CanvasDocument and has no `layouts/<c>` (spec §3): carry
+        // whichever representation the render produced, so document-based edits stay independently rerenderable.
+        if fm.fileExists(atPath: stagedLayout.path) {
+            try fm.moveItem(at: stagedLayout, to: concept.appending(path: "layouts"))
+        } else if fm.fileExists(atPath: stagedDocument.path) {
+            try fm.moveItem(at: stagedDocument, to: concept.appending(path: "document.json"))
+        }
         try JSONCoding.encoder.encode(plan).write(to: concept.appending(path: "plan.json"))
         if let seed { try Data(String(seed, radix: 16).utf8).write(to: concept.appending(path: "seed.txt")) }
 

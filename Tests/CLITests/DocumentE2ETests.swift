@@ -82,8 +82,10 @@ private func forcedElementsCarousel(_ tmp: TempDirectory) async throws -> (carou
     let photos = try store.read(IngestResult.self, from: "input-index.json").photos
     let byID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
     var sawKinds = Set<ElementKind>(), sawBackgrounds = Set<String>()
-    // One case per option, run through the pipeline for real.
-    for option in report.plans {
+    // One case per option, run through the pipeline for real. A recipe-filled option (spec §3) renders
+    // straight from a CanvasDocument and never had a ResolvedCarousel to convert, so byte-identity to
+    // legacyRender — which is a property of the conversion, not of every option — does not apply to it.
+    for option in report.plans where FileManager.default.fileExists(atPath: store.url("layouts/\(option.id)").path) {
         let slides = try report.renderedSlides[option.id]!.indices.map {
             try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", option.id, $0 + 1))
         }
@@ -193,4 +195,149 @@ private func averageColor(of image: CGImage, sampleRect: CGRect) -> (r: Double, 
     let colourOnSlide1 = averageColor(of: images[1], sampleRect: onSlide1)
     #expect(!isBackground(colourOnSlide0), "the straddling photo should show on slide 0 near its right edge")
     #expect(!isBackground(colourOnSlide1), "the straddling photo should show on slide 1 near its left edge")
+}
+
+// MARK: - CS-4b: kit, fonts, masks
+
+/// A `UnitRect` (y measured from the slide's top, per the document model) converted into the pixel rect of a
+/// top-down buffer such as `rgba(of:)` below. `CarouselRenderer.cgRect` is deliberately not reused here: it
+/// converts into bottom-up CGContext user space (for drawing), which is a different coordinate system.
+private func topDownRect(_ u: UnitRect, W: Double, H: Double) -> CGRect {
+    CGRect(x: u.x * W, y: u.y * H, width: u.width * W, height: u.height * H)
+}
+
+/// Full RGBA buffer of a PNG file, top-left origin (row 0 = image top), for pixel-exact comparisons.
+private func rgba(of url: URL) throws -> (width: Int, height: Int, bytes: [UInt8]) {
+    let src = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+    let image = try #require(CGImageSourceCreateImageAtIndex(src, 0, nil))
+    let w = image.width, h = image.height
+    var bytes = [UInt8](repeating: 0, count: w * h * 4)
+    let ctx = try #require(CGContext(data: &bytes, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                     space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+    ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+    return (w, h, bytes)
+}
+
+@Test func documentWithOneLayerOfEveryKindRendersDeterministically() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (photo, folder) = try await singlePhoto(tmp, folderName: "every-kind")
+    let byID = [photo.assetID: photo]
+    let layers: [DocumentLayer] = [
+        DocumentLayer(id: "photo", kind: .photo, frame: UnitRect(x: 0.0, y: 0.5, width: 0.5, height: 0.5), slideHint: 0,
+                     assetID: photo.assetID, crop: UnitRect(x: 0, y: 0, width: 1, height: 1)),
+        DocumentLayer(id: "text", kind: .text, frame: UnitRect(x: 0.5, y: 0.5, width: 0.5, height: 0.15), slideHint: 0,
+                     string: "Every kind", fontID: "font-inter", size: 24, colour: "#111111"),
+        DocumentLayer(id: "sticker", kind: .sticker, frame: UnitRect(x: 0.5, y: 0.7, width: 0.2, height: 0.15), slideHint: 0,
+                     assetID: AssetID(rawValue: "doodle-star")),
+        DocumentLayer(id: "shape", kind: .shape, frame: UnitRect(x: 0.75, y: 0.7, width: 0.2, height: 0.15), slideHint: 0,
+                     shapeKind: "roundedRect", fill: "#3355AA"),
+        DocumentLayer(id: "texture", kind: .texture, frame: UnitRect(x: 0.0, y: 0.0, width: 1.0, height: 0.5), slideHint: 0,
+                     assetID: AssetID(rawValue: "grain-fine"), textureBlend: "multiply", intensity: 0.5),
+    ]
+    let document = CanvasDocument(id: "one-of-each", aspect: .square, slideCount: 1, background: .colour("#F4F1EA"), layers: layers)
+    let first = try DocumentRenderer().render(document, photos: byID, sourceFolder: folder, outputDirectory: tmp.url.appending(path: "first"))
+    let second = try DocumentRenderer().render(document, photos: byID, sourceFolder: folder, outputDirectory: tmp.url.appending(path: "second"))
+    #expect(first.failures.isEmpty && second.failures.isEmpty)
+    #expect(first.names == ["slide-01.png"] && second.names == first.names)
+    let a = try Data(contentsOf: tmp.url.appending(path: "first/slide-01.png"))
+    let b = try Data(contentsOf: tmp.url.appending(path: "second/slide-01.png"))
+    #expect(a == b, "a document with one layer of every kind must render byte-identically across runs")
+}
+
+@Test func everyBundledFontRendersVisibleTextPixelsInsideItsTextBox() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (photo, folder) = try await singlePhoto(tmp, folderName: "fonts")
+    let byID = [photo.assetID: photo]
+    // The typography kit's OFL fonts (spec §4); the legacy DSEG7 digital-clock font is covered separately
+    // by stampsUseLocalCaptureDateAndFilmEdgeKeepsContentClear.
+    let fontIDs = BundledFonts.registeredIDs.filter { $0 != "font-dseg7-classic-bold" }
+    #expect(fontIDs.count >= 6, "expected the 6-8 OFL fonts from spec §4, found \(fontIDs.count)")
+
+    let frame = UnitRect(x: 0.1, y: 0.4, width: 0.8, height: 0.2)
+    let W = CarouselAspect.square.exportWidth, H = CarouselAspect.square.exportHeight
+    let box = topDownRect(frame, W: Double(W), H: Double(H))
+    for fontID in fontIDs {
+        let layer = DocumentLayer(id: "t", kind: .text, frame: frame, slideHint: 0, string: "Aq gj 17", fontID: fontID, size: 64, colour: "#111111")
+        let document = CanvasDocument(id: fontID, aspect: .square, slideCount: 1, background: .colour("#F4F1EA"), layers: [layer])
+        let dir = tmp.url.appending(path: fontID)
+        let outcome = try DocumentRenderer().render(document, photos: byID, sourceFolder: folder, outputDirectory: dir)
+        #expect(outcome.failures.isEmpty, "\(fontID) failed to render: \(outcome.failures)")
+        let (w, h, bytes) = try rgba(of: dir.appending(path: try #require(outcome.names.first)))
+        var sawGlyphPixel = false
+        let x0 = max(0, Int(box.minX)), x1 = min(w, Int(box.maxX)), y0 = max(0, Int(box.minY)), y1 = min(h, Int(box.maxY))
+        outer: for y in stride(from: y0, to: y1, by: 2) {
+            for x in stride(from: x0, to: x1, by: 2) {
+                let o = (y * w + x) * 4
+                // Background is the warm paper "#F4F1EA" ≈ (244,241,234); a dark glyph pixel differs sharply.
+                if Int(bytes[o]) < 200 || Int(bytes[o + 1]) < 200 || Int(bytes[o + 2]) < 200 { sawGlyphPixel = true; break outer }
+            }
+        }
+        #expect(sawGlyphPixel, "\(fontID) drew no visible glyph pixels inside its text box")
+    }
+}
+
+@Test func stickerLayerChangesPixelsOnlyInsideItsFrame() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (photo, folder) = try await singlePhoto(tmp, folderName: "sticker-bounds")
+    let byID = [photo.assetID: photo]
+    let frame = UnitRect(x: 0.55, y: 0.62, width: 0.18, height: 0.12)
+    func document(withSticker: Bool) -> CanvasDocument {
+        let layers = withSticker ? [DocumentLayer(id: "s", kind: .sticker, frame: frame, slideHint: 0, assetID: AssetID(rawValue: "doodle-heart"))] : []
+        return CanvasDocument(id: "sticker-bounds", aspect: .square, slideCount: 1, background: .colour("#F4F1EA"), layers: layers)
+    }
+    let plainDir = tmp.url.appending(path: "plain"), stickerDir = tmp.url.appending(path: "sticker")
+    let plain = try DocumentRenderer().render(document(withSticker: false), photos: byID, sourceFolder: folder, outputDirectory: plainDir)
+    let withSticker = try DocumentRenderer().render(document(withSticker: true), photos: byID, sourceFolder: folder, outputDirectory: stickerDir)
+    #expect(plain.failures.isEmpty && withSticker.failures.isEmpty)
+    let (w, h, a) = try rgba(of: plainDir.appending(path: try #require(plain.names.first)))
+    let (w2, h2, b) = try rgba(of: stickerDir.appending(path: try #require(withSticker.names.first)))
+    #expect(w == w2 && h == h2)
+    let W = CarouselAspect.square.exportWidth, H = CarouselAspect.square.exportHeight
+    let box = topDownRect(frame, W: Double(W), H: Double(H))
+    var sawChangeInsideFrame = false, allChangesInsideFrame = true
+    for y in 0..<h {
+        for x in 0..<w {
+            let o = (y * w + x) * 4
+            guard a[o] != b[o] || a[o + 1] != b[o + 1] || a[o + 2] != b[o + 2] else { continue }
+            let inside = CGFloat(x) >= box.minX && CGFloat(x) < box.maxX && CGFloat(y) >= box.minY && CGFloat(y) < box.maxY
+            if inside { sawChangeInsideFrame = true } else { allChangesInsideFrame = false }
+        }
+    }
+    #expect(sawChangeInsideFrame, "the sticker should visibly change pixels inside its frame")
+    #expect(allChangesInsideFrame, "the sticker must not change any pixel outside its frame")
+}
+
+@Test func tornMaskClipsThePhoto() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (photo, folder) = try await singlePhoto(tmp, folderName: "torn-mask")
+    let byID = [photo.assetID: photo]
+    // A frame well inside the canvas, so any background revealed by the torn edge is unambiguous.
+    let frame = UnitRect(x: 0.2, y: 0.2, width: 0.6, height: 0.6)
+    func document(mask: Mask?) -> CanvasDocument {
+        let layer = DocumentLayer(id: "p", kind: .photo, frame: frame, slideHint: 0, assetID: photo.assetID,
+                                  crop: UnitRect(x: 0, y: 0, width: 1, height: 1), mask: mask)
+        return CanvasDocument(id: "torn", aspect: .square, slideCount: 1, background: .colour("#F4F1EA"), layers: [layer], seed: "0")
+    }
+    let rectDir = tmp.url.appending(path: "rect"), tornDir = tmp.url.appending(path: "torn")
+    let rectOutcome = try DocumentRenderer().render(document(mask: nil), photos: byID, sourceFolder: folder, outputDirectory: rectDir)
+    let tornOutcome = try DocumentRenderer().render(document(mask: .torn), photos: byID, sourceFolder: folder, outputDirectory: tornDir)
+    #expect(rectOutcome.failures.isEmpty && tornOutcome.failures.isEmpty)
+    let (w, h, rectBytes) = try rgba(of: rectDir.appending(path: try #require(rectOutcome.names.first)))
+    let (_, _, tornBytes) = try rgba(of: tornDir.appending(path: try #require(tornOutcome.names.first)))
+    let W = CarouselAspect.square.exportWidth, H = CarouselAspect.square.exportHeight
+    let box = topDownRect(frame, W: Double(W), H: Double(H))
+    // The paper background "#F4F1EA" ≈ (244,241,234); count pixels that still match it inside the frame.
+    func backgroundPixelCount(_ bytes: [UInt8]) -> Int {
+        var count = 0
+        for y in Int(box.minY)..<min(h, Int(box.maxY)) {
+            for x in Int(box.minX)..<min(w, Int(box.maxX)) {
+                let o = (y * w + x) * 4
+                if abs(Int(bytes[o]) - 244) < 8 && abs(Int(bytes[o + 1]) - 241) < 8 && abs(Int(bytes[o + 2]) - 234) < 8 { count += 1 }
+            }
+        }
+        return count
+    }
+    let rectBackground = backgroundPixelCount(rectBytes), tornBackground = backgroundPixelCount(tornBytes)
+    #expect(rectBackground < 20, "an unmasked photo should fill essentially all of its frame; \(rectBackground) background pixels leaked through")
+    #expect(tornBackground > rectBackground + 50, "a torn mask should clip visible slivers of the photo, revealing background: rect=\(rectBackground) torn=\(tornBackground)")
 }

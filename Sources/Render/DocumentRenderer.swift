@@ -47,9 +47,12 @@ public struct DocumentRenderer: Sendable {
 
     private func isLegacyConversion(_ d: CanvasDocument) -> Bool {
         guard !d.layers.isEmpty else { return false }
+        // `ResolvedElement` (the legacy bridge target) has no `mask` field, so a photo layer carrying a real
+        // mask (rounded/torn) must never be misrouted through legacyRender, which would silently drop it.
         return d.layers.allSatisfy { l in
-            l.kind == .photo || (l.kind == .text && l.fontID == "DSEG7Classic-Bold") ||
-            (l.kind == .sticker && l.assetID == nil && l.string == nil)
+            (l.mask == nil || l.mask == .rect) &&
+            (l.kind == .photo || (l.kind == .text && l.fontID == "DSEG7Classic-Bold") ||
+             (l.kind == .sticker && l.assetID == nil && l.string == nil))
         }
     }
 
