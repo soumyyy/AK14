@@ -459,9 +459,9 @@ private struct JudgeEnvelope: Decodable { let ranking: [String]; let reasons: [S
 private enum JudgeError: Error { case invalid }
 
 /// Latency experiment overrides (docs/reviews/2026-09-27-director-latency.md). Read from the environment on the
-/// Mac CLI only; unset means production behaviour (medium reasoning, high-detail images, the input's image cap).
+/// Mac CLI only; unset means production behaviour (low reasoning, high-detail images, the input's image cap).
 enum PlannerExperiment {
-    static var reasoning: String { value("AK14_PLANNER_REASONING", allowed: ["low", "medium", "high"]) ?? "medium" }
+    static var reasoning: String { value("AK14_PLANNER_REASONING", allowed: ["low", "medium", "high"]) ?? "low" }
     static var detail: String { value("AK14_PLANNER_DETAIL", allowed: ["low", "high", "auto"]) ?? "high" }
     static var maxImages: Int { ProcessInfo.processInfo.environment["AK14_PLANNER_MAX_IMAGES"].flatMap(Int.init) ?? .max }
     private static func value(_ key: String, allowed: Set<String>) -> String? {

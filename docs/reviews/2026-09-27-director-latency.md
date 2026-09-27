@@ -63,3 +63,16 @@ roughly-2× target is met. The recorded successful calls do not approach the old
 16k ceiling, so caps alone cannot explain a twofold median reduction. The
 highest-leverage candidates are the image reduction and planner reasoning
 changes, but both require a quality evaluation before production rollout.
+
+## A/B result and decision (2026-09-27)
+
+Largest IMG event (412 photos), 2 runs per arm, same build (`/tmp/ak14-speed`):
+
+| Arm | Planner | Director stage |
+| --- | ---: | ---: |
+| medium reasoning, high detail (old default) | 32–41 s | 55–67 s |
+| low reasoning | 15–16 s | 39–41 s |
+| low detail | 25–30 s | 45–58 s |
+| both | 13–16 s | 36 s (one run was 315 s: a composition slowdown, fixed in 924f015) |
+
+A side-by-side review of the rendered options found comparable stories, photo choices and template use with low reasoning; one run repeated two similar shots. The owner approved **low reasoning as the default**. Image detail stays high, because low detail saved little. `AK14_PLANNER_REASONING=medium` restores the old behaviour for comparisons.
