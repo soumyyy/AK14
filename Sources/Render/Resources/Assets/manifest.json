@@ -111,9 +111,9 @@
       "sha256": "c46b029ab4846b2935e301af0b2cf85a1d74d2858e6a33636a3e64cf3cc4696b",
       "licenseName": "SIL Open Font License 1.1",
       "licenseURL": "https://openfontlicense.org",
-      "author": "Huerta Tipogr\u00e1fica",
+      "author": "Huerta Tipográfica",
       "sourceURL": "https://github.com/google/fonts/tree/main/ofl/gochihand",
-      "attributionText": "Gochi Hand by Huerta Tipogr\u00e1fica, SIL OFL 1.1 (license text in fonts/gochihand-OFL.txt); role: handwriting (marker)",
+      "attributionText": "Gochi Hand by Huerta Tipográfica, SIL OFL 1.1 (license text in fonts/gochihand-OFL.txt); role: handwriting (marker)",
       "commercialUseAllowed": true,
       "modificationAllowed": true,
       "redistributionAllowed": true,
@@ -895,6 +895,762 @@
       "modificationAllowed": true,
       "redistributionAllowed": true,
       "acquiredAt": "2026-09-27"
+    },
+    {
+      "assetID": "frame-message",
+      "relativePath": "frames/message.png",
+      "assetType": "frame",
+      "sha256": "1c6f096d0bf2720d7d09cd3583042a3d02dfb3dc488f35b0c57b8f82d7e251ab",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:message"
+    },
+    {
+      "assetID": "frame-call",
+      "relativePath": "frames/call.png",
+      "assetType": "frame",
+      "sha256": "3af6ab39e55239f0cc12f06246db08500c94989534826268715f247f518d90fb",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:call"
+    },
+    {
+      "assetID": "frame-preview-01-light",
+      "relativePath": "frames/preview-01-light.png",
+      "assetType": "frame",
+      "sha256": "d92f0c106b7c25cd03235df783810e6dd7b193104e262c2ad66d6132f5adbe30",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:preview 01 light"
+    },
+    {
+      "assetID": "frame-preview-01-dark",
+      "relativePath": "frames/preview-01-dark.png",
+      "assetType": "frame",
+      "sha256": "eda1d1b9fb514c8fe31d7111f391af6f7410fcdcd9d0eb869b754fb64a97d0b0",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:preview 01 dark"
+    },
+    {
+      "assetID": "frame-preview-02-light",
+      "relativePath": "frames/preview-02-light.png",
+      "assetType": "frame",
+      "sha256": "97a7e484ec513247d04101b78451de27c3d0dae815ecc4b2517305581faf8f9c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:preview 02 light"
+    },
+    {
+      "assetID": "frame-preview-02-dark",
+      "relativePath": "frames/preview-02-dark.png",
+      "assetType": "frame",
+      "sha256": "1d2b225b7f0fbce59a1e45d5e9db752d5191be6800fbd1bfd76ebb84a34725f9",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:preview 02 dark"
+    },
+    {
+      "assetID": "frame-webpage-01-light",
+      "relativePath": "frames/webpage-01-light.png",
+      "assetType": "frame",
+      "sha256": "adf7c8de76de2280b04a944b2e22e7ce721cf9db3e23065d1cad4fb4778f4709",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:webpage 01 light"
+    },
+    {
+      "assetID": "frame-webpage-01-dark",
+      "relativePath": "frames/webpage-01-dark.png",
+      "assetType": "frame",
+      "sha256": "e559236f3cce4d2c8290a594a42e7c3587a4a09d58a2da022bb3dc15ddf2d207",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:webpage 01 dark"
+    },
+    {
+      "assetID": "frame-file-01",
+      "relativePath": "frames/file-01.png",
+      "assetType": "frame",
+      "sha256": "74976df5bec1d63a15340af0cad11ab3e22251ebe9a46a6b6f9db2fca763f207",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:file 01"
+    },
+    {
+      "assetID": "frame-file-02",
+      "relativePath": "frames/file-02.png",
+      "assetType": "frame",
+      "sha256": "944bdcd9177b1886815b13e0735559a8f21f258c62e08c9815a162866d1e45a0",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:file 02"
+    },
+    {
+      "assetID": "frame-file-03",
+      "relativePath": "frames/file-03.png",
+      "assetType": "frame",
+      "sha256": "8643a4bb5f388732d654e077728cd6da48ec12dd038149fded437020f9750290",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:file 03"
+    },
+    {
+      "assetID": "frame-file-04",
+      "relativePath": "frames/file-04.png",
+      "assetType": "frame",
+      "sha256": "6cc634a0243fc43203c700d2cc02949985d5725774355ed633edfb59fed076e9",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:file 04"
+    },
+    {
+      "assetID": "frame-airdrop-light",
+      "relativePath": "frames/airdrop-light.png",
+      "assetType": "frame",
+      "sha256": "28b7cd1dbf91d56ef85960a62355bc05cfc65d2f9bb873d2cea2a1775ba81206",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:airdrop light"
+    },
+    {
+      "assetID": "frame-airdrop-dark",
+      "relativePath": "frames/airdrop-dark.png",
+      "assetType": "frame",
+      "sha256": "6aa3c9bf2fba316ab3cf6e52dba10d86208f141e5141b827e296f167d61159eb",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:airdrop dark"
+    },
+    {
+      "assetID": "frame-photo-booth-light",
+      "relativePath": "frames/photo-booth-light.png",
+      "assetType": "frame",
+      "sha256": "4a6502e2fe8e18425b6932fe5d612679a4f5855de3b97da0fa5db9379d2eb914",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth light"
+    },
+    {
+      "assetID": "frame-photo-booth-dark",
+      "relativePath": "frames/photo-booth-dark.png",
+      "assetType": "frame",
+      "sha256": "a45909208c363ac911e1e27e4b70de2ffc21d8ccf602bf777a329cbd67a7933b",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth dark"
+    },
+    {
+      "assetID": "frame-film-border-01",
+      "relativePath": "frames/film-border-01.png",
+      "assetType": "frame",
+      "sha256": "4178782f96b2de6be4d96a77b8c45f659a0d3ac7ac5e128c3356dcc018d1d725",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 01"
+    },
+    {
+      "assetID": "frame-film-border-02",
+      "relativePath": "frames/film-border-02.png",
+      "assetType": "frame",
+      "sha256": "6136fa7ed7877bc30a34c23e4de5712e0011787157b99cb13288efe7dc616aac",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 02"
+    },
+    {
+      "assetID": "frame-film-border-03",
+      "relativePath": "frames/film-border-03.png",
+      "assetType": "frame",
+      "sha256": "6d0ccd10d418146ff21e4c548e3a8faa1ce5e2cf4b87326802faf82eae35d966",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 03"
+    },
+    {
+      "assetID": "frame-film-border-04",
+      "relativePath": "frames/film-border-04.png",
+      "assetType": "frame",
+      "sha256": "cc411223562ff1166a0f5de15281719b76375b598755dc1dfa95ad2826fc89b6",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 04"
+    },
+    {
+      "assetID": "frame-film-border-05",
+      "relativePath": "frames/film-border-05.png",
+      "assetType": "frame",
+      "sha256": "b53dd6d746491829e1f8ed61bf4881df1f37463fafc98f664d6aa0837796c1a7",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 05"
+    },
+    {
+      "assetID": "frame-film-border-06",
+      "relativePath": "frames/film-border-06.png",
+      "assetType": "frame",
+      "sha256": "8a7e5cf9026fa27f95b8389019432a3782bd58ae2b9fcea8de95e232227ef57c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 06"
+    },
+    {
+      "assetID": "frame-film-border-07",
+      "relativePath": "frames/film-border-07.png",
+      "assetType": "frame",
+      "sha256": "b9c38413c5d2e33497c42ac0d6e9c37d9440726b0410ed3debb08e5a5c5617a0",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 07"
+    },
+    {
+      "assetID": "frame-film-border-08",
+      "relativePath": "frames/film-border-08.png",
+      "assetType": "frame",
+      "sha256": "f9b5a5aaac0c6074d0b531e3a8a5a9d1a9c766c6877211012c0741271cf1535b",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 08"
+    },
+    {
+      "assetID": "frame-film-border-09",
+      "relativePath": "frames/film-border-09.png",
+      "assetType": "frame",
+      "sha256": "dc66acf148df95a93a4156d49c66dc930586c9fa72fb26e29b08d6028d6c3bc7",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 09"
+    },
+    {
+      "assetID": "frame-film-border-10",
+      "relativePath": "frames/film-border-10.png",
+      "assetType": "frame",
+      "sha256": "f4e7ad1f4ec7aec4ce78882ab6b00a6807e546f9667cc782413e1e42a08f393f",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 10"
+    },
+    {
+      "assetID": "frame-film-border-11",
+      "relativePath": "frames/film-border-11.png",
+      "assetType": "frame",
+      "sha256": "5298502408554668d0e656cbd81f385b201a415d99a06ecf43652ec33e317adc",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 11"
+    },
+    {
+      "assetID": "frame-film-border-12",
+      "relativePath": "frames/film-border-12.png",
+      "assetType": "frame",
+      "sha256": "b7a7d324cc29fa446e4c4b4e36a3f40dd05646bbf341ae9c5aed8e25c500df1b",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 12"
+    },
+    {
+      "assetID": "frame-film-border-13",
+      "relativePath": "frames/film-border-13.png",
+      "assetType": "frame",
+      "sha256": "44834d4a0b6e99a7be9a40a569a70e886b2adc6e947812c3e7d82eec2e4f080d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 13"
+    },
+    {
+      "assetID": "frame-film-border-14",
+      "relativePath": "frames/film-border-14.png",
+      "assetType": "frame",
+      "sha256": "0a418d6fd1ac7e1f3930e72a52e73a657b8f5144af651be96ab3f5385c032a2f",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 14"
+    },
+    {
+      "assetID": "frame-film-border-15",
+      "relativePath": "frames/film-border-15.png",
+      "assetType": "frame",
+      "sha256": "5079c3d2cea4abb3305e8d68fdd77c0e11eb5e0e0b0b821ec85068ef09626eca",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 15"
+    },
+    {
+      "assetID": "frame-film-border-16",
+      "relativePath": "frames/film-border-16.png",
+      "assetType": "frame",
+      "sha256": "3dc1c147f75c2728acc99c5ec97db76e3fa5b5e986465e932b234a13a57e7dc9",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 16"
+    },
+    {
+      "assetID": "frame-film-border-17",
+      "relativePath": "frames/film-border-17.png",
+      "assetType": "frame",
+      "sha256": "4c960a03a7247d092b2fdab70bbc50df92f7ffc78b783ec7917642f5eee90bea",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 17"
+    },
+    {
+      "assetID": "frame-film-border-18",
+      "relativePath": "frames/film-border-18.png",
+      "assetType": "frame",
+      "sha256": "113b4e3acdbd358e7669f94d6534a0ca7839315f02e2b31145fa295b38eb05cf",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 18"
+    },
+    {
+      "assetID": "frame-film-border-19",
+      "relativePath": "frames/film-border-19.png",
+      "assetType": "frame",
+      "sha256": "645d4487611336a58ed412048d45165c37d536011c89c25c09b9a582ab2eca5b",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 19"
+    },
+    {
+      "assetID": "frame-film-border-20",
+      "relativePath": "frames/film-border-20.png",
+      "assetType": "frame",
+      "sha256": "4ae5d7dadbef93d873181b9d4ed985e12b694f1ebde11cd69bc1c3d72c994fa3",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 20"
+    },
+    {
+      "assetID": "frame-film-border-21",
+      "relativePath": "frames/film-border-21.png",
+      "assetType": "frame",
+      "sha256": "f293a9423a7da63ed68d7a1deae69f5e73a034c78c0204d468489dc05ff8bac9",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 21"
+    },
+    {
+      "assetID": "frame-film-border-22",
+      "relativePath": "frames/film-border-22.png",
+      "assetType": "frame",
+      "sha256": "b14abc62aae8533c5f839c28980812fb26e5a828924cb990b359bd62338cd1d3",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 22"
+    },
+    {
+      "assetID": "frame-film-border-23",
+      "relativePath": "frames/film-border-23.png",
+      "assetType": "frame",
+      "sha256": "be05495879308ddbbe5c5a731b4905b9156318b224bab9f94b4c6ab09395fbef",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 23"
+    },
+    {
+      "assetID": "frame-film-border-24",
+      "relativePath": "frames/film-border-24.png",
+      "assetType": "frame",
+      "sha256": "f2b798175f7fbc72cf593e0f6480b4b33522fd57a64d20dbea318b73243eef5f",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 24"
+    },
+    {
+      "assetID": "frame-film-border-25",
+      "relativePath": "frames/film-border-25.png",
+      "assetType": "frame",
+      "sha256": "1217a3260a402bbe88ca121aa182e65dfa1b759a607df1220cbaef5a6d6650b7",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 25"
+    },
+    {
+      "assetID": "frame-film-border-26",
+      "relativePath": "frames/film-border-26.png",
+      "assetType": "frame",
+      "sha256": "e99473bfe5314bb47dd91f5161247def7a0618411c9643ddb6cef5b257a3ef8c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 26"
+    },
+    {
+      "assetID": "frame-film-border-27",
+      "relativePath": "frames/film-border-27.png",
+      "assetType": "frame",
+      "sha256": "5924d53c971913d1d731bcb891372062e232edbdfac3b117ff3bef61526ad96c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 27"
+    },
+    {
+      "assetID": "frame-film-border-28",
+      "relativePath": "frames/film-border-28.png",
+      "assetType": "frame",
+      "sha256": "9f3b333fb64c51777665fb4cdf09905996a939e29a6c141ee5737280664e256c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 28"
+    },
+    {
+      "assetID": "frame-film-border-29",
+      "relativePath": "frames/film-border-29.png",
+      "assetType": "frame",
+      "sha256": "6048d34a87794c434ac5fd76860898fdabd751b72009aa764b2a3f97de42cd68",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 29"
+    },
+    {
+      "assetID": "frame-film-border-30",
+      "relativePath": "frames/film-border-30.png",
+      "assetType": "frame",
+      "sha256": "f5ef279095a38358b81dc2025eb46f16c1aff93ca6006e8f119b9a9c59d8ee9e",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:film border 30"
+    },
+    {
+      "assetID": "frame-polaroid-01",
+      "relativePath": "frames/polaroid-01.png",
+      "assetType": "frame",
+      "sha256": "cfca2156b1afe6256f936d1d9a4597eb2abde74a3688d5279c4a30a5886fd92d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:polaroid 01"
+    },
+    {
+      "assetID": "frame-polaroid-02",
+      "relativePath": "frames/polaroid-02.png",
+      "assetType": "frame",
+      "sha256": "0cfc0aea738f1721ee9c8da75c6d46ca900b9a986d33b388d72af5ff86378f71",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:polaroid 02"
+    },
+    {
+      "assetID": "frame-polaroid-03",
+      "relativePath": "frames/polaroid-03.png",
+      "assetType": "frame",
+      "sha256": "76141fdc61e1e188a81bb7c4c1142640521b527214d1fd1c3fb305de57b35a82",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:polaroid 03"
+    },
+    {
+      "assetID": "frame-polaroid-04",
+      "relativePath": "frames/polaroid-04.png",
+      "assetType": "frame",
+      "sha256": "82b4bda520401fd91f5a3eae07ef004e233c239f3e3c989c89ee684d787baf17",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:polaroid 04"
+    },
+    {
+      "assetID": "frame-polaroid-05",
+      "relativePath": "frames/polaroid-05.png",
+      "assetType": "frame",
+      "sha256": "e194c4b8874842b32208c72d3487e2736f09e36e3e42067bde9da61b45ed3814",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:polaroid 05"
+    },
+    {
+      "assetID": "frame-polaroid-06",
+      "relativePath": "frames/polaroid-06.png",
+      "assetType": "frame",
+      "sha256": "c1cdf95a437759c983265a9976b11adcca615931491af3cb8c42fa8f896a458a",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:polaroid 06"
+    },
+    {
+      "assetID": "frame-paper-frame-01",
+      "relativePath": "frames/paper-frame-01.png",
+      "assetType": "frame",
+      "sha256": "74c1321942e879ce083fa8afee5ff3e734dd61396fe5049e4b3d7fab94f43e0d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 01"
+    },
+    {
+      "assetID": "frame-paper-frame-02",
+      "relativePath": "frames/paper-frame-02.png",
+      "assetType": "frame",
+      "sha256": "be301dfbf29382f5871bdc919dbc6f938413ca07e2e000ac4252b7441facc977",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 02"
+    },
+    {
+      "assetID": "frame-paper-frame-03",
+      "relativePath": "frames/paper-frame-03.png",
+      "assetType": "frame",
+      "sha256": "e2a4989b89eeb5ffee6833450aacfb3ac37c14fc1e1592e812518a01db76c7c6",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 03"
+    },
+    {
+      "assetID": "frame-paper-frame-04",
+      "relativePath": "frames/paper-frame-04.png",
+      "assetType": "frame",
+      "sha256": "3e518386316a3031bf523e85a574478e6f4b5a0b9fa1984ede3fcf6ac7129a3c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 04"
+    },
+    {
+      "assetID": "frame-paper-frame-05",
+      "relativePath": "frames/paper-frame-05.png",
+      "assetType": "frame",
+      "sha256": "fa5ae825356d74e66cb3bc5a035687bf98ea09ece12bc719ccc163449fb52243",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 05"
+    },
+    {
+      "assetID": "frame-paper-frame-06",
+      "relativePath": "frames/paper-frame-06.png",
+      "assetType": "frame",
+      "sha256": "0c9a34cc9edc0fcfe3645141c572d3b5411d82d19bb406463d9865e8fb538eb1",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 06"
+    },
+    {
+      "assetID": "frame-paper-frame-07",
+      "relativePath": "frames/paper-frame-07.png",
+      "assetType": "frame",
+      "sha256": "5c0e04e8beb98f2c53337ae44785d45a138c18e21c22735867c88e9c37239da6",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 07"
+    },
+    {
+      "assetID": "frame-paper-frame-08",
+      "relativePath": "frames/paper-frame-08.png",
+      "assetType": "frame",
+      "sha256": "8917e3493bd893f5dd189e175cb6829ecc36c8690d3f910ebde0a63b23f3c90c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 08"
+    },
+    {
+      "assetID": "frame-paper-frame-09",
+      "relativePath": "frames/paper-frame-09.png",
+      "assetType": "frame",
+      "sha256": "62b556299e40372129769cf1f58aecfbc9cc1d62c0709c60456bd9549578f1c2",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 09"
+    },
+    {
+      "assetID": "frame-paper-frame-10",
+      "relativePath": "frames/paper-frame-10.png",
+      "assetType": "frame",
+      "sha256": "c4d38b8795ee0443d84e7adb43624d2d56d30ca93982a66ce8b20b7b3381fc85",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 10"
+    },
+    {
+      "assetID": "frame-paper-frame-11",
+      "relativePath": "frames/paper-frame-11.png",
+      "assetType": "frame",
+      "sha256": "6ffa9eb9b0e727f0b09954c447b09b2a14d0147496ea1119118fcf7f4d5fcaec",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 11"
+    },
+    {
+      "assetID": "frame-paper-frame-12",
+      "relativePath": "frames/paper-frame-12.png",
+      "assetType": "frame",
+      "sha256": "ef6d82d0abb79b93f11704588d75c89259e3c926f5da1335367d2cca836ea19a",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 12"
+    },
+    {
+      "assetID": "frame-paper-frame-13",
+      "relativePath": "frames/paper-frame-13.png",
+      "assetType": "frame",
+      "sha256": "b33233b39881205e08eb38bfbb1c749337a0dd90e4c3d9d695060206486b2d33",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 13"
+    },
+    {
+      "assetID": "frame-paper-frame-14",
+      "relativePath": "frames/paper-frame-14.png",
+      "assetType": "frame",
+      "sha256": "0655b65c140f954a6e78e8926857188a063b1edaba48688bb7e3a970198dcc29",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 14"
+    },
+    {
+      "assetID": "frame-paper-frame-15",
+      "relativePath": "frames/paper-frame-15.png",
+      "assetType": "frame",
+      "sha256": "a2d688128a87aef4330c5909b3cb19d98c858f507656b1aef4aa6c45f7e7e94a",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 15"
+    },
+    {
+      "assetID": "frame-paper-frame-16",
+      "relativePath": "frames/paper-frame-16.png",
+      "assetType": "frame",
+      "sha256": "432fb16106eedece65fc92d11a8895f7dc19b5713aaeaf43ba991204f457bf6d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 16"
+    },
+    {
+      "assetID": "frame-paper-frame-17",
+      "relativePath": "frames/paper-frame-17.png",
+      "assetType": "frame",
+      "sha256": "21d98dfd307827a744419c5ab7dd2c57cf9fe3b5f2884e6f617706a9d5f6c40d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 17"
+    },
+    {
+      "assetID": "frame-paper-frame-18",
+      "relativePath": "frames/paper-frame-18.png",
+      "assetType": "frame",
+      "sha256": "da7faebcac8bcb0020910f6164b1adb677b90f7c48e921fb7414032f26a30225",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 18"
+    },
+    {
+      "assetID": "frame-paper-frame-19",
+      "relativePath": "frames/paper-frame-19.png",
+      "assetType": "frame",
+      "sha256": "f2933acf62228c06752b2de01a8afb2a188d26c73a76998045862b18bc23e3d4",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 19"
+    },
+    {
+      "assetID": "frame-paper-frame-20",
+      "relativePath": "frames/paper-frame-20.png",
+      "assetType": "frame",
+      "sha256": "834413535bc5dcb492f9b85615f636fed054d0c7877046645ec1ece4abbf2d1c",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 20"
+    },
+    {
+      "assetID": "frame-paper-frame-21",
+      "relativePath": "frames/paper-frame-21.png",
+      "assetType": "frame",
+      "sha256": "7adbc571051ca8e4bcd379d6c79f82068d151c6e139f90c2e30cc62d8b48085d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 21"
+    },
+    {
+      "assetID": "frame-paper-frame-22",
+      "relativePath": "frames/paper-frame-22.png",
+      "assetType": "frame",
+      "sha256": "b58e672917eeef94e97e6559e769b45f0278c61f8d3d6bedb41f3594d01e606d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 22"
+    },
+    {
+      "assetID": "frame-paper-frame-23",
+      "relativePath": "frames/paper-frame-23.png",
+      "assetType": "frame",
+      "sha256": "b9befb8ca4c443ec74d610919ad61f08d739d1289867d1c3cf829151eab1b830",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 23"
+    },
+    {
+      "assetID": "frame-paper-frame-24",
+      "relativePath": "frames/paper-frame-24.png",
+      "assetType": "frame",
+      "sha256": "39d7d13b0538273fe66dccc3674163a6d0a974a0c3f8c53ca357f9069e0f6e2a",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:paper frame 24"
+    },
+    {
+      "assetID": "frame-photo-booth-01",
+      "relativePath": "frames/photo-booth-01.png",
+      "assetType": "frame",
+      "sha256": "dbfb8b848ade6e373baca2908488f68fcf1e0d04027aab087c4b235dbf3c058d",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 01"
+    },
+    {
+      "assetID": "frame-photo-booth-02",
+      "relativePath": "frames/photo-booth-02.png",
+      "assetType": "frame",
+      "sha256": "1ea8567689fd67bfd062fca9462085a3bce2617cead8ac366f2550384b2d56c9",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 02"
+    },
+    {
+      "assetID": "frame-photo-booth-03",
+      "relativePath": "frames/photo-booth-03.png",
+      "assetType": "frame",
+      "sha256": "83b3e2b6f01c54051a12e30b2f84fe87e5dd04ea1256b7e30e5ac698a065d0a0",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 03"
+    },
+    {
+      "assetID": "frame-photo-booth-04",
+      "relativePath": "frames/photo-booth-04.png",
+      "assetType": "frame",
+      "sha256": "f5bb28ee309e9bdcc7300cb1815adbfd0cf0f0f1c8be5a8bb336af29169cbc53",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 04"
+    },
+    {
+      "assetID": "frame-photo-booth-05",
+      "relativePath": "frames/photo-booth-05.png",
+      "assetType": "frame",
+      "sha256": "8294282db7f800578ee2392ee6ba33dfe5066010d0dce663d0c1170735875d3a",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 05"
+    },
+    {
+      "assetID": "frame-photo-booth-06",
+      "relativePath": "frames/photo-booth-06.png",
+      "assetType": "frame",
+      "sha256": "59f7470f5882e99cb3481da2d4dd5d7ee797c288a9a30544c9449d93d0869446",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 06"
+    },
+    {
+      "assetID": "frame-photo-booth-07",
+      "relativePath": "frames/photo-booth-07.png",
+      "assetType": "frame",
+      "sha256": "2348f8b9117b2b4a8d0e986bc6397ab924206dda042da1f580b90c3375ee6ab0",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 07"
+    },
+    {
+      "assetID": "frame-photo-booth-08",
+      "relativePath": "frames/photo-booth-08.png",
+      "assetType": "frame",
+      "sha256": "a88aea55675db5b33a353e1b40746fa0ad69f880b3c4f2c0ced44dc3c73df3bf",
+      "licenseName": "17V28 team — permitted for AK14",
+      "author": "17V28 team",
+      "sourceURL": "17v28:frames.json:photo booth 08"
     }
   ]
 }

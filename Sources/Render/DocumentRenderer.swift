@@ -72,6 +72,19 @@ public struct DocumentRenderer: Sendable {
             let r=CGRect(x:-rect.width/2,y:-rect.height/2,width:rect.width,height:rect.height)
             ctx.setAlpha(l.opacity)
             switch l.kind {
+            case .frame:
+                guard let photoID = l.assetID, let record = photos[photoID],
+                      let frameID = l.frameAssetID, let frame = FrameAssetRegistry.asset(imageAssetID: frameID),
+                      let frameImage = FrameAssetRegistry.image(imageAssetID: frameID) else { continue }
+                let window = frame.photoWindow
+                let photoRect = CGRect(x: r.minX + CGFloat(window.x) * r.width,
+                                       y: r.minY + CGFloat(1 - window.y - window.height) * r.height,
+                                       width: CGFloat(window.width) * r.width, height: CGFloat(window.height) * r.height)
+                let source = sourceFolder.appending(path: record.sourceRelativePaths[0])
+                let photo = try CarouselRenderer.decodeCropped(source, record: record,
+                    crop: l.crop ?? UnitRect(x: 0, y: 0, width: 1, height: 1), frame: photoRect.size)
+                ctx.saveGState(); ctx.clip(to: photoRect); ctx.draw(photo, in: photoRect); ctx.restoreGState()
+                ctx.draw(frameImage, in: r)
             case .photo:
                 guard let id=l.assetID,let record=photos[id] else { continue }
                 let src=sourceFolder.appending(path:record.sourceRelativePaths[0])

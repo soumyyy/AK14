@@ -1,0 +1,1094 @@
+[
+  {
+    "id": "airdrop dark",
+    "category": "digital",
+    "imageAssetID": "frame-airdrop-dark",
+    "imageWidth": 1850,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.2037037037037037,
+      "width": 1.0,
+      "height": 0.6851851851851852
+    }
+  },
+  {
+    "id": "airdrop light",
+    "category": "digital",
+    "imageAssetID": "frame-airdrop-light",
+    "imageWidth": 1850,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.2037037037037037,
+      "width": 1.0,
+      "height": 0.6851851851851852
+    }
+  },
+  {
+    "id": "call",
+    "category": "digital",
+    "imageAssetID": "frame-call",
+    "imageWidth": 2160,
+    "imageHeight": 560,
+    "photoWindow": {
+      "x": 0.032407407407407406,
+      "y": 0.21428571428571427,
+      "width": 0.14814814814814814,
+      "height": 0.5714285714285714
+    }
+  },
+  {
+    "id": "file 01",
+    "category": "digital",
+    "imageAssetID": "frame-file-01",
+    "imageWidth": 1200,
+    "imageHeight": 1360,
+    "photoWindow": {
+      "x": 0.11666666666666667,
+      "y": 0.051470588235294115,
+      "width": 0.7666666666666667,
+      "height": 0.8676470588235294
+    }
+  },
+  {
+    "id": "file 02",
+    "category": "digital",
+    "imageAssetID": "frame-file-02",
+    "imageWidth": 1200,
+    "imageHeight": 1100,
+    "photoWindow": {
+      "x": 0.11666666666666667,
+      "y": 0.06363636363636363,
+      "width": 0.7666666666666667,
+      "height": 0.8363636363636363
+    }
+  },
+  {
+    "id": "file 03",
+    "category": "digital",
+    "imageAssetID": "frame-file-03",
+    "imageWidth": 1460,
+    "imageHeight": 1100,
+    "photoWindow": {
+      "x": 0.0958904109589041,
+      "y": 0.06363636363636363,
+      "width": 0.8082191780821918,
+      "height": 0.8363636363636363
+    }
+  },
+  {
+    "id": "file 04",
+    "category": "digital",
+    "imageAssetID": "frame-file-04",
+    "imageWidth": 1200,
+    "imageHeight": 1810,
+    "photoWindow": {
+      "x": 0.11666666666666667,
+      "y": 0.03867403314917127,
+      "width": 0.7666666666666667,
+      "height": 0.9005524861878453
+    }
+  },
+  {
+    "id": "film border 01",
+    "category": "film",
+    "imageAssetID": "frame-film-border-01",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.011049723756906077,
+      "y": 0.014814814814814815,
+      "width": 0.9834254143646409,
+      "height": 0.9777777777777777
+    }
+  },
+  {
+    "id": "film border 02",
+    "category": "film",
+    "imageAssetID": "frame-film-border-02",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0055248618784530384,
+      "y": 0.0,
+      "width": 0.9834254143646409,
+      "height": 0.9851851851851852
+    }
+  },
+  {
+    "id": "film border 03",
+    "category": "film",
+    "imageAssetID": "frame-film-border-03",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0055248618784530384,
+      "y": 0.007407407407407408,
+      "width": 0.9834254143646409,
+      "height": 0.9851851851851852
+    }
+  },
+  {
+    "id": "film border 04",
+    "category": "film",
+    "imageAssetID": "frame-film-border-04",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.007407407407407408,
+      "width": 0.994475138121547,
+      "height": 0.9851851851851852
+    }
+  },
+  {
+    "id": "film border 05",
+    "category": "film",
+    "imageAssetID": "frame-film-border-05",
+    "imageWidth": 2160,
+    "imageHeight": 1440,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.0,
+      "width": 0.9814814814814815,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 06",
+    "category": "film",
+    "imageAssetID": "frame-film-border-06",
+    "imageWidth": 2160,
+    "imageHeight": 1440,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.0,
+      "width": 0.9814814814814815,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 07",
+    "category": "film",
+    "imageAssetID": "frame-film-border-07",
+    "imageWidth": 2160,
+    "imageHeight": 1450,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.0,
+      "width": 0.9814814814814815,
+      "height": 0.993103448275862
+    }
+  },
+  {
+    "id": "film border 08",
+    "category": "film",
+    "imageAssetID": "frame-film-border-08",
+    "imageWidth": 2160,
+    "imageHeight": 1450,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.0,
+      "width": 0.9814814814814815,
+      "height": 0.993103448275862
+    }
+  },
+  {
+    "id": "film border 09",
+    "category": "film",
+    "imageAssetID": "frame-film-border-09",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.013888888888888888,
+      "y": 0.014814814814814815,
+      "width": 0.9814814814814815,
+      "height": 0.9777777777777777
+    }
+  },
+  {
+    "id": "film border 10",
+    "category": "film",
+    "imageAssetID": "frame-film-border-10",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.004629629629629629,
+      "y": 0.007407407407407408,
+      "width": 0.9814814814814815,
+      "height": 0.9777777777777777
+    }
+  },
+  {
+    "id": "film border 11",
+    "category": "film",
+    "imageAssetID": "frame-film-border-11",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.007407407407407408,
+      "width": 0.9814814814814815,
+      "height": 0.9777777777777777
+    }
+  },
+  {
+    "id": "film border 12",
+    "category": "film",
+    "imageAssetID": "frame-film-border-12",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.003703703703703704,
+      "width": 0.9814814814814815,
+      "height": 0.9851851851851852
+    }
+  },
+  {
+    "id": "film border 13",
+    "category": "film",
+    "imageAssetID": "frame-film-border-13",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.011049723756906077,
+      "y": 0.014814814814814815,
+      "width": 0.9723756906077348,
+      "height": 0.9703703703703703
+    }
+  },
+  {
+    "id": "film border 14",
+    "category": "film",
+    "imageAssetID": "frame-film-border-14",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.022099447513812154,
+      "y": 0.014814814814814815,
+      "width": 0.9613259668508287,
+      "height": 0.9703703703703703
+    }
+  },
+  {
+    "id": "film border 15",
+    "category": "film",
+    "imageAssetID": "frame-film-border-15",
+    "imageWidth": 1800,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 16",
+    "category": "film",
+    "imageAssetID": "frame-film-border-16",
+    "imageWidth": 1800,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 17",
+    "category": "film",
+    "imageAssetID": "frame-film-border-17",
+    "imageWidth": 2160,
+    "imageHeight": 1441,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 18",
+    "category": "film",
+    "imageAssetID": "frame-film-border-18",
+    "imageWidth": 2160,
+    "imageHeight": 1441,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 19",
+    "category": "film",
+    "imageAssetID": "frame-film-border-19",
+    "imageWidth": 2160,
+    "imageHeight": 1440,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 20",
+    "category": "film",
+    "imageAssetID": "frame-film-border-20",
+    "imageWidth": 2160,
+    "imageHeight": 1440,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 21",
+    "category": "film",
+    "imageAssetID": "frame-film-border-21",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 22",
+    "category": "film",
+    "imageAssetID": "frame-film-border-22",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 23",
+    "category": "film",
+    "imageAssetID": "frame-film-border-23",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 24",
+    "category": "film",
+    "imageAssetID": "frame-film-border-24",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "film border 25",
+    "category": "film",
+    "imageAssetID": "frame-film-border-25",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.016574585635359115,
+      "y": 0.044444444444444446,
+      "width": 0.9613259668508287,
+      "height": 0.9481481481481482
+    }
+  },
+  {
+    "id": "film border 26",
+    "category": "film",
+    "imageAssetID": "frame-film-border-26",
+    "imageWidth": 1810,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.022099447513812154,
+      "y": 0.018518518518518517,
+      "width": 0.9613259668508287,
+      "height": 0.9629629629629629
+    }
+  },
+  {
+    "id": "film border 27",
+    "category": "film",
+    "imageAssetID": "frame-film-border-27",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.018518518518518517,
+      "y": 0.037037037037037035,
+      "width": 0.9629629629629629,
+      "height": 0.9555555555555556
+    }
+  },
+  {
+    "id": "film border 28",
+    "category": "film",
+    "imageAssetID": "frame-film-border-28",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.018518518518518517,
+      "y": 0.022222222222222223,
+      "width": 0.9629629629629629,
+      "height": 0.9629629629629629
+    }
+  },
+  {
+    "id": "film border 29",
+    "category": "film",
+    "imageAssetID": "frame-film-border-29",
+    "imageWidth": 2160,
+    "imageHeight": 1450,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.0,
+      "width": 0.9814814814814815,
+      "height": 0.993103448275862
+    }
+  },
+  {
+    "id": "film border 30",
+    "category": "film",
+    "imageAssetID": "frame-film-border-30",
+    "imageWidth": 2160,
+    "imageHeight": 1450,
+    "photoWindow": {
+      "x": 0.009259259259259259,
+      "y": 0.0,
+      "width": 0.9814814814814815,
+      "height": 0.993103448275862
+    }
+  },
+  {
+    "id": "message",
+    "category": "digital",
+    "imageAssetID": "frame-message",
+    "imageWidth": 2220,
+    "imageHeight": 740,
+    "photoWindow": {
+      "x": 0.04504504504504504,
+      "y": 0.3783783783783784,
+      "width": 0.14414414414414414,
+      "height": 0.43243243243243246
+    }
+  },
+  {
+    "id": "paper frame 01",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-01",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.032407407407407406,
+      "y": 0.018518518518518517,
+      "width": 0.9351851851851852,
+      "height": 0.9555555555555556
+    }
+  },
+  {
+    "id": "paper frame 02",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-02",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.027777777777777776,
+      "y": 0.022222222222222223,
+      "width": 0.9351851851851852,
+      "height": 0.9555555555555556
+    }
+  },
+  {
+    "id": "paper frame 03",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-03",
+    "imageWidth": 2160,
+    "imageHeight": 2160,
+    "photoWindow": {
+      "x": 0.023148148148148147,
+      "y": 0.032407407407407406,
+      "width": 0.9444444444444444,
+      "height": 0.9351851851851852
+    }
+  },
+  {
+    "id": "paper frame 04",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-04",
+    "imageWidth": 2160,
+    "imageHeight": 2160,
+    "photoWindow": {
+      "x": 0.027777777777777776,
+      "y": 0.037037037037037035,
+      "width": 0.9444444444444444,
+      "height": 0.9351851851851852
+    }
+  },
+  {
+    "id": "paper frame 05",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-05",
+    "imageWidth": 2160,
+    "imageHeight": 1440,
+    "photoWindow": {
+      "x": 0.032407407407407406,
+      "y": 0.034722222222222224,
+      "width": 0.9351851851851852,
+      "height": 0.9166666666666666
+    }
+  },
+  {
+    "id": "paper frame 06",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-06",
+    "imageWidth": 2160,
+    "imageHeight": 1440,
+    "photoWindow": {
+      "x": 0.027777777777777776,
+      "y": 0.04861111111111111,
+      "width": 0.9351851851851852,
+      "height": 0.9166666666666666
+    }
+  },
+  {
+    "id": "paper frame 07",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-07",
+    "imageWidth": 1900,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.015789473684210527,
+      "y": 0.03333333333333333,
+      "width": 0.968421052631579,
+      "height": 0.9555555555555556
+    }
+  },
+  {
+    "id": "paper frame 08",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-08",
+    "imageWidth": 1900,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.015789473684210527,
+      "y": 0.03333333333333333,
+      "width": 0.968421052631579,
+      "height": 0.9555555555555556
+    }
+  },
+  {
+    "id": "paper frame 09",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-09",
+    "imageWidth": 1940,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.010309278350515464,
+      "y": 0.007407407407407408,
+      "width": 0.979381443298969,
+      "height": 0.9851851851851852
+    }
+  },
+  {
+    "id": "paper frame 10",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-10",
+    "imageWidth": 1960,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.00510204081632653,
+      "y": 0.003703703703703704,
+      "width": 0.9795918367346939,
+      "height": 0.9925925925925926
+    }
+  },
+  {
+    "id": "paper frame 11",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-11",
+    "imageWidth": 1940,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.005154639175257732,
+      "y": 0.003703703703703704,
+      "width": 0.9896907216494846,
+      "height": 0.9925925925925926
+    }
+  },
+  {
+    "id": "paper frame 12",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-12",
+    "imageWidth": 1940,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.005154639175257732,
+      "y": 0.003703703703703704,
+      "width": 0.9896907216494846,
+      "height": 0.9925925925925926
+    }
+  },
+  {
+    "id": "paper frame 13",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-13",
+    "imageWidth": 2700,
+    "imageHeight": 1900,
+    "photoWindow": {
+      "x": 0.025925925925925925,
+      "y": 0.010526315789473684,
+      "width": 0.9629629629629629,
+      "height": 0.9789473684210527
+    }
+  },
+  {
+    "id": "paper frame 14",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-14",
+    "imageWidth": 2700,
+    "imageHeight": 1900,
+    "photoWindow": {
+      "x": 0.025925925925925925,
+      "y": 0.010526315789473684,
+      "width": 0.9629629629629629,
+      "height": 0.9789473684210527
+    }
+  },
+  {
+    "id": "paper frame 15",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-15",
+    "imageWidth": 2700,
+    "imageHeight": 1940,
+    "photoWindow": {
+      "x": 0.007407407407407408,
+      "y": 0.015463917525773196,
+      "width": 0.9851851851851852,
+      "height": 0.979381443298969
+    }
+  },
+  {
+    "id": "paper frame 16",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-16",
+    "imageWidth": 2700,
+    "imageHeight": 1961,
+    "photoWindow": {
+      "x": 0.003703703703703704,
+      "y": 0.010204081632653062,
+      "width": 0.9925925925925926,
+      "height": 0.979591836734694
+    }
+  },
+  {
+    "id": "paper frame 17",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-17",
+    "imageWidth": 2700,
+    "imageHeight": 1940,
+    "photoWindow": {
+      "x": 0.003703703703703704,
+      "y": 0.010309278350515464,
+      "width": 0.9925925925925926,
+      "height": 0.979381443298969
+    }
+  },
+  {
+    "id": "paper frame 18",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-18",
+    "imageWidth": 2700,
+    "imageHeight": 1940,
+    "photoWindow": {
+      "x": 0.003703703703703704,
+      "y": 0.010309278350515464,
+      "width": 0.9925925925925926,
+      "height": 0.979381443298969
+    }
+  },
+  {
+    "id": "paper frame 19",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-19",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "paper frame 20",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-20",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "paper frame 21",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-21",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "paper frame 22",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-22",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "paper frame 23",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-23",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "paper frame 24",
+    "category": "paper",
+    "imageAssetID": "frame-paper-frame-24",
+    "imageWidth": 2160,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0,
+      "y": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "id": "photo booth 01",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-01",
+    "imageWidth": 980,
+    "imageHeight": 1250,
+    "photoWindow": {
+      "x": 0.02040816326530612,
+      "y": 0.016,
+      "width": 0.9591836734693877,
+      "height": 0.96
+    }
+  },
+  {
+    "id": "photo booth 02",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-02",
+    "imageWidth": 950,
+    "imageHeight": 1240,
+    "photoWindow": {
+      "x": 0.010526315789473684,
+      "y": 0.016129032258064516,
+      "width": 0.968421052631579,
+      "height": 0.9516129032258065
+    }
+  },
+  {
+    "id": "photo booth 03",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-03",
+    "imageWidth": 980,
+    "imageHeight": 2460,
+    "photoWindow": {
+      "x": 0.02040816326530612,
+      "y": 0.008130081300813009,
+      "width": 0.9591836734693877,
+      "height": 0.4796747967479675
+    }
+  },
+  {
+    "id": "photo booth 04",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-04",
+    "imageWidth": 950,
+    "imageHeight": 2450,
+    "photoWindow": {
+      "x": 0.010526315789473684,
+      "y": 0.00816326530612245,
+      "width": 0.968421052631579,
+      "height": 0.4816326530612245
+    }
+  },
+  {
+    "id": "photo booth 05",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-05",
+    "imageWidth": 730,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.0136986301369863,
+      "y": 0.007407407407407408,
+      "width": 0.958904109589041,
+      "height": 0.32592592592592595
+    }
+  },
+  {
+    "id": "photo booth 06",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-06",
+    "imageWidth": 710,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.014084507042253521,
+      "y": 0.007407407407407408,
+      "width": 0.9577464788732394,
+      "height": 0.32592592592592595
+    }
+  },
+  {
+    "id": "photo booth 07",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-07",
+    "imageWidth": 610,
+    "imageHeight": 3000,
+    "photoWindow": {
+      "x": 0.03278688524590164,
+      "y": 0.0033333333333333335,
+      "width": 0.9508196721311475,
+      "height": 0.24666666666666667
+    }
+  },
+  {
+    "id": "photo booth 08",
+    "category": "photobooth",
+    "imageAssetID": "frame-photo-booth-08",
+    "imageWidth": 590,
+    "imageHeight": 3000,
+    "photoWindow": {
+      "x": 0.01694915254237288,
+      "y": 0.006666666666666667,
+      "width": 0.9491525423728814,
+      "height": 0.24666666666666667
+    }
+  },
+  {
+    "id": "photo booth dark",
+    "category": "digital",
+    "imageAssetID": "frame-photo-booth-dark",
+    "imageWidth": 2160,
+    "imageHeight": 1720,
+    "photoWindow": {
+      "x": 0.013888888888888888,
+      "y": 0.06395348837209303,
+      "width": 0.9722222222222222,
+      "height": 0.8023255813953488
+    }
+  },
+  {
+    "id": "photo booth light",
+    "category": "digital",
+    "imageAssetID": "frame-photo-booth-light",
+    "imageWidth": 2160,
+    "imageHeight": 1720,
+    "photoWindow": {
+      "x": 0.013888888888888888,
+      "y": 0.06395348837209303,
+      "width": 0.9722222222222222,
+      "height": 0.8023255813953488
+    }
+  },
+  {
+    "id": "polaroid 01",
+    "category": "polaroid",
+    "imageAssetID": "frame-polaroid-01",
+    "imageWidth": 1420,
+    "imageHeight": 2160,
+    "photoWindow": {
+      "x": 0.08450704225352113,
+      "y": 0.08333333333333333,
+      "width": 0.8732394366197183,
+      "height": 0.7407407407407407
+    }
+  },
+  {
+    "id": "polaroid 02",
+    "category": "polaroid",
+    "imageAssetID": "frame-polaroid-02",
+    "imageWidth": 1380,
+    "imageHeight": 2160,
+    "photoWindow": {
+      "x": 0.06521739130434782,
+      "y": 0.08333333333333333,
+      "width": 0.8695652173913043,
+      "height": 0.7407407407407407
+    }
+  },
+  {
+    "id": "polaroid 03",
+    "category": "polaroid",
+    "imageAssetID": "frame-polaroid-03",
+    "imageWidth": 2220,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.05405405405405406,
+      "y": 0.04814814814814815,
+      "width": 0.8918918918918919,
+      "height": 0.7481481481481481
+    }
+  },
+  {
+    "id": "polaroid 04",
+    "category": "polaroid",
+    "imageAssetID": "frame-polaroid-04",
+    "imageWidth": 2220,
+    "imageHeight": 2700,
+    "photoWindow": {
+      "x": 0.05405405405405406,
+      "y": 0.05555555555555555,
+      "width": 0.8918918918918919,
+      "height": 0.7481481481481481
+    }
+  },
+  {
+    "id": "polaroid 05",
+    "category": "polaroid",
+    "imageAssetID": "frame-polaroid-05",
+    "imageWidth": 2740,
+    "imageHeight": 2160,
+    "photoWindow": {
+      "x": 0.0364963503649635,
+      "y": 0.06944444444444445,
+      "width": 0.9343065693430657,
+      "height": 0.7592592592592593
+    }
+  },
+  {
+    "id": "polaroid 06",
+    "category": "polaroid",
+    "imageAssetID": "frame-polaroid-06",
+    "imageWidth": 2780,
+    "imageHeight": 2160,
+    "photoWindow": {
+      "x": 0.03597122302158273,
+      "y": 0.06481481481481481,
+      "width": 0.9280575539568345,
+      "height": 0.7592592592592593
+    }
+  },
+  {
+    "id": "preview 01 dark",
+    "category": "digital",
+    "imageAssetID": "frame-preview-01-dark",
+    "imageWidth": 2020,
+    "imageHeight": 2400,
+    "photoWindow": {
+      "x": 0.01485148514851485,
+      "y": 0.07083333333333333,
+      "width": 0.9702970297029703,
+      "height": 0.9041666666666667
+    }
+  },
+  {
+    "id": "preview 01 light",
+    "category": "digital",
+    "imageAssetID": "frame-preview-01-light",
+    "imageWidth": 2020,
+    "imageHeight": 2400,
+    "photoWindow": {
+      "x": 0.01485148514851485,
+      "y": 0.07083333333333333,
+      "width": 0.9702970297029703,
+      "height": 0.9041666666666667
+    }
+  },
+  {
+    "id": "preview 02 dark",
+    "category": "digital",
+    "imageAssetID": "frame-preview-02-dark",
+    "imageWidth": 2020,
+    "imageHeight": 2400,
+    "photoWindow": {
+      "x": 0.039603960396039604,
+      "y": 0.07916666666666666,
+      "width": 0.24752475247524752,
+      "height": 0.25
+    }
+  },
+  {
+    "id": "preview 02 light",
+    "category": "digital",
+    "imageAssetID": "frame-preview-02-light",
+    "imageWidth": 2020,
+    "imageHeight": 2400,
+    "photoWindow": {
+      "x": 0.039603960396039604,
+      "y": 0.07916666666666666,
+      "width": 0.24752475247524752,
+      "height": 0.25
+    }
+  },
+  {
+    "id": "webpage 01 dark",
+    "category": "digital",
+    "imageAssetID": "frame-webpage-01-dark",
+    "imageWidth": 2400,
+    "imageHeight": 1720,
+    "photoWindow": {
+      "x": 0.0125,
+      "y": 0.09883720930232558,
+      "width": 0.975,
+      "height": 0.872093023255814
+    }
+  },
+  {
+    "id": "webpage 01 light",
+    "category": "digital",
+    "imageAssetID": "frame-webpage-01-light",
+    "imageWidth": 2400,
+    "imageHeight": 1720,
+    "photoWindow": {
+      "x": 0.0125,
+      "y": 0.09883720930232558,
+      "width": 0.975,
+      "height": 0.872093023255814
+    }
+  }
+]
