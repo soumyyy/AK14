@@ -35,7 +35,7 @@ import TestSupport
     // "journal" < "scrapbook").
     let cases: [(family: Recipe.Family, style: StyleVector, seed: UInt64, title: String)] = [
         (.minimal, StyleVector(density: "balanced", overlap: "none", grouping: "single", decoration: "none", rotation: "none", whitespace: "airy"), 2, "A quiet afternoon"),
-        (.film, StyleVector(density: "balanced", overlap: "none", grouping: "single", decoration: "none", rotation: "none", whitespace: "tight"), 2, "Reel 3, June"),
+        (.film, StyleVector(density: "balanced", overlap: "none", grouping: "mixed", decoration: "none", rotation: "none", whitespace: "tight"), 2, "Reel 3, June"),
         (.scrapbook, StyleVector(density: "balanced", overlap: "some", grouping: "mixed", decoration: "rich", rotation: "some", whitespace: "tight"), 1, "Our day out"),
         (.panorama, StyleVector(density: "balanced", overlap: "bold", grouping: "collage", decoration: "none", rotation: "none", whitespace: "tight"), 2, "The whole afternoon"),
     ]
