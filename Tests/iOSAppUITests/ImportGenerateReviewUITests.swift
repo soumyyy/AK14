@@ -31,11 +31,20 @@ final class ImportGenerateReviewUITests: XCTestCase {
         XCTAssertTrue(firstPhoto.waitForExistence(timeout: 10), "Expected a photo tile to select")
         firstPhoto.tap()
 
+        let exactMode = app.segmentedControls.buttons["Use exactly these"]
+        XCTAssertTrue(exactMode.waitForExistence(timeout: 2))
+        exactMode.tap()
+        let keepOrder = app.switches["Keep my order"]
+        XCTAssertTrue(keepOrder.waitForExistence(timeout: 2))
+        if (keepOrder.value as? String) != "1" { keepOrder.tap() }
+
         let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Review '")).firstMatch
         XCTAssertTrue(review.waitForExistence(timeout: 10))
         XCTAssertTrue(review.isEnabled, "At least one simulator photo should be selected")
         review.tap()
         XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 60))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'All '")).firstMatch.exists)
+        if app.switches["Use AI-assisted story planning"].exists { app.switches["Use AI-assisted story planning"].tap() }
 
         if app.buttons["allEventsChoice"].waitForExistence(timeout: 2) {
             let eventChoice = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'eventChoice-'" )).firstMatch
@@ -103,5 +112,16 @@ final class ImportGenerateReviewUITests: XCTestCase {
             expectedIndex += 1
         }
         XCTAssertEqual(expectedIndex, expected.count, "Expected events in order; got \(observed)")
+    }
+
+    @MainActor
+    func testIncomingBatchOpensExactReview() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--seed-incoming-batch"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 30))
+        XCTAssertTrue(app.staticTexts["All 3 photos will be used"].exists)
+        XCTAssertTrue(app.switches["Keep my order"].exists)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'eventChoice-'" )).firstMatch.exists)
     }
 }
