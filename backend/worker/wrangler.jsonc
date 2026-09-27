@@ -7,9 +7,9 @@
     { "binding": "AK14_ASSETS", "id": "a3d8464870584ce7a0c66ac9d770dedc" }
   ],
   "vars": {
-    "DAILY_REQUEST_CAP": "30",
-    "DAILY_SPEND_CAP_USD": "1.00",
-    "MONTHLY_RUN_CAP": "60",
+    "DAILY_REQUEST_CAP": "300",
+    "DAILY_SPEND_CAP_USD": "2.00",
+    "MONTHLY_RUN_CAP": "300",
     "APPLE_BUNDLE_ID": "com.ak14.app",
     "INVITE_TOKEN_HASHES": "f82050227214ecf5fb76c1bd38a691f8fdf4b0f171bca5bfa4b6c79d60884681,6bfcd8d3c19d36d72cd30c58ad5292e03e11f41e021309d1a37982f213a04eef"
   }
