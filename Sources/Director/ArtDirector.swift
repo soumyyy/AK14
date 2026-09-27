@@ -161,7 +161,6 @@ public struct ArtDirector: Sendable {
         let count = min(6, max(2, stylePack.judge?.candidates ?? 6))
         for (index, direction) in directions.enumerated() {
             let id = "c\(index + 1)"
-            let seed = ComposerEngine.layoutSeed(runID: input.runID, id: id)
             guard let composed = out.plans.first(where: { $0.id == id }), let finalDirection = composed.direction,
                   let compositionSeed = composed.compositionSeed, let seed = UInt64(compositionSeed, radix: 16) else { continue }
             let candidates = ComposerEngine.candidates(finalDirection, id: id, context: context, seed: seed, layoutSeed: seed, limit: count)

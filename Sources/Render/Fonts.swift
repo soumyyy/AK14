@@ -32,7 +32,7 @@ public enum BundledFonts {
                   let provider = CGDataProvider(data: data as CFData),
                   let cgFont = CGFont(provider) else { continue }
             var error: Unmanaged<CFError>?
-            if CTFontManagerRegisterGraphicsFont(cgFont, &error) || error == nil {
+            if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) || error == nil {
                 names[id] = CTFontCopyPostScriptName(CTFontCreateWithGraphicsFont(cgFont, 12, nil, nil)) as String
             }
         }

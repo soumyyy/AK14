@@ -52,11 +52,11 @@ final class ShareViewController: UIViewController {
     }
 
     private func loadImage(_ provider: NSItemProvider) async throws -> (Data, String)? {
-        try await withCheckedThrowingContinuation { continuation in
+        let ext = provider.registeredTypeIdentifiers.compactMap { UTType($0)?.preferredFilenameExtension }.first ?? "jpg"
+        return try await withCheckedThrowingContinuation { continuation in
             provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
                 if let error { continuation.resume(throwing: error) }
                 else if let data {
-                    let ext = provider.registeredTypeIdentifiers.compactMap { UTType($0)?.preferredFilenameExtension }.first ?? "jpg"
                     continuation.resume(returning: (data, ext))
                 } else { continuation.resume(returning: nil) }
             }

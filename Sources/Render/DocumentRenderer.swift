@@ -143,7 +143,23 @@ public struct DocumentRenderer: Sendable {
         let width=CTLineGetTypographicBounds(line,nil,nil,nil); let x=(l.alignment == "center" ? r.midX-width/2 : l.alignment == "right" ? r.maxX-width : r.minX)
         c.textPosition=CGPoint(x:x,y:r.midY-(l.size ?? Double(r.height*0.7))*0.35);CTLineDraw(line,c)
     }
-    private func paragraph(_ align:String,_ height:Double)->CTParagraphStyle { var a:CTTextAlignment=align == "center" ? .center : align == "right" ? .right : .left;var h=CGFloat(height);var settings=[CTParagraphStyleSetting(spec:.alignment, valueSize:MemoryLayout<CTTextAlignment>.size,value:&a),CTParagraphStyleSetting(spec:.minimumLineHeight,valueSize:MemoryLayout<CGFloat>.size,value:&h),CTParagraphStyleSetting(spec:.maximumLineHeight,valueSize:MemoryLayout<CGFloat>.size,value:&h)];return CTParagraphStyleCreate(&settings,settings.count) }
+    private func paragraph(_ align: String, _ height: Double) -> CTParagraphStyle {
+        var alignment: CTTextAlignment = align == "center" ? .center : align == "right" ? .right : .left
+        var lineHeight = CGFloat(height)
+        return withUnsafePointer(to: &alignment) { alignmentPointer in
+            withUnsafePointer(to: &lineHeight) { heightPointer in
+                var settings = [
+                    CTParagraphStyleSetting(spec: .alignment, valueSize: MemoryLayout<CTTextAlignment>.size,
+                                            value: alignmentPointer),
+                    CTParagraphStyleSetting(spec: .minimumLineHeight, valueSize: MemoryLayout<CGFloat>.size,
+                                            value: heightPointer),
+                    CTParagraphStyleSetting(spec: .maximumLineHeight, valueSize: MemoryLayout<CGFloat>.size,
+                                            value: heightPointer),
+                ]
+                return CTParagraphStyleCreate(&settings, settings.count)
+            }
+        }
+    }
     private func adjust(_ image:CGImage,_ a:PhotoAdjustments?)->CGImage { guard let a=a else{return image};var ci=CIImage(cgImage:image);if a.exposure != 0 {ci=ci.applyingFilter("CIExposureAdjust",parameters:[kCIInputEVKey:a.exposure])};if a.contrast != 0 {ci=ci.applyingFilter("CIColorControls",parameters:[kCIInputContrastKey:1+a.contrast])};if a.saturation != 0 {ci=ci.applyingFilter("CIColorControls",parameters:[kCIInputSaturationKey:1+a.saturation])};if a.warmth != 0 {ci=ci.applyingFilter("CITemperatureAndTint",parameters:["inputNeutral":CIVector(x:6500-a.warmth*1000,y:0)])};return CIContext(options:[.useSoftwareRenderer:true]).createCGImage(ci,from:ci.extent) ?? image }
     private func maskPath(_ m:Mask,r:CGRect,seed:UInt64)->CGPath { if m == .rounded { return CGPath(roundedRect:r,cornerWidth:min(r.width,r.height)*0.12,cornerHeight:min(r.width,r.height)*0.12,transform:nil) };if m == .torn { let p=CGMutablePath();p.move(to:CGPoint(x:r.minX,y:r.minY));for i in 0...24 {p.addLine(to:CGPoint(x:r.minX+r.width*CGFloat(i)/24,y:r.minY+((i+Int(seed%3))%2 == 0 ? 0:r.height*0.035)))};p.addLine(to:CGPoint(x:r.maxX,y:r.maxY));p.addLine(to:CGPoint(x:r.minX,y:r.maxY));p.closeSubpath();return p };return CGPath(rect:r,transform:nil) }
     private func blend(_ s:String?)->CGBlendMode { switch s {case "multiply":.multiply;case "screen":.screen;case "overlay":.overlay;case "softLight":.softLight;default:.normal} }
