@@ -227,3 +227,103 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     let files = try session.export("baseline", to: tmp.url.appending(path: "out"))
     #expect(files.allSatisfy { !$0.lastPathComponent.contains("baseline") })
 }
+
+@Test func storyLinkedLandscapesStackOnImportedPages() throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try tmp.sub("landscapes")
+    let moment = Date(timeIntervalSince1970: 1_800_000_000)
+    let sceneLabel = SceneLabel(identifier: "harbor_pier", confidence: 0.85)
+    func writeLandscape(_ name: String, minutes: Int) throws -> AssetID {
+        let id = AssetID(rawValue: name)
+        var exif = FixtureFactory.Exif()
+        let t = moment.addingTimeInterval(Double(minutes * 60))
+        exif.date = String(format: "%04d:%02d:%02d %02d:%02d:00",
+                           Calendar.current.component(.year, from: t),
+                           Calendar.current.component(.month, from: t),
+                           Calendar.current.component(.day, from: t),
+                           Calendar.current.component(.hour, from: t),
+                           Calendar.current.component(.minute, from: t))
+        try FixtureFactory.writeJPEG(to: folder.appending(path: "\(name).jpg"), width: 4032, height: 1512, gray: 0.55, exif: exif)
+        return id
+    }
+    func writePortrait(_ name: String, gray: Double) throws -> AssetID {
+        let id = AssetID(rawValue: name)
+        try FixtureFactory.writeJPEG(to: folder.appending(path: "\(name).jpg"), width: 3024, height: 4032, gray: gray, exif: FixtureFactory.Exif())
+        return id
+    }
+    let l1 = try writeLandscape("l1", minutes: 0)
+    let l2 = try writeLandscape("l2", minutes: 4)
+    let l3 = try writeLandscape("l3", minutes: 8)
+    let p1 = try writePortrait("p1", gray: 0.35)
+    let p2 = try writePortrait("p2", gray: 0.45)
+    let p3 = try writePortrait("p3", gray: 0.55)
+    let p4 = try writePortrait("p4", gray: 0.65)
+    let p5 = try writePortrait("p5", gray: 0.75)
+    // Three 16:9 landscapes from the same scene; grouping should stack them on 1x3 when vocabulary is present.
+    let ordered = [p1, l1, l2, l3, p2, p3, p4, p5]
+    func record(_ id: AssetID, w: Int, h: Int, date: Date?) -> PhotoRecord {
+        PhotoRecord(assetID: id, contentSHA256: id.rawValue, sourceRelativePaths: ["\(id.rawValue).jpg"], byteCount: 1,
+                    fileType: "public.jpeg", pixelWidth: w, pixelHeight: h, exifOrientation: 1,
+                    metadata: CaptureMetadata(capturedAt: date))
+    }
+    let photos: [AssetID: PhotoRecord] = [
+        l1: record(l1, w: 4032, h: 1512, date: moment),
+        l2: record(l2, w: 4032, h: 1512, date: moment.addingTimeInterval(4 * 60)),
+        l3: record(l3, w: 4032, h: 1512, date: moment.addingTimeInterval(8 * 60)),
+        p1: record(p1, w: 3024, h: 4032, date: nil),
+        p2: record(p2, w: 3024, h: 4032, date: nil),
+        p3: record(p3, w: 3024, h: 4032, date: nil),
+        p4: record(p4, w: 3024, h: 4032, date: nil),
+        p5: record(p5, w: 3024, h: 4032, date: nil),
+    ]
+    var features: [AssetID: PhotoFeatures] = [:]
+    for id in ordered {
+        var f = PhotoFeatures(assetID: id, analyzerVersion: "test")
+        f.aestheticScore = 0.7
+        f.color = ColorProfile(l: 50, a: 4, b: 3, saturation: 0.4, warmth: 0.1, contrast: 0.2)
+        if [l1, l2, l3].contains(id) { f.labels = [sceneLabel] }
+        features[id] = f
+    }
+    let stylePack = try StylePackLoader.load()
+    let vocabulary = try StylePackLoader.loadDesignedSets().vocabulary(for: .portrait4x5)
+    #expect(vocabulary.contains { $0.id.contains("1x1v") || $0.id.contains("1x3") })
+
+    func heroCleanCount(plan: CarouselPlan, vocabulary: [DesignedSet], seed: UInt64) -> Int {
+        let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: .portrait4x5, photos: photos,
+            features: features, stylePack: stylePack, seed: seed, vocabulary: plan.isBaseline ? [] : vocabulary))
+        return layout.slides.filter { $0.variant == "hero.clean" }.count
+    }
+    func hasLandscapeStackTemplate(plan: CarouselPlan, vocabulary: [DesignedSet], seed: UInt64) -> Bool {
+        let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: .portrait4x5, photos: photos,
+            features: features, stylePack: stylePack, seed: seed, vocabulary: vocabulary))
+        return layout.slides.contains { slide in
+            guard let variant = slide.variant else { return false }
+            return variant.contains("1x1v") || variant.contains("1x3")
+        }
+    }
+    func compose(grouping: String, vocabulary: [DesignedSet]) -> (CarouselPlan, UInt64) {
+        let seed: UInt64 = 0x7a14
+        let layoutSeed = ComposerEngine.layoutSeed(runID: "stack-test", id: "c1")
+        let style = StyleVector(density: "balanced", overlap: "none", grouping: grouping, decoration: "none",
+                                rotation: "none", whitespace: "tight")
+        let direction = Direction(brief: "landscape moment", style: style, coverAssetID: p1, orderedAssetIDs: ordered)
+        let context = CompositionContext(aspect: .portrait4x5, photos: photos, features: features, triage: [:],
+                                         flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil,
+                                         vocabulary: vocabulary)
+        let result = ComposerEngine.compose(direction, id: "c1", context: context, seed: seed, layoutSeed: layoutSeed)
+        return (result.plan, layoutSeed)
+    }
+
+    let (singlePlan, singleSeed) = compose(grouping: "single", vocabulary: vocabulary)
+    let (mixedPlan, mixedSeed) = compose(grouping: "mixed", vocabulary: vocabulary)
+    #expect(hasLandscapeStackTemplate(plan: singlePlan, vocabulary: vocabulary, seed: singleSeed))
+    #expect(hasLandscapeStackTemplate(plan: mixedPlan, vocabulary: vocabulary, seed: mixedSeed))
+
+    let (emptySingle, emptySingleSeed) = compose(grouping: "single", vocabulary: [])
+    let (emptyMixed, emptyMixedSeed) = compose(grouping: "mixed", vocabulary: [])
+    let withVocabHero = heroCleanCount(plan: singlePlan, vocabulary: vocabulary, seed: singleSeed)
+        + heroCleanCount(plan: mixedPlan, vocabulary: vocabulary, seed: mixedSeed)
+    let withoutVocabHero = heroCleanCount(plan: emptySingle, vocabulary: [], seed: emptySingleSeed)
+        + heroCleanCount(plan: emptyMixed, vocabulary: [], seed: emptyMixedSeed)
+    #expect(withVocabHero < withoutVocabHero)
+}

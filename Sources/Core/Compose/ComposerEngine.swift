@@ -290,12 +290,19 @@ public enum ComposerEngine {
         // Exact sets must retain every photo and honor the requested slide limit. Let
         // those slides grow enough to hold the full set when the normal four-photo
         // cap would make the limit impossible.
+        let stackPolicy = cleanOutput && !context.vocabulary.isEmpty
+        let landscapeStackCapacities = stackPolicy ? landscapeStackCapacities(context) : []
+        let maxLandscapeStack = landscapeStackCapacities.max() ?? 1
         let desiredGroupSize = style.grouping == "single" ? 1 : style.grouping == "mixed" ? 3 : 4
         let designedGroupSize = context.vocabulary.filter {
             $0.aspect == context.aspect && $0.slideCount == 1 && !$0.expandedSlots.contains(where: \.crossesSeam)
         }.map { $0.expandedSlots.count }.max() ?? 1
-        let maxSize = context.exactSet ? max(4, (ids.count + maxSlides - 1) / maxSlides)
+        var cap = context.exactSet ? max(4, (ids.count + maxSlides - 1) / maxSlides)
             : min(desiredGroupSize, designedGroupSize)
+        if stackPolicy && style.grouping == "single" && !landscapeStackCapacities.isEmpty {
+            cap = max(cap, maxLandscapeStack)
+        }
+        let maxSize = cap
         var keepIndex: [AssetID: Int] = [:]
         for (g, members) in d.keepTogether.enumerated() { for m in members { keepIndex[m] = g } }
         let emphasis = Set(d.emphasisAssetIDs)
@@ -307,8 +314,12 @@ public enum ComposerEngine {
                 if !d.keepTogether[g].allSatisfy(seg.contains) { split += 0.4 }
             }
             if m == 1 {
-                let base = style.grouping == "single" ? 0 : style.grouping == "mixed" ? 0.35 : 0.55
+                var base = style.grouping == "single" ? 0 : style.grouping == "mixed" ? 0.35 : 0.55
+                if stackPolicy, floats(seg.first!, context: context) { base += first ? 0.3 : 0.6 }
                 return (first || emphasis.contains(seg.first!) ? 0 : base) + split
+            }
+            if stackPolicy && !context.exactSet && style.grouping == "single" && !seg.allSatisfy({ aspect($0, context) > 1.15 }) {
+                return .infinity
             }
             let oneKeepGroup = seg.allSatisfy { keepIndex[$0] != nil && keepIndex[$0] == keepIndex[seg.first!] }
             // Colour can make two unrelated photos look compatible, but it cannot explain why
@@ -326,6 +337,10 @@ public enum ComposerEngine {
             c += 1.6 * clash / pairs
             if Set(seg.compactMap { keepIndex[$0] }).count > 1 { c += 0.5 }
             if oneKeepGroup { c -= 0.3 }
+            if stackPolicy && m >= 2 {
+                let members = Array(seg)
+                if members.allSatisfy({ aspect($0, context) > 1.15 }), landscapeStackCapacities.contains(m) { c -= 0.5 }
+            }
             return c + split
         }
 
@@ -444,6 +459,7 @@ public enum ComposerEngine {
         var stamped = 0
         for (i, _, _) in order.prefix(budget) {
             let s = slides[i]
+            if cleanOutput && !context.vocabulary.isEmpty && s.photos.count > 1 { continue }
             let designed: [String] = switch s.primitive {
             case .hero, .framedHero: ["film-edge", "paper-warm", "date-stamp"]
             case .overlapCluster: ["tape-clear", "paper-warm"]
@@ -492,7 +508,14 @@ public enum ComposerEngine {
         // Honour the grouping axis: the share of multi-photo slides the direction asked for.
         if let grouping = plan.style?.grouping, plan.slides.count > 1 {
             let target = grouping == "collage" ? 0.6 : grouping == "mixed" ? 0.35 : 0
-            let multi = Double(plan.slides.filter { $0.photos.count > 1 }.count) / n
+            let multiSlides = plan.slides.filter { slide in
+                guard slide.photos.count > 1 else { return false }
+                if cleanOutput, !context.vocabulary.isEmpty, grouping == "single" {
+                    return !slide.photos.map(\.assetID).allSatisfy { aspect($0, context) > 1.15 }
+                }
+                return true
+            }
+            let multi = Double(multiSlides.count) / n
             score += 1.0 * abs(multi - target)
         }
         return score
@@ -503,6 +526,24 @@ public enum ComposerEngine {
     static func aspect(_ id: AssetID, _ context: CompositionContext) -> Double {
         guard let p = context.photos[id] else { return 1 }
         return Double(p.pixelWidth) / Double(max(1, p.pixelHeight))
+    }
+
+    /// True when full-bleed on this canvas would crop away more than 30% of the photo (same rule as `choosePrimitive`).
+    static func floats(_ id: AssetID, context: CompositionContext) -> Bool {
+        let canvas = Double(context.aspect.exportWidth) / Double(context.aspect.exportHeight)
+        let bleedLoss = 1 - min(aspect(id, context) / canvas, canvas / aspect(id, context))
+        return bleedLoss > 0.3
+    }
+
+    /// Photo counts `n` for which the vocabulary has a single-slide, all-landscape, seam-safe page on this aspect.
+    static func landscapeStackCapacities(_ context: CompositionContext) -> Set<Int> {
+        Set(context.vocabulary.compactMap { set -> Int? in
+            guard set.aspect == context.aspect, set.slideCount == 1 else { return nil }
+            let slots = set.expandedSlots
+            guard !slots.isEmpty, !slots.contains(where: \.crossesSeam) else { return nil }
+            guard slots.allSatisfy({ $0.aspect > 1.15 }) else { return nil }
+            return slots.count
+        })
     }
 
     /// Photo strength: the model's emotional read first, then local aesthetics, then a stable id order.
