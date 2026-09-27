@@ -2,7 +2,45 @@ import Foundation
 
 /// A hand-authored photo layout in whole-carousel document coordinates.
 public struct DesignedSet: Codable, Sendable, Equatable {
-    public static let schemaVersion = 1
+    public static let schemaVersion = 2
+
+    public struct TextLayer: Codable, Sendable, Equatable {
+        public var frame: UnitRect
+        public var fontID: String
+        public var size: Double
+        public var colour: String
+        public var alignment: String
+        public var lineSpacing: Double
+        public var letterSpacing: Double
+        public var numberOfLines: Int
+        public var rotation: Double
+        public var role: String
+
+        public init(frame: UnitRect, fontID: String, size: Double, colour: String, alignment: String,
+                    lineSpacing: Double = 0, letterSpacing: Double = 0, numberOfLines: Int = 1,
+                    rotation: Double = 0, role: String) {
+            self.frame = frame; self.fontID = fontID; self.size = size; self.colour = colour
+            self.alignment = alignment; self.lineSpacing = lineSpacing; self.letterSpacing = letterSpacing
+            self.numberOfLines = numberOfLines; self.rotation = rotation; self.role = role
+        }
+    }
+
+    public struct FrameLayer: Codable, Sendable, Equatable {
+        public var frame: UnitRect
+        public var frameAssetID: String
+        public var slotFrame: UnitRect?
+        /// Aspect ratio of the frame asset's transparent photo window.
+        public var photoWindowAspect: Double?
+        public var z: Int
+        public var rotation: Double
+
+        public init(frame: UnitRect, frameAssetID: String, slotFrame: UnitRect? = nil,
+                    photoWindowAspect: Double? = nil, z: Int, rotation: Double = 0) {
+            self.frame = frame; self.frameAssetID = frameAssetID; self.slotFrame = slotFrame
+            self.photoWindowAspect = photoWindowAspect
+            self.z = z; self.rotation = rotation
+        }
+    }
 
     public struct Slot: Codable, Sendable, Equatable {
         public struct Component: Codable, Sendable, Equatable {
@@ -27,10 +65,13 @@ public struct DesignedSet: Codable, Sendable, Equatable {
         public var roleHint: String
         /// Preserves individual cells when a dense source grid is packed under the 12-slot slide cap.
         public var components: [Component]?
+        /// Corner radius as a fraction of the slot's shorter side.
+        public var cornerRadius: Double?
 
-        public init(frame: UnitRect, aspect: Double, z: Int, rotation: Double = 0, crossesSeam: Bool, roleHint: String, components: [Component]? = nil) {
+        public init(frame: UnitRect, aspect: Double, z: Int, rotation: Double = 0, crossesSeam: Bool,
+                    roleHint: String, components: [Component]? = nil, cornerRadius: Double? = nil) {
             self.frame = frame; self.aspect = aspect; self.z = z; self.rotation = rotation
-            self.crossesSeam = crossesSeam; self.roleHint = roleHint; self.components = components
+            self.crossesSeam = crossesSeam; self.roleHint = roleHint; self.components = components; self.cornerRadius = cornerRadius
         }
     }
 
@@ -41,14 +82,21 @@ public struct DesignedSet: Codable, Sendable, Equatable {
     public var background: String
     public var slots: [Slot]
     public var version: Int
+    public var texts: [TextLayer]?
+    public var frames: [FrameLayer]?
+    public var family: String?
+    public var decorCoverage: Double?
 
-    public init(id: String, sourceRef: String, aspect: CarouselAspect, slideCount: Int, background: String, slots: [Slot], version: Int = Self.schemaVersion) {
+    public init(id: String, sourceRef: String, aspect: CarouselAspect, slideCount: Int, background: String,
+                slots: [Slot], version: Int = Self.schemaVersion, texts: [TextLayer]? = nil,
+                frames: [FrameLayer]? = nil, family: String? = nil, decorCoverage: Double? = nil) {
         self.id = id; self.sourceRef = sourceRef; self.aspect = aspect; self.slideCount = slideCount
         self.background = background; self.slots = slots; self.version = version
+        self.texts = texts; self.frames = frames; self.family = family; self.decorCoverage = decorCoverage
     }
 
     public func validationError() -> String? {
-        guard version == Self.schemaVersion else { return "unsupported version" }
+        guard version == 1 || version == Self.schemaVersion else { return "unsupported version" }
         guard id.range(of: "^[a-z0-9][a-z0-9-]{0,127}$", options: .regularExpression) != nil else { return "invalid id" }
         guard !sourceRef.isEmpty, slideCount > 0, !slots.isEmpty else { return "invalid metadata" }
         guard background.range(of: "^#?[A-Fa-f0-9]{6}$", options: .regularExpression) != nil else { return "invalid background colour" }
@@ -61,10 +109,12 @@ public struct DesignedSet: Codable, Sendable, Equatable {
             guard aspect.isFinite, (0.1...10).contains(aspect), rotation.isFinite,
                   abs(rotation) <= 15 else { return "invalid slot aspect or rotation" }
             }
+            if let radius = slot.cornerRadius, !radius.isFinite || radius < 0 || radius > 0.5 { return "invalid corner radius" }
         }
         for slide in 0..<slideCount where slots.filter({ $0.frame.x < Double(slide + 1) && $0.frame.x + $0.frame.width > Double(slide) }).count > 12 {
             return "more than 12 slots on a slide"
         }
+        if let coverage = decorCoverage, !coverage.isFinite || coverage < 0 || coverage > 1 { return "invalid decorative coverage" }
         return nil
     }
 
@@ -76,7 +126,7 @@ public struct DesignedSet: Codable, Sendable, Equatable {
             guard let components = slot.components, !components.isEmpty else { return [slot] }
             return components.map {
                 Slot(frame: $0.frame, aspect: $0.aspect, z: $0.z, rotation: $0.rotation,
-                     crossesSeam: $0.crossesSeam, roleHint: $0.roleHint)
+                     crossesSeam: $0.crossesSeam, roleHint: $0.roleHint, cornerRadius: slot.cornerRadius)
             }
         }
     }
@@ -85,6 +135,8 @@ public struct DesignedSet: Codable, Sendable, Equatable {
     public var heroArea: Double {
         expandedSlots.map { $0.frame.width * $0.frame.height }.max() ?? 0
     }
+
+    public var familyID: String { family ?? sourceRef }
 }
 
 public struct DesignedSetLibrary: Codable, Sendable, Equatable {
@@ -96,7 +148,7 @@ public struct DesignedSetLibrary: Codable, Sendable, Equatable {
     }
 
     public func validationError() -> String? {
-        guard version == DesignedSet.schemaVersion else { return "unsupported library version" }
+        guard version == 1 || version == DesignedSet.schemaVersion else { return "unsupported library version" }
         guard Set(sets.map(\.id)).count == sets.count else { return "duplicate IDs" }
         for set in sets { if let error = set.validationError() { return "\(set.id): \(error)" } }
         return nil

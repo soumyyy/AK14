@@ -112,7 +112,11 @@ public struct DocumentRenderer: Sendable {
                 img=adjust(img,l.adjustments)
                 if l.shadow { ctx.setShadow(offset:CGSize(width:0,height:-0.006*Double(min(w,h))),blur:0.022*Double(min(w,h)),color:CGColor(gray:0,alpha:0.28)) }
                 if l.border>0 { let b=CGFloat(l.border*Double(min(w,h)));ctx.setFillColor(CGColor(gray:1,alpha:1));ctx.fill(r.insetBy(dx:-b,dy:-b));ctx.setShadow(offset:.zero,blur:0,color:nil) }
-                if let mask=l.mask { ctx.addPath(maskPath(mask,r:r,seed:seedValue(d.seed)));ctx.clip() }
+                if let radius = l.cornerRadius, radius > 0 {
+                    ctx.addPath(CGPath(roundedRect: r, cornerWidth: min(r.width, r.height) * CGFloat(radius),
+                                       cornerHeight: min(r.width, r.height) * CGFloat(radius), transform: nil))
+                    ctx.clip()
+                } else if let mask=l.mask { ctx.addPath(maskPath(mask,r:r,seed:seedValue(d.seed)));ctx.clip() }
                 ctx.draw(img,in:r)
             case .text:
                 if l.shapeKind == "legacy-stamp" {
@@ -195,10 +199,14 @@ public struct DocumentRenderer: Sendable {
         guard let s=l.string else{return}; let font=BundledFonts.font(id:l.fontID ?? "font-inter",size:l.size ?? Double(r.height*0.7))
         var attrs:[NSAttributedString.Key:Any]=[NSAttributedString.Key(kCTFontAttributeName as String):font,NSAttributedString.Key(kCTForegroundColorAttributeName as String):color(l.colour) ?? CGColor(gray:0,alpha:1)]
         if let t=l.tracking { attrs[NSAttributedString.Key(kCTKernAttributeName as String)] = t }
-        if let lh=l.lineHeight { attrs[NSAttributedString.Key(kCTParagraphStyleAttributeName as String)] = paragraph(l.alignment ?? "left",lh) }
-        let line=CTLineCreateWithAttributedString(NSAttributedString(string:s,attributes:attrs)); c.textMatrix = .identity
-        let width=CTLineGetTypographicBounds(line,nil,nil,nil); let x=(l.alignment == "center" ? r.midX-width/2 : l.alignment == "right" ? r.maxX-width : r.minX)
-        c.textPosition=CGPoint(x:x,y:r.midY-(l.size ?? Double(r.height*0.7))*0.35);CTLineDraw(line,c)
+        let fontSize = l.size ?? Double(r.height * 0.7)
+        if let lh=l.lineHeight { attrs[NSAttributedString.Key(kCTParagraphStyleAttributeName as String)] = paragraph(l.alignment ?? "left", fontSize + lh) }
+        let attributed = NSAttributedString(string: s, attributes: attrs)
+        let framesetter = CTFramesetterCreateWithAttributedString(attributed)
+        let path = CGPath(rect: r, transform: nil)
+        let frame = CTFramesetterCreateFrame(framesetter, CFRange(location: 0, length: attributed.length), path, nil)
+        c.textMatrix = .identity
+        CTFrameDraw(frame, c)
     }
     private func paragraph(_ align: String, _ height: Double) -> CTParagraphStyle {
         var alignment: CTTextAlignment = align == "center" ? .center : align == "right" ? .right : .left

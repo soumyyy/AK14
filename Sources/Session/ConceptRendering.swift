@@ -46,6 +46,7 @@ public enum ConceptRendering {
             }
             let context = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
                                         seed: seedOverride ?? seed(runID: runID, concept: plan.id),
+                                        storyHint: storyHint,
                                         vocabulary: plan.isBaseline ? [] : vocabulary)
             let carousel = LayoutResolver.resolve(plan, context: context)
             for slide in carousel.slides {

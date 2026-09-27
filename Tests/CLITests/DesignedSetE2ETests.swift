@@ -6,8 +6,15 @@ final class DesignedSetE2ETests: XCTestCase {
     func testBundledDesignedSetLibraryDecodesAndValidates() throws {
         let library = try StylePackLoader.loadDesignedSets()
         XCTAssertNil(library.validationError())
-        XCTAssertEqual(library.sets.count, 104)
+        XCTAssertEqual(library.sets.count, 55)
         XCTAssertEqual(library.sets.filter { $0.sourceRef.hasPrefix("17v28:layout-") }.count, 27)
+        XCTAssertTrue(library.sets.contains { !($0.texts?.isEmpty ?? true) })
+        XCTAssertTrue(library.sets.contains { !($0.frames?.isEmpty ?? true) })
+        XCTAssertTrue(library.sets.allSatisfy { ($0.decorCoverage ?? 0) <= 0.12 })
+        XCTAssertTrue(library.sets.allSatisfy { $0.texts?.allSatisfy { $0.role != "sample" } ?? true })
+        for frame in library.sets.flatMap({ $0.frames ?? [] }) {
+            XCTAssertNotNil(FrameAssetRegistry.asset(imageAssetID: frame.frameAssetID), frame.frameAssetID)
+        }
         XCTAssertEqual(Set(library.sets.map(\.id)).count, library.sets.count)
         XCTAssertEqual(library.sets.map(\.id), library.sets.map(\.id).sorted())
 

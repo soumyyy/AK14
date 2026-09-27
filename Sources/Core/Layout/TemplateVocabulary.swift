@@ -17,7 +17,8 @@ enum TemplateVocabulary {
     }
 
     static func place(plan: CarouselPlan, start: Int, context: LayoutContext,
-                      usedTemplateIDs: inout Set<String>) -> [ResolvedSlide]? {
+                      usedTemplateIDs: inout Set<String>, selectedFamily: inout String?,
+                      titlePlaced: inout Bool, captionCount: inout Int) -> [ResolvedSlide]? {
         let upcoming = Array(plan.slides[start...])
         let limit = min(3, upcoming.count)
         guard limit > 0 else { return nil }
@@ -29,25 +30,60 @@ enum TemplateVocabulary {
             // Keep the ordinary resolver path for those slides so nothing silently disappears.
             guard window.allSatisfy({ $0.decorations.isEmpty && $0.stamps.isEmpty }) else { continue }
             let asked = readings(photos, plan: plan, context: context)
-            let fits = context.vocabulary.filter {
+            let allFits = context.vocabulary.filter {
                 $0.aspect == context.aspect && $0.slideCount == length
                     && asked.contains(skill(of: $0)) && $0.expandedSlots.count == photos.count
             }
+            let familyFits = selectedFamily.map { family in allFits.filter { $0.familyID == family } } ?? []
+            let fits = familyFits.isEmpty ? allFits : familyFits
             let viable = fits.compactMap { set -> (set: DesignedSet, mismatch: Double, built: (id: String, score: Double, slides: [ResolvedSlide]))? in
-                guard let built = build(set: set, window: window, start: start, context: context) else { return nil }
+                guard let built = build(set: set, plan: plan, window: window, start: start, context: context,
+                                        titlePlaced: titlePlaced, captionCount: captionCount) else { return nil }
                 return (set, aspectMismatch(set, photos: photos, context: context), built)
             }
-            guard let best = viable.map(\.mismatch).min() else { continue }
-            let nearBest = viable.filter { $0.mismatch <= best + 0.15 }
+            guard !viable.isEmpty else { continue }
+            if selectedFamily == nil {
+                let groups = Dictionary(grouping: viable, by: { $0.set.familyID })
+                selectedFamily = groups.keys.sorted {
+                    let left = groups[$0]!
+                    let right = groups[$1]!
+                    let leftPreference = familyPreference(left.map(\.set), plan: plan)
+                    let rightPreference = familyPreference(right.map(\.set), plan: plan)
+                    if leftPreference != rightPreference { return leftPreference > rightPreference }
+                    let leftMismatch = left.map(\.mismatch).min()!
+                    let rightMismatch = right.map(\.mismatch).min()!
+                    return leftMismatch == rightMismatch ? $0 < $1 : leftMismatch < rightMismatch
+                }.first
+            }
+            let familyViable = selectedFamily.map { family in
+                let matching = viable.filter { $0.set.familyID == family }
+                return matching.isEmpty ? viable : matching
+            } ?? viable
+            guard let best = familyViable.map(\.mismatch).min() else { continue }
+            let nearBest = familyViable.filter { $0.mismatch <= best + 0.15 }
             let unused = nearBest.filter { !usedTemplateIDs.contains($0.set.id) }
-            let choices = (unused.isEmpty ? nearBest : unused).sorted { $0.set.id < $1.set.id }
+            let choices = (unused.isEmpty ? nearBest : unused).sorted {
+                return $0.mismatch == $1.mismatch ? $0.set.id < $1.set.id : $0.mismatch < $1.mismatch
+            }
             guard !choices.isEmpty else { continue }
-            var rng = SeededRandom(seed: SeededRandom.seed(String(context.seed), "template", String(start)))
+            var rng = SeededRandom(seed: SeededRandom.seed(String(context.seed), plan.id, "template", String(start)))
             let selected = choices[Int(rng.unit() * Double(choices.count))]
             usedTemplateIDs.insert(selected.set.id)
+            if selectedFamily == nil { selectedFamily = selected.set.familyID }
+            titlePlaced = titlePlaced || selected.built.slides.flatMap(\.elements).contains { $0.kind == .text && $0.textRole == "title" }
+            captionCount += selected.built.slides.flatMap(\.elements).filter { $0.kind == .text && $0.textRole == "caption" }.count
             return selected.built.slides
         }
         return nil
+    }
+
+    private static func familyPreference(_ sets: [DesignedSet], plan: CarouselPlan) -> Double {
+        let hasText = sets.contains { !($0.texts?.isEmpty ?? true) }
+        let hasFrame = sets.contains { !($0.frames?.isEmpty ?? true) }
+        if plan.style?.decoration == "none" {
+            return hasText || hasFrame ? 0 : 1
+        }
+        return hasText || hasFrame ? 1 : 0
     }
 
     static func skill(of set: DesignedSet) -> Skill {
@@ -115,7 +151,8 @@ enum TemplateVocabulary {
         return !features.faces.isEmpty || !features.humans.isEmpty
     }
 
-    private static func build(set: DesignedSet, window: [SlidePlan], start: Int, context: LayoutContext)
+    private static func build(set: DesignedSet, plan: CarouselPlan, window: [SlidePlan], start: Int, context: LayoutContext,
+                              titlePlaced: Bool, captionCount: Int)
         -> (id: String, score: Double, slides: [ResolvedSlide])? {
         let photos = window.flatMap(\.photos)
         let slots = set.expandedSlots
@@ -153,6 +190,53 @@ enum TemplateVocabulary {
                 buckets[slide].append(element)
             }
         }
+        for frame in set.frames ?? [] {
+            guard let slotFrame = frame.slotFrame,
+                  let item = assigned.min(by: { distance($0.slot.frame, slotFrame) < distance($1.slot.frame, slotFrame) }) else { continue }
+            let record = context.photos[item.photo.assetID]!
+            let imageAspect = Double(record.pixelWidth) / Double(max(record.pixelHeight, 1))
+            let photoWindowAspect = frame.photoWindowAspect ?? item.slot.aspect
+            let frameCrop = CropPlanner.cover(imageAspect: imageAspect, boxAspect: photoWindowAspect,
+                                              features: context.features[item.photo.assetID],
+                                              cropIntent: item.photo.cropIntent, anchorIntent: item.photo.anchorIntent)
+            guard frameCrop.width * frameCrop.height >= 0.65,
+                  CropPlanner.facesFit(context.features[item.photo.assetID], crop: frameCrop) else { continue }
+            for slide in 0..<set.slideCount {
+                guard let element = sliceFrame(frame, photo: item.photo, crop: frameCrop, onto: slide) else { continue }
+                buckets[slide].append(element)
+            }
+        }
+        let title = storyTitle(plan: plan, context: context)
+        var localTitleUsed = titlePlaced
+        var localCaptions = captionCount
+        for text in set.texts ?? [] where text.role != "accent" {
+            let slide = min(set.slideCount - 1, max(0, Int(floor(text.frame.x + text.frame.width / 2))))
+            guard slide < buckets.count else { continue }
+            let value: String?
+            switch text.role {
+            case "title":
+                guard !localTitleUsed else { continue }
+                value = title
+            case "caption":
+                guard localCaptions < 2 else { continue }
+                value = captureCaption(window[slide].photos.first.flatMap { context.photos[$0.assetID] })
+            default:
+                value = nil
+            }
+            guard let value, !value.isEmpty else { continue }
+            let local = UnitRect(x: text.frame.x - Double(slide), y: text.frame.y,
+                                 width: text.frame.width, height: text.frame.height)
+            guard let safe = safeTextFrame(local, rotation: text.rotation, slide: slide, assigned: assigned, context: context) else { continue }
+            buckets[slide].append(ResolvedElement(kind: .text, assetID: nil, text: value,
+                                                  frame: safe, rotationDegrees: text.rotation, crop: nil,
+                                                  zIndex: 200, opacity: 1, border: 0, shadow: false,
+                                                  fontID: text.fontID, fontSize: text.size, textColor: text.colour,
+                                                  alignment: text.alignment, lineSpacing: text.lineSpacing,
+                                                  letterSpacing: text.letterSpacing, numberOfLines: text.numberOfLines,
+                                                  textRole: text.role))
+            if text.role == "title" { localTitleUsed = true }
+            if text.role == "caption" { localCaptions += 1 }
+        }
         guard buckets.allSatisfy({ !$0.isEmpty }) else { return nil }
 
         let slides = window.enumerated().map { offset, slide in
@@ -178,6 +262,64 @@ enum TemplateVocabulary {
         return SlideMetrics(coverage: Double(hit) / Double(n * n), heroShare: nil, maxCropLoss: loss)
     }
 
+    private static func distance(_ a: UnitRect, _ b: UnitRect) -> Double {
+        abs(a.x - b.x) + abs(a.y - b.y) + abs(a.width - b.width) + abs(a.height - b.height)
+    }
+
+    private static func storyTitle(plan: CarouselPlan, context: LayoutContext) -> String? {
+        if let idea = plan.direction?.titleIdea?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !idea.isEmpty { return String(idea.prefix(40)) }
+        guard let hint = context.storyHint?.trimmingCharacters(in: .whitespacesAndNewlines),
+              (3...28).contains(hint.count) else { return nil }
+        return hint
+    }
+
+    private static func captureCaption(_ photo: PhotoRecord?) -> String? {
+        guard let photo else { return nil }
+        if let raw = photo.metadata.localDateTime {
+            let parts = raw.split(separator: " ").first?.split(separator: ":").compactMap { Int($0) } ?? []
+            if parts.count >= 3 { return "\(parts[2]) \(month(parts[1]))" }
+        }
+        guard let date = photo.metadata.capturedAt else { return nil }
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let c = calendar.dateComponents([.month, .day], from: date)
+        guard let month = c.month, let day = c.day else { return nil }
+        return "\(day) \(Self.month(month))"
+    }
+
+    private static func month(_ value: Int) -> String {
+        let values = ["", "january", "february", "march", "april", "may", "june",
+                      "july", "august", "september", "october", "november", "december"]
+        return values.indices.contains(value) ? values[value] : "january"
+    }
+
+    private static func safeTextFrame(_ frame: UnitRect, rotation: Double, slide: Int,
+                                      assigned: [(slot: DesignedSet.Slot, photo: PhotoElement, crop: UnitRect)],
+                                      context: LayoutContext) -> UnitRect? {
+        let width = min(1, max(0, frame.width)), height = min(1, max(0, frame.height))
+        let base = UnitRect(x: min(max(0, frame.x), max(0, 1 - width)),
+                            y: min(max(0, frame.y), max(0, 1 - height)), width: width, height: height)
+        let faces = assigned.flatMap { item -> [Box] in
+            let slot = item.slot.frame
+            let left = max(slot.x, Double(slide)), right = min(slot.x + slot.width, Double(slide + 1))
+            guard right > left else { return [] }
+            let local = Box(x: left - Double(slide), y: slot.y, w: right - left, h: slot.height)
+            return CropPlanner.facesOnCanvas(context.features[item.photo.assetID], crop: item.crop, frame: local)
+        }
+        for (dx, dy) in [(0.0, 0.0), (0.0, -0.12), (0.0, 0.12), (-0.12, 0.0), (0.12, 0.0)] {
+            let candidate = UnitRect(x: min(max(0, base.x + dx), max(0, 1 - width)),
+                                     y: min(max(0, base.y + dy), max(0, 1 - height)),
+                                     width: width, height: height)
+            let candidateAngle = abs(rotation) * Double.pi / 180
+            let candidateSafety = Box(x: candidate.x + (candidate.width - (abs(cos(candidateAngle)) * candidate.width + abs(sin(candidateAngle)) * candidate.height)) / 2,
+                                      y: candidate.y + (candidate.height - (abs(sin(candidateAngle)) * candidate.width + abs(cos(candidateAngle)) * candidate.height)) / 2,
+                                      w: abs(cos(candidateAngle)) * candidate.width + abs(sin(candidateAngle)) * candidate.height,
+                                      h: abs(sin(candidateAngle)) * candidate.width + abs(cos(candidateAngle)) * candidate.height)
+            if !faces.contains(where: { $0.intersects(candidateSafety) }) { return candidate }
+        }
+        return nil
+    }
+
     private static func slice(_ item: (slot: DesignedSet.Slot, photo: PhotoElement, crop: UnitRect), onto slide: Int) -> ResolvedElement? {
         let slot = item.slot.frame
         let slideLeft = Double(slide)
@@ -194,7 +336,26 @@ enum TemplateVocabulary {
                                frame: UnitRect(x: left - slideLeft, y: slot.y, width: localWidth, height: slot.height),
                                rotationDegrees: item.slot.rotation,
                                crop: UnitRect(x: cropX, y: item.crop.y, width: cropWidth, height: item.crop.height),
-                               zIndex: item.slot.z, opacity: 1, border: 0, shadow: false)
+                               zIndex: item.slot.z, opacity: 1, border: 0, shadow: false,
+                               cornerRadius: item.slot.cornerRadius)
+    }
+
+    private static func sliceFrame(_ frame: DesignedSet.FrameLayer, photo: PhotoElement, crop: UnitRect,
+                                   onto slide: Int) -> ResolvedElement? {
+        let authored = frame.frame
+        let slideLeft = Double(slide)
+        let left = max(authored.x, slideLeft), right = min(authored.x + authored.width, slideLeft + 1)
+        guard right - left > 1e-4 else { return nil }
+        let startFraction = (left - authored.x) / max(authored.width, 1e-4)
+        let widthFraction = (right - left) / max(authored.width, 1e-4)
+        let cropX = min(max(0, crop.x + crop.width * startFraction), 1)
+        let cropWidth = min(crop.width * widthFraction, 1 - cropX)
+        return ResolvedElement(kind: .frame, assetID: photo.assetID, text: nil,
+                               frame: UnitRect(x: left - slideLeft, y: authored.y, width: right - left, height: authored.height),
+                               rotationDegrees: frame.rotation,
+                               crop: UnitRect(x: cropX, y: crop.y, width: cropWidth, height: crop.height),
+                               zIndex: frame.z, opacity: 1, border: 0, shadow: false,
+                               frameAssetID: frame.frameAssetID)
     }
 
     /// A face or a significant person mapped through the cover crop onto the slot's carousel span.

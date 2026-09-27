@@ -38,15 +38,18 @@ public struct DocumentLayer: Codable, Sendable, Equatable {
     public var frame: UnitRect
     public var rotation: Double, z: Int, opacity: Double, locked: Bool, slideHint: Int?
     public var assetID: AssetID?, crop: UnitRect?, adjustments: PhotoAdjustments?, border: Double, shadow: Bool, mask: Mask?
+    public var cornerRadius: Double?
     public var string: String?, fontID: String?, size: Double?, colour: String?, alignment: String?, tracking: Double?, lineHeight: Double?
     public var stickerTint: String?, shapeKind: String?, fill: String?, stroke: String?, textureBlend: String?, intensity: Double?
     public var frameAssetID: String?
     public init(id: String, kind: Kind, frame: UnitRect, rotation: Double = 0, z: Int = 0, opacity: Double = 1, locked: Bool = false, slideHint: Int? = nil,
                 assetID: AssetID? = nil, crop: UnitRect? = nil, adjustments: PhotoAdjustments? = nil, border: Double = 0, shadow: Bool = false, mask: Mask? = nil,
+                cornerRadius: Double? = nil,
                 string: String? = nil, fontID: String? = nil, size: Double? = nil, colour: String? = nil, alignment: String? = nil, tracking: Double? = nil, lineHeight: Double? = nil,
                 stickerTint: String? = nil, shapeKind: String? = nil, fill: String? = nil, stroke: String? = nil, textureBlend: String? = nil, intensity: Double? = nil, frameAssetID: String? = nil) {
         self.id=id; self.kind=kind; self.frame=frame; self.rotation=rotation; self.z=z; self.opacity=opacity; self.locked=locked; self.slideHint=slideHint
         self.assetID=assetID; self.crop=crop; self.adjustments=adjustments; self.border=border; self.shadow=shadow; self.mask=mask
+        self.cornerRadius = cornerRadius
         self.string=string; self.fontID=fontID; self.size=size; self.colour=colour; self.alignment=alignment; self.tracking=tracking; self.lineHeight=lineHeight
         self.stickerTint=stickerTint; self.shapeKind=shapeKind; self.fill=fill; self.stroke=stroke; self.textureBlend=textureBlend; self.intensity=intensity
         self.frameAssetID=frameAssetID
@@ -82,8 +85,25 @@ public extension CanvasDocument {
         var layers: [DocumentLayer] = []
         for slide in carousel.slides { for (n, e) in slide.elements.enumerated() {
             let frame = UnitRect(x: (Double(slide.index) + e.frame.x) / Double(max(1, carousel.slides.count)), y: e.frame.y, width: e.frame.width / Double(max(1, carousel.slides.count)), height: e.frame.height)
-            let kind: DocumentLayer.Kind = e.kind == .photo ? .photo : e.kind == .stamp ? .text : .sticker
-            layers.append(DocumentLayer(id: "s\(slide.index)-\(n)", kind: kind, frame: frame, rotation: e.rotationDegrees, z: e.zIndex, opacity: e.opacity, slideHint: slide.index, assetID: e.assetID, crop: e.crop, adjustments: e.adjustments, border: e.border, shadow: e.shadow, string: e.text, fontID: kind == .text ? "DSEG7Classic-Bold" : nil, size: kind == .text ? h * e.frame.height * 0.9 : nil, colour: kind == .text ? "#FF851F" : nil, shapeKind: e.kind == .tape ? "legacy-tape" : e.kind == .stamp ? "legacy-stamp" : nil))
+            let kind: DocumentLayer.Kind = switch e.kind {
+            case .photo: .photo
+            case .text, .stamp: .text
+            case .frame: .frame
+            case .tape: .sticker
+            }
+            let isText = e.kind == .text || e.kind == .stamp
+            layers.append(DocumentLayer(id: "s\(slide.index)-\(n)", kind: kind, frame: frame, rotation: e.rotationDegrees,
+                                        z: e.zIndex, opacity: e.opacity, slideHint: slide.index, assetID: e.assetID,
+                                        crop: e.crop, adjustments: e.adjustments, border: e.border, shadow: e.shadow,
+                                        cornerRadius: e.cornerRadius, string: e.text,
+                                        fontID: isText ? (e.kind == .stamp ? "DSEG7Classic-Bold" : e.fontID) : nil,
+                                        size: isText ? (e.kind == .stamp ? h * e.frame.height * 0.9 : e.fontSize) : nil,
+                                        colour: isText ? (e.kind == .stamp ? "#FF851F" : e.textColor) : nil,
+                                        alignment: isText ? (e.kind == .stamp ? nil : e.alignment) : nil,
+                                        tracking: isText ? e.letterSpacing : nil,
+                                        lineHeight: isText ? e.lineSpacing : nil,
+                                        shapeKind: e.kind == .tape ? "legacy-tape" : e.kind == .stamp ? "legacy-stamp" : nil,
+                                        frameAssetID: e.frameAssetID))
         } }
         let variants = carousel.slides.map(\.variant)
         let templateIDs = variants.compactMap { variant -> String? in

@@ -9,3 +9,9 @@
 
 ## cursor-agent -p stops to ask for confirmation (2026-09-27)
 In print mode, Cursor models (gpt-5.6-luna-high) propose a design, ask "please confirm", and exit without editing. Every brief must end with: "Implement now. Do not ask for confirmation; you are running non-interactively."
+
+## Server config versions must stay loadable by shipped apps (2026-09-27)
+Deploying the Worker shipped `configVersion: 2` (an additive field). Installed apps accept only version 1, so every generation failed. Rules:
+- Before deploying the Worker, run `swift test --filter workerStyleConfigVersionIsSupported`.
+- Additive fields keep the version number. Bump it only alongside a client release that supports the new version.
+- After a deploy, load `/v1/config` with the app's own `StyleConfigClient.fetch`.

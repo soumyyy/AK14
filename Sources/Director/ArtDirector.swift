@@ -185,7 +185,10 @@ public struct ArtDirector: Sendable {
                     }
                 }
                 let stripData = try candidates.map { candidate -> Data in
-                    let resolved = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos, features: context.features, stylePack: context.stylePack, seed: ComposerEngine.layoutSeed(runID: input.runID, id: id), vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
+                    let resolved = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+                        features: context.features, stylePack: context.stylePack,
+                        seed: ComposerEngine.layoutSeed(runID: input.runID, id: id), storyHint: context.storyHint,
+                        vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
                     return try StripRenderer().strip(resolved, photos: thumbnailRecords, sourceFolder: sourceFolder)
                 }
                 let stripURLs = try stripData.enumerated().map { index, bytes -> URL in

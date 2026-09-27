@@ -187,6 +187,7 @@ public enum ComposerEngine {
             guard result.count < limit, !result.contains(where: { $0.plan.slides == candidate.plan.slides }) else { return }
             let layout = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: layoutSeed ?? seed,
+                storyHint: context.storyHint,
                 vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
             guard !layout.slides.contains(where: { slide in
                 slide.warnings.contains { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }
@@ -205,6 +206,7 @@ public enum ComposerEngine {
         let selectedTemplate = !plan.isBaseline && !context.vocabulary.isEmpty
             && LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: layoutSeed,
+                storyHint: context.storyHint,
                 vocabulary: context.vocabulary)).slides.contains { $0.variant?.hasPrefix("template.") == true }
         if !selectedTemplate, let recipes = context.stylePack.recipes,
            let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
@@ -265,7 +267,8 @@ public enum ComposerEngine {
         var plan = plan
         while plan.slides.contains(where: { $0.photos.count > 1 }) {
             let hosted = LayoutResolver.templateHosted(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
-                features: context.features, stylePack: context.stylePack, seed: seed, vocabulary: context.vocabulary))
+                features: context.features, stylePack: context.stylePack, seed: seed, storyHint: context.storyHint,
+                vocabulary: context.vocabulary))
             var groups: [[AssetID]] = [], split = false
             for (index, slide) in plan.slides.enumerated() {
                 let ids = slide.photos.map(\.assetID)
@@ -488,7 +491,8 @@ public enum ComposerEngine {
         guard !plan.slides.isEmpty else { return .infinity }
         let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                                                                           features: context.features, stylePack: context.stylePack,
-                                                                          seed: seed, vocabulary: plan.isBaseline ? [] : context.vocabulary))
+                                                                          seed: seed, storyHint: context.storyHint,
+                                                                          vocabulary: plan.isBaseline ? [] : context.vocabulary))
         let n = Double(layout.slides.count)
         var perSlide = 0.0, coverageGap = 0.0, framed = 0.0
         for (slide, planned) in zip(layout.slides, plan.slides) {

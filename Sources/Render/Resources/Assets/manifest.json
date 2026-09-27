@@ -1651,6 +1651,51 @@
       "licenseName": "17V28 team — permitted for AK14",
       "author": "17V28 team",
       "sourceURL": "17v28:frames.json:photo booth 08"
+    },
+    {
+      "assetID": "font-pinyonscript",
+      "relativePath": "fonts/pinyonscript.ttf",
+      "assetType": "font",
+      "sha256": "4aab130a6ed27f8b8117738c84a5602edf9300cdcc0651a9a65bf96f451ac29a",
+      "licenseName": "SIL Open Font License 1.1",
+      "licenseURL": "https://openfontlicense.org",
+      "author": "Google Fonts contributors",
+      "sourceURL": "https://github.com/google/fonts/tree/main/ofl/pinyonscript",
+      "attributionText": "Pinyon Script via Google Fonts (SIL OFL 1.1; license in fonts/pinyonscript-OFL.txt)",
+      "commercialUseAllowed": true,
+      "modificationAllowed": true,
+      "redistributionAllowed": true,
+      "acquiredAt": "2026-09-27"
+    },
+    {
+      "assetID": "font-cedarvillecursive",
+      "relativePath": "fonts/cedarvillecursive.ttf",
+      "assetType": "font",
+      "sha256": "5f86d71d08a68605d5912b9bcb639a060ce9c0debd7e0b715f5e268d4a4bc317",
+      "licenseName": "SIL Open Font License 1.1",
+      "licenseURL": "https://openfontlicense.org",
+      "author": "Google Fonts contributors",
+      "sourceURL": "https://github.com/google/fonts/tree/main/ofl/cedarvillecursive",
+      "attributionText": "Cedarville Cursive via Google Fonts (SIL OFL 1.1; license in fonts/cedarvillecursive-OFL.txt)",
+      "commercialUseAllowed": true,
+      "modificationAllowed": true,
+      "redistributionAllowed": true,
+      "acquiredAt": "2026-09-27"
+    },
+    {
+      "assetID": "font-ballet",
+      "relativePath": "fonts/ballet.ttf",
+      "assetType": "font",
+      "sha256": "6500b6abb6dd31c3389e8f32a21ae3c66e3257d0afefecf7688aa23f742cb677",
+      "licenseName": "SIL Open Font License 1.1",
+      "licenseURL": "https://openfontlicense.org",
+      "author": "Google Fonts contributors",
+      "sourceURL": "https://github.com/google/fonts/tree/main/ofl/ballet",
+      "attributionText": "Ballet via Google Fonts (SIL OFL 1.1; license in fonts/ballet-OFL.txt)",
+      "commercialUseAllowed": true,
+      "modificationAllowed": true,
+      "redistributionAllowed": true,
+      "acquiredAt": "2026-09-27"
     }
   ]
 }

@@ -157,6 +157,12 @@ public struct CarouselRenderer: Sendable {
                 StyleLayer.tape(ctx, rect: rect, rotationDegrees: e.rotationDegrees, opacity: e.opacity, rng: &rng)
             case .stamp:
                 try StampRenderer.draw(ctx, text: e.text ?? "", rect: rect, opacity: e.opacity)
+            case .text:
+                try StampRenderer.draw(ctx, text: e.text ?? "", rect: rect, opacity: e.opacity)
+            case .frame:
+                // Template frame elements are rendered by DocumentRenderer, which has access to
+                // the frame PNG/window registry. The legacy painter keeps them inert safely.
+                break
             }
         }
 

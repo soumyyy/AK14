@@ -6,12 +6,13 @@ public struct LayoutContext: Sendable {
     public var features: [AssetID: PhotoFeatures]
     public var stylePack: StylePack
     public var seed: UInt64
+    public var storyHint: String?
     /// Imported page arrangements the resolver may fill. Empty keeps the six primitives.
     public var vocabulary: [DesignedSet]
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
-                stylePack: StylePack, seed: UInt64, vocabulary: [DesignedSet] = []) {
+                stylePack: StylePack, seed: UInt64, storyHint: String? = nil, vocabulary: [DesignedSet] = []) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.stylePack = stylePack
-        self.seed = seed; self.vocabulary = vocabulary
+        self.seed = seed; self.storyHint = storyHint; self.vocabulary = vocabulary
     }
 }
 
@@ -22,11 +23,15 @@ public enum LayoutResolver {
         var history: [String] = []
         var slides: [ResolvedSlide] = []
         var usedTemplateIDs = Set<String>()
+        var selectedFamily: String?
+        var titlePlaced = false
+        var captionCount = 0
         var index = 0
         let useVocabulary = !plan.isBaseline && !context.vocabulary.isEmpty
         while index < plan.slides.count {
             if useVocabulary, let placed = TemplateVocabulary.place(plan: plan, start: index, context: context,
-                                                                     usedTemplateIDs: &usedTemplateIDs) {
+                                                                     usedTemplateIDs: &usedTemplateIDs, selectedFamily: &selectedFamily,
+                                                                     titlePlaced: &titlePlaced, captionCount: &captionCount) {
                 slides.append(contentsOf: placed)
                 index += placed.count
             } else {
@@ -49,9 +54,14 @@ public enum LayoutResolver {
         var hosted = Array(repeating: false, count: plan.slides.count)
         guard !plan.isBaseline && !context.vocabulary.isEmpty else { return hosted }
         var usedTemplateIDs = Set<String>()
+        var selectedFamily: String?
+        var titlePlaced = false
+        var captionCount = 0
         var index = 0
         while index < plan.slides.count {
-            if let placed = TemplateVocabulary.place(plan: plan, start: index, context: context, usedTemplateIDs: &usedTemplateIDs) {
+            if let placed = TemplateVocabulary.place(plan: plan, start: index, context: context,
+                                                     usedTemplateIDs: &usedTemplateIDs, selectedFamily: &selectedFamily,
+                                                     titlePlaced: &titlePlaced, captionCount: &captionCount) {
                 for offset in placed.indices { hosted[index + offset] = true }
                 index += placed.count
             } else {

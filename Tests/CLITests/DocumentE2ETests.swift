@@ -175,7 +175,9 @@ private func forcedElementsCarousel(_ tmp: TempDirectory) async throws -> (carou
     #expect(oldForced.failures.isEmpty && newForced.failures.isEmpty)
     for name in oldForced.names { #expect(try Data(contentsOf: tmp.url.appending(path: "old-forced/\(name)")) == Data(contentsOf: tmp.url.appending(path: "new-forced/\(name)"))) }
 
-    #expect(sawKinds == Set(ElementKind.allCases))
+    // The legacy bridge still exercises every legacy kind; template `.text` and `.frame` are
+    // rendered natively and are covered by the dedicated template renderer tests.
+    #expect(sawKinds.isSuperset(of: [.photo, .tape, .stamp]))
     #expect(!sawBackgrounds.isEmpty)
 }
 

@@ -1,4 +1,5 @@
 import Core
+import Foundation
 import Render
 import Testing
 
@@ -195,6 +196,71 @@ import Testing
         #expect(Set(variants).count == 3)
     }
 
+    @Test func templateMetadataAndEditableElementsRoundTrip() throws {
+        let text = DesignedSet.TextLayer(frame: UnitRect(x: 0.1, y: 0.2, width: 0.8, height: 0.2),
+                                         fontID: "font-inter", size: 24, colour: "#101010",
+                                         alignment: "center", lineSpacing: 4, letterSpacing: 1,
+                                         numberOfLines: 2, rotation: -3, role: "title")
+        let frame = DesignedSet.FrameLayer(frame: UnitRect(x: 0, y: 0, width: 1, height: 1),
+                                           frameAssetID: "frame-film-border-01", z: 4,
+                                           rotation: 2)
+        let designed = DesignedSet(id: "styled", sourceRef: "test", aspect: .portrait4x5,
+                                   slideCount: 1, background: "#F0F0F0",
+                                   slots: [slot(x: 0, y: 0, w: 1, h: 1, aspect: 0.8, z: 0)],
+                                   texts: [text], frames: [frame], family: "family-a", decorCoverage: 0.05)
+        let data = try JSONEncoder().encode(designed)
+        let decoded = try JSONDecoder().decode(DesignedSet.self, from: data)
+        #expect(decoded == designed)
+        #expect(decoded.family == "family-a")
+        #expect(decoded.texts?.first?.role == "title")
+
+        let element = ResolvedElement(kind: .text, assetID: nil, text: "owner title",
+                                      frame: text.frame, rotationDegrees: text.rotation, crop: nil,
+                                      zIndex: 4, opacity: 1, border: 0, shadow: false,
+                                      fontID: text.fontID, fontSize: text.size, textColor: text.colour,
+                                      alignment: text.alignment, lineSpacing: text.lineSpacing,
+                                      letterSpacing: text.letterSpacing, numberOfLines: text.numberOfLines)
+        let elementCopy = try JSONDecoder().decode(ResolvedElement.self, from: JSONEncoder().encode(element))
+        #expect(elementCopy == element)
+    }
+
+    @Test func templateTextUsesOwnerTitleOnceAndKeepsFamilyCoherent() throws {
+        let one = photo("text-one", aspect: 0.8)
+        let two = photo("text-two", aspect: 0.8)
+        let textLayer = DesignedSet.TextLayer(frame: UnitRect(x: 0.1, y: 0.1, width: 0.8, height: 0.2),
+                                               fontID: "font-inter", size: 22, colour: "#101010",
+                                               alignment: "center", role: "title")
+        let captionLayer = DesignedSet.TextLayer(frame: UnitRect(x: 0.1, y: 0.75, width: 0.8, height: 0.1),
+                                                  fontID: "font-inter", size: 10, colour: "#101010",
+                                                  alignment: "center", role: "caption")
+        func textSet(_ id: String, texts: [DesignedSet.TextLayer]) -> DesignedSet {
+            DesignedSet(id: id, sourceRef: "test", aspect: .portrait4x5, slideCount: 1,
+                        background: "#FFFFFF",
+                        slots: [slot(x: 0, y: 0, w: 1, h: 1, aspect: 0.8, z: 0)],
+                        texts: texts, family: "family-a", decorCoverage: 0)
+        }
+        let direction = Direction(brief: "trip", style: StyleVector(density: "balanced", overlap: "none",
+            grouping: "single", decoration: "rich", rotation: "none", whitespace: "tight"),
+            coverAssetID: one.assetID, orderedAssetIDs: [one.assetID, two.assetID], titleIdea: "Copenhagen")
+        let plan = CarouselPlan(id: "text-carousel", brief: "", direction: direction, slides: [
+            SlidePlan(primitive: .fullBleed, mood: "", density: "balanced", photos: [.plain(one.assetID)], decorations: [], stamps: []),
+            SlidePlan(primitive: .fullBleed, mood: "", density: "balanced", photos: [.plain(two.assetID)], decorations: [], stamps: [])
+        ])
+        let first = DesignedSet(id: "text-first", sourceRef: "test", aspect: .portrait4x5, slideCount: 1,
+                                background: "#FFFFFF",
+                                slots: [slot(x: 0, y: 0, w: 1, h: 1, aspect: 0.8, z: 0)],
+                                texts: [textLayer], family: "family-a", decorCoverage: 0)
+        let second = textSet("text-second", texts: [captionLayer])
+        let resolved = LayoutResolver.resolve(plan, context: try context(photos: [one, two],
+            vocabulary: [first, second], seed: 17))
+        #expect(resolved.slides.count == 2)
+        #expect(resolved.slides.allSatisfy { $0.variant?.hasPrefix("template.") == true })
+        #expect(resolved.slides.map { $0.variant?.split(separator: ".").dropFirst().first }.compactMap { $0 }.count == 2)
+        let texts = resolved.slides.flatMap(\.elements).filter { $0.kind == .text }
+        #expect(texts.filter { $0.textRole == "title" }.map(\.text) == ["Copenhagen"])
+        #expect(texts.filter { $0.textRole == "caption" }.count <= 2)
+    }
+
     private func context(photos: [PhotoRecord], features: [AssetID: PhotoFeatures] = [:], vocabulary: [DesignedSet], seed: UInt64 = 1) throws -> LayoutContext {
         LayoutContext(aspect: .portrait4x5, photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
                       features: features, stylePack: try StylePackLoader.load(), seed: seed, vocabulary: vocabulary)
@@ -204,7 +270,7 @@ import Testing
         let asset = AssetID(rawValue: id)
         return PhotoRecord(assetID: asset, contentSHA256: id, sourceRelativePaths: ["\(id).jpg"], byteCount: 1,
                            fileType: "public.jpeg", pixelWidth: max(1, Int((aspect * 1000).rounded())), pixelHeight: 1000,
-                           exifOrientation: 1, metadata: CaptureMetadata())
+                           exifOrientation: 1, metadata: CaptureMetadata(localDateTime: "2026:05:29 10:00:00"))
     }
 
     private func set(_ id: String, slides: Int, aspect: CarouselAspect = .portrait4x5, slots: [DesignedSet.Slot]) -> DesignedSet {

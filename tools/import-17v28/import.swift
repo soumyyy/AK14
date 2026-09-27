@@ -4,9 +4,59 @@ import Foundation
 
 struct Point: Decodable { let x: Double; let y: Double }
 struct Size: Decodable { let width: Double; let height: Double }
-struct RawLayer: Decodable { let placeholderCenter: Point?; let placeholderSize: Size? }
+struct RawColor: Decodable {
+    let red: Double
+    let green: Double
+    let blue: Double
+    let alpha: Double
+}
+struct RawText: Decodable {
+    let textColor: RawColor?
+    let numberOfLines: Int?
+    let fontName: String?
+    let fontSize: Double?
+    let text: String?
+    let textAlignment: Int?
+    let lineSpacing: Double?
+    let letterSpacing: Double?
+}
+struct RawBox: Decodable {
+    let center: Point?
+    let size: Size?
+    let frame: RawFrame?
+}
+struct RawFrame: Decodable {
+    let origin: Point
+    let size: Size
+}
+struct RawNestedLayout: Decodable {
+    let frameIndex: Int?
+    let placeholders: [RawNestedPlaceholder]?
+}
+struct RawNestedPlaceholder: Decodable {
+    let relativeFrame: RawFrame?
+    let frame: RawFrame?
+}
+struct RawLayer: Decodable {
+    let id: String
+    let placeholderCenter: Point?
+    let placeholderSize: Size?
+    let center: Point?
+    let size: Size?
+    let text: RawText?
+    let scaling: Double?
+    let rotation: Double?
+    let cornerRadius: Double?
+    let frameCenter: Point?
+    let frameSize: Size?
+    let frameImage: String?
+    let framePlaceholders: [RawBox]?
+    let image: String?
+    let imageExtension: String?
+    let layout: RawNestedLayout?
+}
 struct RawTemplate: Decodable {
-    let id: String; let frameType: String; let numberOfFrames: Int
+    let id: String; let categoryId: String?; let frameType: String; let numberOfFrames: Int
     let backgroundColor: String?; let layers: [RawLayer]
 }
 struct RawLayout: Decodable {
@@ -21,7 +71,7 @@ struct Rect: Codable {
 }
 struct Slot: Codable {
     let frame: Rect; let aspect: Double; let z: Int; let rotation: Double
-    let crossesSeam: Bool; let roleHint: String; let components: [Component]?
+    let crossesSeam: Bool; let roleHint: String; let components: [Component]?; let cornerRadius: Double?
 }
 struct Component: Codable {
     let frame: Rect; let aspect: Double; let z: Int; let rotation: Double
@@ -30,6 +80,15 @@ struct Component: Codable {
 struct SetRecord: Codable {
     let id: String; let sourceRef: String; let aspect: String; let slideCount: Int
     let background: String; let slots: [Slot]; let version: Int
+    let texts: [TextLayer]?; let frames: [FrameLayer]?; let family: String?; let decorCoverage: Double?
+}
+struct TextLayer: Codable {
+    let frame: Rect; let fontID: String; let size: Double; let colour: String; let alignment: String
+    let lineSpacing: Double; let letterSpacing: Double; let numberOfLines: Int; let rotation: Double; let role: String
+}
+struct FrameLayer: Codable {
+    let frame: Rect; let frameAssetID: String; let slotFrame: Rect?; let photoWindowAspect: Double?
+    let z: Int; let rotation: Double
 }
 struct Library: Codable {
     let version: Int; let frameInference: String; let sets: [SetRecord]
@@ -40,6 +99,7 @@ let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let source = URL(fileURLWithPath: "/Applications/app17v28.app/Wrapper/app17v28.app")
 let output = root.appendingPathComponent("Sources/Render/Resources/StylePacks/designed-sets.json")
 let bleed = 0.03
+let libraryVersion = 2
 
 func lenientDecode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
     let text = String(decoding: data, as: UTF8.self)
@@ -76,8 +136,146 @@ func normalized(_ boxes: [Box], canvasWidth: Double, canvasHeight: Double, slide
     let roles = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element.0, $0.offset == 0 ? "hero" : "support") })
     return prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }.map { index, frame, ratio, _ in
         let seams = (1..<slideCount).contains { Double($0) > frame.x + 0.000001 && Double($0) < frame.x + frame.width - 0.000001 }
-        return Slot(frame: frame, aspect: ratio, z: index, rotation: 0, crossesSeam: seams, roleHint: roles[index]!, components: nil)
+        return Slot(frame: frame, aspect: ratio, z: index, rotation: 0, crossesSeam: seams,
+                    roleHint: roles[index]!, components: nil, cornerRadius: nil)
     }
+}
+
+struct ImportedFrame: Decodable {
+    struct Window: Decodable { let x: Double; let y: Double; let width: Double; let height: Double }
+    let imageAssetID: String
+    let imageWidth: Int
+    let imageHeight: Int
+    let photoWindow: Window
+}
+
+func normalizedRect(_ box: Box, canvasWidth: Double, canvasHeight: Double) -> Rect {
+    Rect(x: box.x / canvasWidth, y: box.y / canvasHeight,
+         width: box.width / canvasWidth, height: box.height / canvasHeight)
+}
+
+func directBox(_ center: Point?, _ size: Size?) -> Box? {
+    guard let center, let size, size.width > 0, size.height > 0 else { return nil }
+    return Box(x: center.x - size.width / 2, y: center.y - size.height / 2,
+               width: size.width, height: size.height)
+}
+
+func rawBox(_ box: RawBox) -> Box? {
+    directBox(box.center, box.size) ?? box.frame.map {
+        Box(x: $0.origin.x, y: $0.origin.y, width: $0.size.width, height: $0.size.height)
+    }
+}
+
+func nestedBoxes(_ layer: RawLayer, canvasWidth: Double, canvasHeight: Double) -> [Box] {
+    guard let layout = layer.layout, let placeholders = layout.placeholders else { return [] }
+    return placeholders.compactMap { placeholder in
+        let frame = placeholder.relativeFrame ?? placeholder.frame
+        guard let frame else { return nil }
+        let page = Double(layout.frameIndex ?? 0)
+        return Box(x: (page + frame.origin.x) * canvasWidth,
+                   y: frame.origin.y * canvasHeight,
+                   width: frame.size.width * canvasWidth,
+                   height: frame.size.height * canvasHeight)
+    }
+}
+
+func placeholderBoxes(_ layer: RawLayer, canvasWidth: Double, canvasHeight: Double) -> [Box] {
+    if let direct = directBox(layer.placeholderCenter, layer.placeholderSize) {
+        return [direct]
+    }
+    if let frames = layer.framePlaceholders {
+        return frames.compactMap(rawBox)
+    }
+    return nestedBoxes(layer, canvasWidth: canvasWidth, canvasHeight: canvasHeight)
+}
+
+func deduplicated(_ boxes: [Box]) -> [Box] {
+    boxes.reduce(into: [Box]()) { result, box in
+        guard !result.contains(where: {
+            abs($0.x - box.x) < 0.0001 && abs($0.y - box.y) < 0.0001 &&
+            abs($0.width - box.width) < 0.0001 && abs($0.height - box.height) < 0.0001
+        }) else { return }
+        result.append(box)
+    }
+}
+
+func isSymbolOnly(_ value: String) -> Bool {
+    !value.unicodeScalars.contains { scalar in
+        CharacterSet.letters.contains(scalar) || CharacterSet.decimalDigits.contains(scalar)
+    }
+}
+
+func fontID(_ name: String) -> String {
+    // The explicit mappings preserve the faces named by the 17V28 source.
+    if name.hasPrefix("Inter-") || name.hasPrefix("Roboto-") { return "font-inter" }
+    if name.hasPrefix("DotGothic16") { return "font-dotgothic16" }
+    if name.hasPrefix("InstrumentSerif-Italic") { return "font-instrumentserif-italic" }
+    if name.hasPrefix("InstrumentSerif") { return "font-instrumentserif" }
+    if name.hasPrefix("AmaticSC") { return "font-amaticsc" }
+    if name.hasPrefix("Anton") { return "font-anton" }
+    if name.hasPrefix("PinyonScript") { return "font-pinyonscript" }
+    if name.hasPrefix("Cedarville-Cursive") { return "font-cedarvillecursive" }
+    if name.hasPrefix("Outfit") { return "font-outfit" }
+    if name.hasPrefix("Ballet") { return "font-ballet" }
+    if name.hasPrefix("SpecialElite") { return "font-specialelite" }
+    // Fallbacks are deliberately explicit: these source faces are not bundled, so the closest
+    // existing families keep the page's visual job without copying the source font.
+    if name.hasPrefix("RobotoMono") { return "font-jetbrainsmono" } // closest bundled mono
+    if name.hasPrefix("Unbounded") { return "font-unbounded" } // closest bundled geometric display
+    if name.hasPrefix("Caveat") { return "font-caveat" } // closest bundled handwriting
+    if name.hasPrefix("DelaGothicOne") { return "font-delagothicone" } // closest bundled display
+    if name.hasPrefix("NewAmsterdam") { return "font-newamsterdam" } // closest bundled display
+    if name.hasPrefix("HomemadeApple") { return "font-homemadeapple" } // closest bundled script
+    if name.hasPrefix("RockSalt") { return "font-rocksalt" } // closest bundled marker
+    if name.hasPrefix("Mansalva") { return "font-mansalva" } // closest bundled handwriting
+    if name.hasPrefix("ShantellSans") { return "font-shantellsans" } // closest bundled handwriting sans
+    return "font-inter" // unknown source face: safe neutral fallback
+}
+
+func hexColor(_ color: RawColor?) -> String {
+    guard let color else { return "#000000" }
+    let clamp: (Double) -> Int = { Int((min(1, max(0, $0)) * 255).rounded()) }
+    return String(format: "#%02X%02X%02X", clamp(color.red), clamp(color.green), clamp(color.blue))
+}
+
+func alignment(_ value: Int?) -> String {
+    switch value ?? 0 {
+    case 1: return "center"
+    case 2: return "right"
+    default: return "left"
+    }
+}
+
+func unionArea(_ boxes: [Box]) -> Double {
+    guard !boxes.isEmpty else { return 0 }
+    let xs = Set(boxes.flatMap { [$0.x, $0.x + $0.width] }).sorted()
+    let ys = Set(boxes.flatMap { [$0.y, $0.y + $0.height] }).sorted()
+    var area = 0.0
+    for x in zip(xs, xs.dropFirst()) {
+        for y in zip(ys, ys.dropFirst()) {
+            let cell = Box(x: x.0, y: y.0, width: x.1 - x.0, height: y.1 - y.0)
+            if boxes.contains(where: {
+                max($0.x, cell.x) < min($0.x + $0.width, cell.x + cell.width) &&
+                max($0.y, cell.y) < min($0.y + $0.height, cell.y + cell.height)
+            }) { area += cell.width * cell.height }
+        }
+    }
+    return area
+}
+
+func closestFrameAsset(windowAspect: Double, candidates: [ImportedFrame]) -> String? {
+    guard !candidates.isEmpty, windowAspect.isFinite, windowAspect > 0 else { return nil }
+    return candidates.min {
+        abs(log(max(0.01, $0.photoWindow.width * Double($0.imageWidth) /
+                         ($0.photoWindow.height * Double($0.imageHeight)) / windowAspect))) <
+        abs(log(max(0.01, $1.photoWindow.width * Double($1.imageWidth) /
+                         ($1.photoWindow.height * Double($1.imageHeight)) / windowAspect)))
+    }?.imageAssetID
+}
+
+func frameAssetCandidates() throws -> [ImportedFrame] {
+    let url = root.appendingPathComponent("Sources/Render/Resources/Assets/frames.json")
+    return try JSONDecoder().decode([ImportedFrame].self, from: Data(contentsOf: url))
 }
 
 func packDenseLayout(_ slots: [Slot], slideCount: Int, aspect: String) -> [Slot] {
@@ -95,7 +293,8 @@ func packDenseLayout(_ slots: [Slot], slideCount: Int, aspect: String) -> [Slot]
     }
     let z = grouped.map(\.z).min() ?? ordinary.count
     let packed = ordinary + [Slot(frame: frame, aspect: frame.width / frame.height * rate, z: z, rotation: 0,
-                                  crossesSeam: false, roleHint: grouped.contains(where: { $0.roleHint == "hero" }) ? "hero" : "support", components: components)]
+                                  crossesSeam: false, roleHint: grouped.contains(where: { $0.roleHint == "hero" }) ? "hero" : "support",
+                                  components: components, cornerRadius: nil)]
     return packed.sorted {
         let a = $0.components?.reduce(0) { $0 + $1.frame.width * $1.frame.height } ?? $0.frame.width * $0.frame.height
         let b = $1.components?.reduce(0) { $0 + $1.frame.width * $1.frame.height } ?? $1.frame.width * $1.frame.height
@@ -105,21 +304,93 @@ func packDenseLayout(_ slots: [Slot], slideCount: Int, aspect: String) -> [Slot]
 
 func main() throws {
     let files = try templateFiles()
+    let frameCandidates = try frameAssetCandidates()
     var records: [SetRecord] = []
     var rejected: [(String, String)] = []
     for file in files {
         let t = try lenientDecode(RawTemplate.self, from: Data(contentsOf: file))
         guard let (width, height, aspect) = canvas(frameType: t.frameType) else { continue }
-        let boxes = t.layers.compactMap { layer -> Box? in
-            guard let c = layer.placeholderCenter, let s = layer.placeholderSize else { return nil }
-            return Box(x: c.x - s.width / 2, y: c.y - s.height / 2, width: s.width, height: s.height)
-        }
+        let boxes = deduplicated(t.layers.flatMap { placeholderBoxes($0, canvasWidth: width, canvasHeight: height) })
         guard let slots = normalized(boxes, canvasWidth: width, canvasHeight: height, slideCount: t.numberOfFrames, aspect: aspect) else {
             rejected.append(("template-\(t.id)", "empty or degenerate/outside geometry")); continue
         }
+        let slotCorners: [(Box, Double)] = t.layers.flatMap { layer in
+            guard let radius = layer.cornerRadius else { return [(Box, Double)]() }
+            return placeholderBoxes(layer, canvasWidth: width, canvasHeight: height).map {
+                ($0, min(0.5, max(0, radius / min($0.width, $0.height))))
+            }
+        }
+        let enrichedSlots = slots.map { slot -> Slot in
+            let box = Box(x: slot.frame.x * width, y: slot.frame.y * height,
+                          width: slot.frame.width * width, height: slot.frame.height * height)
+            let radius = slotCorners.first(where: {
+                abs($0.0.x - box.x) < 0.01 && abs($0.0.y - box.y) < 0.01 &&
+                abs($0.0.width - box.width) < 0.01 && abs($0.0.height - box.height) < 0.01
+            })?.1
+            return Slot(frame: slot.frame, aspect: slot.aspect, z: slot.z, rotation: slot.rotation,
+                        crossesSeam: slot.crossesSeam, roleHint: slot.roleHint,
+                        components: slot.components, cornerRadius: radius)
+        }
+        let textCandidates: [(RawLayer, RawText, Box)] = t.layers.compactMap { layer in
+            guard let text = layer.text, let box = directBox(layer.center, layer.size) else { return nil }
+            let scale = max(0.01, layer.scaling ?? 1)
+            return (layer, text, Box(x: box.x - box.width * (scale - 1) / 2,
+                                     y: box.y - box.height * (scale - 1) / 2,
+                                     width: box.width * scale, height: box.height * scale))
+        }
+        let largestText = textCandidates.enumerated().max {
+            ($0.element.1.fontSize ?? 0) * ($0.element.0.scaling ?? 1) <
+            ($1.element.1.fontSize ?? 0) * ($1.element.0.scaling ?? 1)
+        }?.offset
+        let texts: [TextLayer] = textCandidates.enumerated().map { index, item in
+            let (layer, text, box) = item
+            let sample = text.text ?? ""
+            let role = isSymbolOnly(sample) ? "accent" : index == largestText ? "title" : "caption"
+            return TextLayer(frame: normalizedRect(box, canvasWidth: width, canvasHeight: height),
+                             fontID: fontID(text.fontName ?? "Inter-Regular"),
+                             size: (text.fontSize ?? 16) * max(0.01, layer.scaling ?? 1),
+                             colour: hexColor(text.textColor), alignment: alignment(text.textAlignment),
+                             lineSpacing: text.lineSpacing ?? 0, letterSpacing: text.letterSpacing ?? 0,
+                             numberOfLines: max(1, text.numberOfLines ?? 1), rotation: layer.rotation ?? 0,
+                             role: role)
+        }
+        let decorBoxes = t.layers.compactMap { layer -> Box? in
+            guard layer.image != nil, layer.placeholderCenter == nil else { return nil }
+            return directBox(layer.center, layer.size)
+        }
+        let pageArea = width * height * Double(max(1, t.numberOfFrames))
+        let decorCoverage = min(1, unionArea(decorBoxes) / max(pageArea, 1))
+        let decorOverPhoto = decorBoxes.contains { decor in
+            boxes.contains {
+                max(decor.x, $0.x) < min(decor.x + decor.width, $0.x + $0.width) &&
+                max(decor.y, $0.y) < min(decor.y + decor.height, $0.y + $0.height)
+            }
+        }
+        if decorCoverage > 0.12 || decorOverPhoto {
+            rejected.append(("template-\(t.id)", decorOverPhoto ? "decor intersects photo slot" : "decor coverage \(decorCoverage)"))
+            continue
+        }
+        let frames: [FrameLayer] = t.layers.enumerated().compactMap { index, layer in
+            guard let center = layer.frameCenter, let size = layer.frameSize, layer.frameImage != nil else { return nil }
+            let frameBox = directBox(center, size)!
+            let rawPlaceholder = layer.framePlaceholders?.compactMap(rawBox).first
+            let windowAspect = rawPlaceholder.map { $0.width / max(0.01, $0.height) } ?? frameBox.width / max(0.01, frameBox.height)
+            guard let asset = closestFrameAsset(windowAspect: windowAspect, candidates: frameCandidates) else { return nil }
+            let candidate = frameCandidates.first { $0.imageAssetID == asset }
+            let photoWindowAspect = candidate.map {
+                $0.photoWindow.width * Double($0.imageWidth) /
+                max(0.01, $0.photoWindow.height * Double($0.imageHeight))
+            }
+            return FrameLayer(frame: normalizedRect(frameBox, canvasWidth: width, canvasHeight: height),
+                              frameAssetID: asset, slotFrame: rawPlaceholder.map { normalizedRect($0, canvasWidth: width, canvasHeight: height) },
+                              photoWindowAspect: photoWindowAspect,
+                              z: 100 + index, rotation: layer.rotation ?? 0)
+        }
         records.append(SetRecord(id: "17v28-template-\(t.id)", sourceRef: "17v28:template-\(t.id)", aspect: aspect,
                                  slideCount: t.numberOfFrames, background: "#" + (t.backgroundColor ?? "FFFFFF").trimmingCharacters(in: CharacterSet(charactersIn: "#")),
-                                 slots: slots, version: 1))
+                                 slots: enrichedSlots, version: libraryVersion, texts: texts.isEmpty ? nil : texts,
+                                 frames: frames.isEmpty ? nil : frames, family: t.categoryId ?? "uncategorized",
+                                 decorCoverage: decorCoverage))
     }
 
     let layoutsURL = source.appendingPathComponent("layouts.json")
@@ -130,10 +401,11 @@ func main() throws {
             rejected.append(("layout-\(layout.id)", "empty or degenerate/outside geometry")); continue
         }
         records.append(SetRecord(id: "17v28-layout-\(layout.id)", sourceRef: "17v28:layout-\(layout.id)", aspect: "4:5",
-                                 slideCount: 1, background: "#FFFFFF", slots: packDenseLayout(slots, slideCount: 1, aspect: "4:5"), version: 1))
+                                 slideCount: 1, background: "#FFFFFF", slots: packDenseLayout(slots, slideCount: 1, aspect: "4:5"),
+                                 version: libraryVersion, texts: nil, frames: nil, family: "layouts", decorCoverage: 0))
     }
     records.sort { $0.id < $1.id }
-    let library = Library(version: 1,
+    let library = Library(version: libraryVersion,
         frameInference: "Canvas width is 216pt. Single-frame portrait templates with full-bleed placeholders consistently measure 216×270pt (4:5); square measures 216×216pt. portrait2 is mapped to 216×288pt (3:4), supported by full-height placeholders measuring 216×288pt in multi-frame template-196; its sole single-frame example (template-201) has an inset 216×162.7pt placeholder and does not reveal canvas bounds. Multi-frame coordinates are treated as one continuous canvas whose width is frame width × numberOfFrames. Layouts use their supplied unit square. Source files are decoded after removing trailing commas; no raw source data is included.",
         sets: records)
     let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]

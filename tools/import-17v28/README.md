@@ -27,3 +27,17 @@ python3 tools/import-17v28/ImportFrames.py --include-valentine
 The importer tolerates trailing commas in `frames.json`, handles its plain and
 digital frame geometry formats, rewrites PNGs losslessly with the system `sips`
 tool, and regenerates `Assets/frames.json` plus frame entries in `manifest.json`.
+
+Import the complete locally available template vocabulary with:
+
+```sh
+swift tools/import-17v28/import.swift
+```
+
+Template JSON is decoded after trailing commas are removed. The output keeps
+photo-slot geometry, corner radii, role-only text styling, mapped bundled-font
+IDs, resolvable frame IDs, category families, backgrounds, and decorative
+coverage. Literal source sample text is intentionally discarded. Pages with
+decorative coverage over 12% or decoration intersecting a photo slot are
+reported as rejected and are not written to `designed-sets.json`; the contact
+sheets are written under `/tmp` for review only.

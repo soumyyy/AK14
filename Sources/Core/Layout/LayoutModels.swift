@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-public enum ElementKind: String, Codable, Sendable, CaseIterable { case photo, tape, stamp }
+public enum ElementKind: String, Codable, Sendable, CaseIterable { case photo, tape, stamp, text, frame }
 
 /// One drawable element. `frame` is canvas-normalized with a top-left origin, before rotation
 /// (rotation is about the frame centre, positive = clockwise). `crop` is source-normalized (oriented image).
@@ -18,8 +18,26 @@ public struct ResolvedElement: Codable, Sendable, Equatable {
     public var border: Double
     public var shadow: Bool
     public var adjustments: PhotoAdjustments?
-    public init(kind: ElementKind, assetID: AssetID?, text: String?, frame: UnitRect, rotationDegrees: Double, crop: UnitRect?, zIndex: Int, opacity: Double, border: Double, shadow: Bool, adjustments: PhotoAdjustments? = nil) {
+    public var fontID: String?
+    public var fontSize: Double?
+    public var textColor: String?
+    public var alignment: String?
+    public var lineSpacing: Double?
+    public var letterSpacing: Double?
+    public var numberOfLines: Int?
+    public var frameAssetID: String?
+    public var cornerRadius: Double?
+    public var textRole: String?
+    public init(kind: ElementKind, assetID: AssetID?, text: String?, frame: UnitRect, rotationDegrees: Double,
+                crop: UnitRect?, zIndex: Int, opacity: Double, border: Double, shadow: Bool,
+                adjustments: PhotoAdjustments? = nil, fontID: String? = nil, fontSize: Double? = nil,
+                textColor: String? = nil, alignment: String? = nil, lineSpacing: Double? = nil,
+                letterSpacing: Double? = nil, numberOfLines: Int? = nil, frameAssetID: String? = nil,
+                cornerRadius: Double? = nil, textRole: String? = nil) {
         self.kind=kind; self.assetID=assetID; self.text=text; self.frame=frame; self.rotationDegrees=rotationDegrees; self.crop=crop; self.zIndex=zIndex; self.opacity=opacity; self.border=border; self.shadow=shadow; self.adjustments=adjustments
+        self.fontID = fontID; self.fontSize = fontSize; self.textColor = textColor; self.alignment = alignment
+        self.lineSpacing = lineSpacing; self.letterSpacing = letterSpacing; self.numberOfLines = numberOfLines
+        self.frameAssetID = frameAssetID; self.cornerRadius = cornerRadius; self.textRole = textRole
     }
 }
 
