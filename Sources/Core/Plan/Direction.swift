@@ -61,6 +61,22 @@ public struct Direction: Codable, Sendable, Equatable {
     public var seamless: Bool
     public var titleIdea: String?
 
+    private enum CodingKeys: String, CodingKey {
+        case brief, style, coverAssetID, orderedAssetIDs, keepTogether, emphasisAssetIDs, seamless, titleIdea
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(brief: try c.decode(String.self, forKey: .brief),
+                  style: try c.decode(StyleVector.self, forKey: .style),
+                  coverAssetID: try c.decode(AssetID.self, forKey: .coverAssetID),
+                  orderedAssetIDs: try c.decode([AssetID].self, forKey: .orderedAssetIDs),
+                  keepTogether: try c.decodeIfPresent([[AssetID]].self, forKey: .keepTogether) ?? [],
+                  emphasisAssetIDs: try c.decodeIfPresent([AssetID].self, forKey: .emphasisAssetIDs) ?? [],
+                  seamless: try c.decodeIfPresent(Bool.self, forKey: .seamless) ?? false,
+                  titleIdea: try c.decodeIfPresent(String.self, forKey: .titleIdea))
+    }
+
     public init(brief: String, style: StyleVector, coverAssetID: AssetID, orderedAssetIDs: [AssetID],
                 keepTogether: [[AssetID]] = [], emphasisAssetIDs: [AssetID] = [], seamless: Bool = false, titleIdea: String? = nil) {
         self.brief = brief; self.style = style; self.coverAssetID = coverAssetID; self.orderedAssetIDs = orderedAssetIDs

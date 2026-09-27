@@ -112,10 +112,7 @@ public struct CarouselRenderer: Sendable {
                 let source = sourceFolder.appending(path: record.sourceRelativePaths[0])
                 let crop = e.crop ?? UnitRect(x: 0, y: 0, width: 1, height: 1)
                 var image = try Self.decodeCropped(source, record: record, crop: crop, frame: rect.size)
-                if let exposure = e.adjustments?.exposure, exposure != 0 {
-                    let input = CIImage(cgImage: image).applyingFilter("CIExposureAdjust", parameters: [kCIInputEVKey: exposure])
-                    if let adjusted = Self.washContext.createCGImage(input, from: input.extent) { image = adjusted }
-                }
+                image = PhotoAdjustmentFilter.apply(to: image, adjustments: e.adjustments)
                 ctx.saveGState()
                 ctx.translateBy(x: rect.midX, y: rect.midY)
                 ctx.rotate(by: -e.rotationDegrees * .pi / 180)

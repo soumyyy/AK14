@@ -7,6 +7,18 @@ import TestSupport
 @testable import Session
 @testable import Render
 
+@Test func savedDirectionsWithoutSeamlessRemainReadable() throws {
+    let id = AssetID(rawValue: "photo")
+    let direction = Direction(brief: "An older story", style: .baseline, coverAssetID: id,
+                              orderedAssetIDs: [id])
+    var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(direction)) as? [String: Any])
+    json.removeValue(forKey: "seamless")
+    let decoded = try JSONDecoder().decode(Direction.self, from: JSONSerialization.data(withJSONObject: json))
+    #expect(decoded == direction)
+    json["seamless"] = true
+    #expect(try JSONDecoder().decode(Direction.self, from: JSONSerialization.data(withJSONObject: json)).seamless)
+}
+
 private func sceneFolder(_ tmp: TempDirectory, count: Int = 14) throws -> URL {
     let folder = try tmp.sub("trip")
     for i in 0..<count {
@@ -81,7 +93,11 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
         }
         if style.grouping == "single" { #expect(plan.slides.allSatisfy { $0.photos.count == 1 }, "\(plan.id) grouped photos") }
         if style.overlap == "none" {
-            #expect(!plan.slides.contains { $0.primitive == .inset || $0.primitive == .overlapCluster }, "\(plan.id) overlaps")
+            // A multi-photo slide is only allowed where an imported template page hosts it.
+            for (i, slide) in plan.slides.enumerated() where slide.primitive == .inset || slide.primitive == .overlapCluster {
+                let resolved = try store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", plan.id, i + 1))
+                #expect(resolved.variant?.hasPrefix("template.") == true, "\(plan.id) slide \(i + 1) overlaps")
+            }
         }
         if style.rotation == "none" { #expect(plan.slides.allSatisfy { $0.photos.allSatisfy { $0.rotationIntent == "none" } }) }
         for slide in plan.slides where slide.photos.count > 1 {
@@ -126,7 +142,10 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
 @Test func legacyRunsOpenReportAndRerenderWithoutRecomposition() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let folder = try sceneFolder(tmp)
-    let store = try await run(tmp, folder: folder, model: FakeModel())
+    // This migration fixture needs exactly c1/c2. With three directions the diversity
+    // filter may legitimately retire either one before the legacy rewrite below.
+    let model = FakeModel(); model.directions = 2
+    let store = try await run(tmp, folder: folder, model: model)
     // Rewrite the run into the pre-composer shape: named concept types, one distance, type-named directories.
     let names = ["baseline": "plainDump", "c1": "designed", "c2": "wildcard"]
     var json = try JSONSerialization.jsonObject(with: Data(contentsOf: store.url("plans/director.json"))) as! [String: Any]

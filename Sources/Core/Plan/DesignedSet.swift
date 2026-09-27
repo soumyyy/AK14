@@ -69,6 +69,22 @@ public struct DesignedSet: Codable, Sendable, Equatable {
     }
 
     public var crossesSeam: Bool { slots.contains { $0.crossesSeam || ($0.components?.contains(where: \.crossesSeam) ?? false) } }
+
+    /// Packed grid cells become individual slots. A slot with no components stays one slot.
+    public var expandedSlots: [Slot] {
+        slots.flatMap { slot -> [Slot] in
+            guard let components = slot.components, !components.isEmpty else { return [slot] }
+            return components.map {
+                Slot(frame: $0.frame, aspect: $0.aspect, z: $0.z, rotation: $0.rotation,
+                     crossesSeam: $0.crossesSeam, roleHint: $0.roleHint)
+            }
+        }
+    }
+
+    /// Largest expanded slot, in slide-area units (1 is one full slide).
+    public var heroArea: Double {
+        expandedSlots.map { $0.frame.width * $0.frame.height }.max() ?? 0
+    }
 }
 
 public struct DesignedSetLibrary: Codable, Sendable, Equatable {
@@ -84,6 +100,11 @@ public struct DesignedSetLibrary: Codable, Sendable, Equatable {
         guard Set(sets.map(\.id)).count == sets.count else { return "duplicate IDs" }
         for set in sets { if let error = set.validationError() { return "\(set.id): \(error)" } }
         return nil
+    }
+
+    /// Every imported set of this carousel's aspect. The photos choose which job fits them.
+    public func vocabulary(for aspect: CarouselAspect) -> [DesignedSet] {
+        sets.filter { $0.aspect == aspect }
     }
 
     public var countsByAspect: [String: Int] {

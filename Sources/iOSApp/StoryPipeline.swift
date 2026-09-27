@@ -106,20 +106,34 @@ struct StoryPipeline: Sendable {
             if !completedRun { try? FileManager.default.removeItem(at: runRoot) }
         }
         var warnings: [String] = []
-        let plans: [CarouselPlan]
-        let presentationOrder: [String]
+        var plans: [CarouselPlan]
+        var presentationOrder: [String]
         let generationMode: StoryOption.GenerationMode
         var providerCalls: [ProviderCallRecord] = occasionResult.map { [$0.call] } ?? []
+
+        let designedLibrary: DesignedSetLibrary?
+        do {
+            let loaded = try StylePackLoader.loadDesignedSets()
+            if let issue = loaded.validationError() {
+                warnings.append("Designed layouts unavailable: \(issue)")
+                designedLibrary = nil
+            } else { designedLibrary = loaded }
+        } catch {
+            warnings.append("Designed layouts unavailable: \(error.localizedDescription)")
+            designedLibrary = nil
+        }
+        let vocabulary = designedLibrary?.vocabulary(for: aspect) ?? []
 
         stageStart = clock.now
         if modelAssist, let client = responsesClient {
             progress("Preparing a private photo summary for the model…")
             let candidates = exactSet ? [] : reduction.triageCandidates(photos: photos, features: features)
             let candidateIDs = exactSet ? photos.map(\.assetID) : candidates.map(\.assetID)
-            let triageURLs = try thumbnailerURLs(candidateIDs, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
-                                                 tier: .triage, progressName: "Preparing triage thumbnails", progress: progress)
-            let planningURLs = try thumbnailerURLs(candidateIDs, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
-                                                   tier: .planning, progressName: "Preparing planning thumbnails", progress: progress)
+            async let triageURLsTask = thumbnailerURLs(candidateIDs, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
+                                                       tier: .triage, progressName: "Preparing triage thumbnails", progress: progress)
+            async let planningURLsTask = thumbnailerURLs(candidateIDs, photos: photoByID, folder: folder, thumbnailer: thumbnailer,
+                                                         tier: .planning, progressName: "Preparing planning thumbnails", progress: progress)
+            let (triageURLs, planningURLs) = try await (triageURLsTask, planningURLsTask)
             let eventStart = candidateIDs.compactMap { photoByID[$0]?.metadata.capturedAt }.min()
             let cards = candidateIDs.compactMap { id -> CandidateCard? in
                 guard let photo = photoByID[id] else { return nil }
@@ -152,7 +166,8 @@ struct StoryPipeline: Sendable {
             } else { dateSpan = "duration unknown" }
             let context = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:],
                                              flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil,
-                                             exactSet: exactSet, keepOrder: keepOrder)
+                                             exactSet: exactSet, keepOrder: keepOrder, storyHint: modelAssist ? storyHint : nil,
+                                             vocabulary: vocabulary)
             progress("Building options…")
             var directorInput = DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
                               shortlist: cards, selectPool: poolSelector, composition: context, runID: runID,
@@ -190,7 +205,8 @@ struct StoryPipeline: Sendable {
                                        rationale: [])
             let context = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:],
                                              flagged: [], sequenceIntent: Dictionary(uniqueKeysWithValues: zip(ordered, spine.sequenceIntent)),
-                                             stylePack: stylePack, maxSlides: nil, exactSet: exactSet, keepOrder: keepOrder)
+                                             stylePack: stylePack, maxSlides: nil, exactSet: exactSet, keepOrder: keepOrder,
+                                             vocabulary: vocabulary)
             let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: runID)
             plans = set.plans
             timings.append(StageTiming(stage: "director", seconds: 0))
@@ -223,7 +239,8 @@ struct StoryPipeline: Sendable {
             try Task.checkCancellation()
             progress("Rendering option \(optionIndex + 1) of \(plans.count) · \(plan.slides.count) slides")
             let layout = LayoutContext(aspect: aspect, photos: photoByID, features: features, stylePack: stylePack,
-                                       seed: ComposerEngine.layoutSeed(runID: runID, id: plan.id))
+                                       seed: ComposerEngine.layoutSeed(runID: runID, id: plan.id),
+                                       vocabulary: plan.isBaseline ? [] : vocabulary)
             let resolved = LayoutResolver.resolve(plan, context: layout)
             let directory = runRoot.appending(path: "slides/\(plan.id)", directoryHint: .isDirectory)
             let result = try CarouselRenderer().render(resolved, photos: photoByID, sourceFolder: folder,
@@ -231,6 +248,10 @@ struct StoryPipeline: Sendable {
             guard result.failures.isEmpty, !result.names.isEmpty else { throw PipelineFailure.renderFailed(result.failures.joined(separator: "; ")) }
             byID[plan.id] = result.names.map { directory.appending(path: $0) }
             try store.write(resolved.slides, to: "layouts/\(plan.id)/slides.json")
+            var document = CanvasDocument(from: resolved, photos: photoByID)
+            document.recipeID = plan.recipeID
+            document.stylePackPin = stylePackPin.id
+            try store.write(document, to: "documents/\(plan.id).json")
             progress("Rendered option \(optionIndex + 1) of \(plans.count)")
         }
         let options = presentationOrder.compactMap { id -> StoryOption? in
@@ -250,6 +271,7 @@ struct StoryPipeline: Sendable {
         manifest.storyHint = storyHint
         manifest.aspectRatio = aspect
         manifest.stageTimings = timings
+        manifest.warnings = warnings
         manifest.directorStatus = generationMode == .modelDirected ? "ok" : "skipped: photos only"
         manifest.providerCalls = providerCalls
         manifest.totalEstimatedCost = providerCalls.reduce(0) { $0 + $1.estimatedCost }

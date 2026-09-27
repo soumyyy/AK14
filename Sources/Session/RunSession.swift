@@ -255,7 +255,8 @@ public final class RunSession: @unchecked Sendable {
                                   flagged: Set(triage.filter { !$0.value.safety.isEmpty }.keys),
                                   sequenceIntent: Dictionary(zip(spine?.orderedAssetIDs ?? [], spine?.sequenceIntent ?? []),
                                                              uniquingKeysWith: { a, _ in a }),
-                                  stylePack: stylePack, maxSlides: concepts.requestedSlides, storyHint: manifest.storyHint)
+                                  stylePack: stylePack, maxSlides: concepts.requestedSlides, storyHint: manifest.storyHint,
+                                  vocabulary: (try? StylePackLoader.loadDesignedSets())?.vocabulary(for: manifest.aspectRatio) ?? [])
     }
 
     private func verify(_ id: AssetID, in folder: URL) throws {

@@ -257,10 +257,12 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
             let variant = try #require(s.variant)
             if s.primitive == .hero || s.primitive == .framedHero { singlePhotoVariants.insert(variant) }
             report.append("\(concept) \(i + 1) \(variant) cov \(m.coverage) hero \(m.heroShare ?? 0) loss \(m.maxCropLoss)")
-            if s.primitive == .asymmetricPair || s.primitive == .inset {
+            // Imported template pages author their own hierarchy (balanced pairs are intended).
+            let templated = variant.hasPrefix("template.")
+            if !templated && (s.primitive == .asymmetricPair || s.primitive == .inset) {
                 #expect((m.heroShare ?? 0) >= 1.5, "\(concept) slide \(i + 1): hero only \(m.heroShare ?? 0)× the support")
             }
-            if s.primitive == .overlapCluster { #expect((m.heroShare ?? 0) >= 1.0, "\(concept) slide \(i + 1): cluster hero smaller than a support") }
+            if !templated && s.primitive == .overlapCluster { #expect((m.heroShare ?? 0) >= 1.0, "\(concept) slide \(i + 1): cluster hero smaller than a support") }
             if s.primitive != .fullBleed { #expect(m.maxCropLoss <= 0.5, "\(concept) slide \(i + 1) crops \(m.maxCropLoss) of a photo") }
             #expect(m.coverage >= 0.2, "\(concept) slide \(i + 1): photos cover only \(m.coverage) of the slide")
             families.append(variant.split(separator: ".").prefix(2).joined(separator: "."))

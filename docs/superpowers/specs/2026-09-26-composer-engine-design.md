@@ -4,6 +4,8 @@
 
 Replace the fixed `plainDump`/`designed`/`wildcard` concept taxonomy with model-directed style directions and a deterministic Core composer. Every direction must meet the same postable, aesthetic quality bar. The model supplies the story (selection spine and 2–5 directions); Core converts each direction and local evidence into the existing `CarouselPlan`, and `LayoutResolver` continues producing geometry. Preserve rerendering and study interpretation for old runs.
 
+2026-09-27: the imported designed sets are vocabulary for that same resolver, not a second pipeline. A caller may pass every set of the carousel's own aspect. Each set has one job, and the photos pick that job when the face and crop rules pass. Otherwise the six primitives remain. The baseline is not given the vocabulary. A set never changes the carousel's aspect. Grouping is still chosen by the composer; only the frames change.
+
 ## Decisions
 
 Remove `ConceptType` from new planning and runtime identity. Use opaque `CarouselID` (`c1`…`cN`, and `baseline`) for storage, events and UI. `StyleVector` has six shared axes: `density: quiet|balanced|dense|varied`, `overlap: none|some|bold`, `grouping: single|mixed|collage`, `decoration: none|light|rich`, `rotation: none|some`, `whitespace: tight|airy`. The model returns internal one-sentence briefs, cover asset, ordered photos, optional keep-together groups and emphasis IDs. It never returns slides, primitives or per-photo intents. Composer is pure and deterministic for a seed. Baseline is composed from the spine with `single/no decoration/no overlap/no rotation`, whole-photo hero fallback, and ID `baseline`; shuffle it among directions with a stored run seed. If direction planning fails, show baseline alone.

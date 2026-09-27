@@ -335,9 +335,13 @@ struct RunPipeline: Sendable {
             span = days <= 1 ? "a single day" : "\(days) days"
         }
 
+        let vocabulary: [DesignedSet] = (try? StylePackLoader.loadDesignedSets()).flatMap { library in
+            library.validationError() == nil ? library.vocabulary(for: aspect) : nil
+        } ?? []
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
                                              sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides,
-                                             exactSet: options.exact, keepOrder: options.keepOrder, storyHint: options.story)
+                                             exactSet: options.exact, keepOrder: options.keepOrder, storyHint: options.story,
+                                             vocabulary: vocabulary)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         var input = DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,

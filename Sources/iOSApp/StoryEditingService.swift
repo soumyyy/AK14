@@ -116,8 +116,10 @@ actor StoryEditingService {
         }
 
         try verifySources(for: edited)
+        let vocabulary = edited.isBaseline ? [] : ((try? StylePackLoader.loadDesignedSets())?.vocabulary(for: aspect) ?? [])
         let layoutContext = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
-                                          seed: ComposerEngine.layoutSeed(runID: runID, id: optionID))
+                                          seed: ComposerEngine.layoutSeed(runID: runID, id: optionID),
+                                          vocabulary: vocabulary)
         let resolved = LayoutResolver.resolve(edited, context: layoutContext)
         let stagingRoot = store.url("edits/.staging/\(UUID().uuidString)")
         let stagedOption = stagingRoot.appending(path: "new", directoryHint: .isDirectory)
@@ -131,6 +133,10 @@ actor StoryEditingService {
         try store.write(edited, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/plan.json")
         try store.write(stylePackPin, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/style-pack-pin.json")
         try store.write(resolved.slides, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/layouts/slides.json")
+        var document = CanvasDocument(from: resolved, photos: photos)
+        document.recipeID = edited.recipeID
+        document.stylePackPin = stylePackPin.id
+        try store.write(document, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/document.json")
         let render = try CarouselRenderer().render(resolved, photos: photos, sourceFolder: sourceFolder,
                                                   outputDirectory: stagedOption.appending(path: "slides", directoryHint: .isDirectory))
         guard render.failures.isEmpty, !render.names.isEmpty else {

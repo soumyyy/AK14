@@ -113,7 +113,7 @@ public struct ArtDirector: Sendable {
             if let r, response.map({ Self.quality(r, i) > Self.quality($0, issues) }) ?? true { (response, issues) = (r, i) }
         }
         if let prompt {
-            let first = await call("planner", prompt, content, schema, reasoning: "medium", &out)
+            let first = await call("planner", prompt, content, schema, reasoning: PlannerExperiment.reasoning, &out)
             if let first {
                 consider(first)
                 if response == nil { issues = decode(first, pool: out.pool, flagged: flagged, requested: requested, exactSet: input.exactSet, keepOrder: input.keepOrder).1 }
@@ -131,7 +131,7 @@ public struct ArtDirector: Sendable {
                 if !issues.isEmpty {
                     retryContent.append(.text("Your previous attempt was invalid: " + issues.prefix(12).map(\.description).joined(separator: "; ")))
                 }
-                if let retry = await call("retry", prompt, retryContent, schema, reasoning: "medium", &out) { consider(retry) }
+                if let retry = await call("retry", prompt, retryContent, schema, reasoning: PlannerExperiment.reasoning, &out) { consider(retry) }
             }
         }
         if !issues.isEmpty { out.warnings.append("planner issues after repair/retry: " + issues.prefix(8).map(\.description).joined(separator: "; ")) }
@@ -163,7 +163,9 @@ public struct ArtDirector: Sendable {
             let id = "c\(index + 1)"
             guard let composed = out.plans.first(where: { $0.id == id }), let finalDirection = composed.direction,
                   let compositionSeed = composed.compositionSeed, let seed = UInt64(compositionSeed, radix: 16) else { continue }
-            let candidates = ComposerEngine.candidates(finalDirection, id: id, context: context, seed: seed, layoutSeed: seed, limit: count)
+            let finalLayoutSeed = ComposerEngine.layoutSeed(runID: input.runID, id: id)
+            let candidates = ComposerEngine.candidates(finalDirection, id: id, context: context, seed: seed,
+                                                       layoutSeed: finalLayoutSeed, limit: count)
             guard candidates.count >= 2 else {
                 out.judgeResults.append(JudgeResult(directionID: id, candidateFingerprints: candidates.map { Self.fingerprint($0.plan) }, model: client.model, promptVersion: prompt.version, skipped: "fewer than two safe candidates")); continue
             }
@@ -183,7 +185,7 @@ public struct ArtDirector: Sendable {
                     }
                 }
                 let stripData = try candidates.map { candidate -> Data in
-                    let resolved = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos, features: context.features, stylePack: context.stylePack, seed: ComposerEngine.layoutSeed(runID: input.runID, id: id)))
+                    let resolved = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos, features: context.features, stylePack: context.stylePack, seed: ComposerEngine.layoutSeed(runID: input.runID, id: id), vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
                     return try StripRenderer().strip(resolved, photos: thumbnailRecords, sourceFolder: sourceFolder)
                 }
                 let stripURLs = try stripData.enumerated().map { index, bytes -> URL in
@@ -201,7 +203,9 @@ public struct ArtDirector: Sendable {
                         content.append(.text("Candidate \(labels[i])"))
                         content.append(.image(jpeg: bytes, assetID: candidates[i].plan.coverAssetID ?? direction.coverAssetID, detail: "low"))
                     }
-                    let result = try await client.call(system: prompt.text, content: content, schemaName: "judge", schema: Schemas.judge(labels: labels), reasoning: "low")
+                    let result = try await client.call(system: prompt.text, content: content, schemaName: "judge",
+                                                        schema: Schemas.judge(labels: labels), reasoning: "low",
+                                                        maxOutputTokens: 4_000)
                     totalCost += Pricing.estimate(result.usage); totalLatency += result.latencySeconds
                     var record = ProviderCallRecord(stage: "judge", model: client.model, promptVersion: prompt.version)
                     record.inputTokens = result.usage.input; record.cachedTokens = result.usage.cached; record.outputTokens = result.usage.output
@@ -294,8 +298,8 @@ public struct ArtDirector: Sendable {
             }
             if !card.localFlags.isEmpty { line += " | SAFETY \(card.localFlags.joined(separator: " ")) (never use as a cover)" }
             content.append(.text(line))
-            if i < input.maxPlanningImages, let jpeg = card.planningJPEG {
-                content.append(.image(jpeg: jpeg, assetID: id, detail: "high"))
+            if i < min(input.maxPlanningImages, PlannerExperiment.maxImages), let jpeg = card.planningJPEG {
+                content.append(.image(jpeg: jpeg, assetID: id, detail: PlannerExperiment.detail))
             }
         }
         return content
@@ -385,7 +389,8 @@ public struct ArtDirector: Sendable {
         record.candidateCount = candidates
         do {
             let r = try await client.call(system: prompt.text, content: content, schemaName: stage.replacingOccurrences(of: "-", with: "_"),
-                                          schema: schema, reasoning: reasoning)
+                                          schema: schema, reasoning: reasoning,
+                                          maxOutputTokens: Self.maxOutputTokens(for: stage))
             record.inputTokens = r.usage.input; record.cachedTokens = r.usage.cached
             record.outputTokens = r.usage.output; record.reasoningTokens = r.usage.reasoning
             record.imageCount = r.imageCount; record.thumbnailBytes = r.imageBytes
@@ -409,6 +414,16 @@ public struct ArtDirector: Sendable {
             out.calls.append(record)
             out.warnings.append("\(stage) call failed: \(error)")
             return nil
+        }
+    }
+
+    /// Leaves ample headroom above the largest observed completed response while preventing
+    /// an accidental default of 16k tokens from extending a constrained JSON call.
+    private static func maxOutputTokens(for stage: String) -> Int {
+        switch stage {
+        case "triage", "triage-repair", "repair": return 5_000
+        case "planner", "retry": return 8_000
+        default: return 8_000
         }
     }
 
@@ -442,3 +457,14 @@ private struct TriageEnvelope: Decodable {
 
 private struct JudgeEnvelope: Decodable { let ranking: [String]; let reasons: [String] }
 private enum JudgeError: Error { case invalid }
+
+/// Latency experiment overrides (docs/reviews/2026-09-27-director-latency.md). Read from the environment on the
+/// Mac CLI only; unset means production behaviour (medium reasoning, high-detail images, the input's image cap).
+enum PlannerExperiment {
+    static var reasoning: String { value("AK14_PLANNER_REASONING", allowed: ["low", "medium", "high"]) ?? "medium" }
+    static var detail: String { value("AK14_PLANNER_DETAIL", allowed: ["low", "high", "auto"]) ?? "high" }
+    static var maxImages: Int { ProcessInfo.processInfo.environment["AK14_PLANNER_MAX_IMAGES"].flatMap(Int.init) ?? .max }
+    private static func value(_ key: String, allowed: Set<String>) -> String? {
+        ProcessInfo.processInfo.environment[key].flatMap { allowed.contains($0) ? $0 : nil }
+    }
+}

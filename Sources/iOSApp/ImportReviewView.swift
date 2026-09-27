@@ -64,6 +64,7 @@ final class ImportReviewModel {
     var sharePresented = false
     var showWorkerSettings = false
     var showLimitedLibraryPicker = false
+    var showSystemPicker = false
     var workerBaseURL = UserDefaults.standard.string(forKey: "ak14.workerBaseURL") ?? "https://ak14-api.soumyamaheshwari1234.workers.dev"
     var workerInviteToken = WorkerInviteToken.load() ?? ""
     let injectedClient: ResponsesClient?
@@ -100,10 +101,8 @@ final class ImportReviewModel {
         }
         importedFolder = nil
         assets = (0..<result.count).map { result.object(at: $0) }
-        // Keep the user's current choices when the date range or limited library changes.
-        // A fresh install starts with nothing selected so importing a large library is deliberate.
-        selectedIDs.formIntersection(Set(assets.map(\.localIdentifier)))
-        selectionOrder = selectionOrder.filter(selectedIDs.contains)
+        selectedIDs = Set(assets.map(\.localIdentifier))
+        selectionOrder = assets.map(\.localIdentifier)
         records = []
         events = []
         occasionFeatures = [:]
@@ -114,6 +113,19 @@ final class ImportReviewModel {
         importCompleted = 0
         importTotal = 0
         state = .idle
+    }
+
+    func usePickedAssets(_ identifiers: [String]) {
+        let fetched = PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: nil)
+        var byID: [String: PHAsset] = [:]
+        fetched.enumerateObjects { asset, _, _ in byID[asset.localIdentifier] = asset }
+        let ordered = identifiers.compactMap { byID[$0] }
+        guard !ordered.isEmpty else { return }
+        assets = ordered
+        selectedIDs = Set(ordered.map(\.localIdentifier))
+        selectionOrder = ordered.map(\.localIdentifier)
+        exactSet = true
+        keepOrder = true
     }
 
     func toggle(_ asset: PHAsset) {
@@ -143,12 +155,8 @@ final class ImportReviewModel {
                 try Task.checkCancellation()
                 let photoNumber = index + 1
                 let totalPhotos = chosen.count
-                progressMessage = "Downloading photo \(index + 1) of \(chosen.count)…"
-                try await copyOriginal(asset, to: folder.appending(path: String(format: "photo-%04d.%@", index, fileExtension(asset)))) { fraction in
-                    Task { @MainActor in
-                        self.progressMessage = String(format: "Downloading photo %d of %d · %d%%", photoNumber, totalPhotos, Int(fraction * 100))
-                    }
-                }
+                progressMessage = "Photo \(photoNumber) of \(totalPhotos)"
+                try await copyOriginal(asset, to: folder.appending(path: String(format: "photo-%04d.%@", index, fileExtension(asset)))) { _ in }
                 importCompleted = index + 1
             }
             try Task.checkCancellation()
@@ -198,12 +206,12 @@ final class ImportReviewModel {
             if records.contains(where: { thumbnails[$0.assetID] == nil || features[$0.assetID] == nil }) {
                 thumbnails = [:]
                 features = [:]
-                for (offset, photo) in records.enumerated() {
+                for photo in records {
                     try Task.checkCancellation()
                     let url = try thumbnailer.thumbnail(sha: photo.contentSHA256,
                         source: folder.appending(path: photo.sourceRelativePaths[0]), tier: .analysis)
                     thumbnails[photo.assetID] = url
-                    progressMessage = "Preparing occasion previews · \(offset + 1) of \(records.count)"
+                    progressMessage = "Sorting photos"
                     features[photo.assetID] = await analyzer.analyze(photo, thumbnailURL: url)
                 }
                 occasionThumbnailURLs = thumbnails
@@ -221,12 +229,12 @@ final class ImportReviewModel {
                     let best = next.max(by: { Set($0.assetIDs).intersection(oldIDs).count < Set($1.assetIDs).intersection(oldIDs).count }),
                     !Set(best.assetIDs).intersection(oldIDs).isEmpty { selectedEventIndex = best.index }
             else { selectedEventIndex = next.max(by: { $0.photoCount < $1.photoCount })?.index }
-            progressMessage = acceptedModel == nil ? "Occasions grouped on this device." : "Occasions separated using small thumbnails."
+            progressMessage = "Photos sorted"
         } catch {
             occasionSplitResult = nil
             events = EventSegmenter.segment(records)
             selectedEventIndex = preserveAllEventsChoice ? nil : events.max(by: { $0.photoCount < $1.photoCount })?.index
-            progressMessage = "Using date-based event groups."
+            progressMessage = "Photos sorted"
         }
     }
 
@@ -254,7 +262,7 @@ final class ImportReviewModel {
                 let configURL = url.appending(path: "v1/config")
                 return { try await StyleConfigClient.fetch(from: configURL) }
             }) : nil
-            progressMessage = "Preparing your photos…"
+            progressMessage = "Preparing photos"
             let generated = try await StoryPipeline(responsesClient: client, stylePackProvider: configProvider)
                 .run(folder: importedFolder, modelAssist: useModelAssistance, importDuration: importDuration,
                      eventAssetIDs: selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } },
@@ -265,7 +273,7 @@ final class ImportReviewModel {
                 }
             options = generated
             retainedSourceFolders.formUnion(generated.map(\.sourceFolder))
-            selectedOptionID = generated.first?.id
+            selectedOptionID = generated.first { $0.id != "baseline" && $0.id != "plainDump" }?.id ?? generated.first?.id
             state = .ready
             progressMessage = "Options are ready."
             isGenerating = false
@@ -286,6 +294,12 @@ final class ImportReviewModel {
 
     func saveSelectedOption() async {
         guard let option = selectedOption else { return }
+        await save(option.slides, for: option, snapshot: nil)
+    }
+
+    /// Saves exactly these rendered slides. `snapshot` names the document revision that produced them;
+    /// without one, the story editor's current state is recorded.
+    func save(_ slides: [URL], for option: StoryOption, snapshot: String?) async {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
             state = .failed("Allow AK14 to add photos in Settings to save the slides.")
@@ -293,12 +307,13 @@ final class ImportReviewModel {
         }
         isSaving = true
         do {
-            try await Self.performSave(option.slides)
-            let snapshot = try? await storyEditor(for: option).snapshotHandoff(for: option.id)
+            try await Self.performSave(slides)
+            let handoff: String?
+            if let snapshot { handoff = snapshot } else { handoff = try? await storyEditor(for: option).snapshotHandoff(for: option.id) }
             recorder(for: option).record("carousel_exported", conceptID: option.id,
-                                         after: ["\(option.slides.count) slides"] + (snapshot.map { ["snapshot=\($0)"] } ?? []))
+                                         after: ["\(slides.count) slides"] + (handoff.map { ["snapshot=\($0)"] } ?? []))
             handedOffRuns.insert(option.runDirectory.standardizedFileURL)
-            alert = AlertMessage(title: "Saved to Photos", message: "Saved \(option.slides.count) slides in order.")
+            alert = AlertMessage(title: "Saved to Photos", message: "Saved \(slides.count) slides in order.")
             successfulSaves += 1
         } catch { state = .failed("Could not save slides: \(error.localizedDescription)") }
         isSaving = false
@@ -321,9 +336,10 @@ final class ImportReviewModel {
         recorder(for: option).record("generation_abandoned")
     }
 
-    func shareCompleted(for option: StoryOption, activityType: UIActivity.ActivityType?) async {
+    func shareCompleted(for option: StoryOption, activityType: UIActivity.ActivityType?, snapshot recorded: String? = nil) async {
         guard let activityType else { return }
-        let snapshot = try? await storyEditor(for: option).snapshotHandoff(for: option.id)
+        let snapshot: String?
+        if let recorded { snapshot = recorded } else { snapshot = try? await storyEditor(for: option).snapshotHandoff(for: option.id) }
         recorder(for: option).record("carousel_shared", conceptID: option.id,
                                      after: [activityType.rawValue] + (snapshot.map { ["snapshot=\($0)"] } ?? []))
         handedOffRuns.insert(option.runDirectory.standardizedFileURL)
@@ -438,27 +454,10 @@ final class ImportReviewModel {
         }
     }
 }
-import Core
-import Photos
-import Render
-import SwiftUI
-import UIKit
 
 private enum ImportRoute: Hashable {
     case review
     case options
-}
-
-private enum ImportStage: Int, CaseIterable {
-    case photos, review, options
-
-    var title: String {
-        switch self {
-        case .photos: "Photos"
-        case .review: "Review"
-        case .options: "Options"
-        }
-    }
 }
 
 struct ImportReviewView: View {
@@ -467,6 +466,8 @@ struct ImportReviewView: View {
     @State private var importTask: Task<Void, Never>?
     @State private var isImportingIncomingBatch = false
     @State private var didSeedIncomingBatch = false
+    @State private var showAllPhotos = false
+    @FocusState private var storyHintFocused: Bool
     @Environment(\.scenePhase) private var scenePhase
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 5)]
@@ -487,7 +488,10 @@ struct ImportReviewView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button { model.showWorkerSettings = true } label: { Image(systemName: "gearshape") }
+                        Button { model.showWorkerSettings = true } label: {
+                            Image(systemName: "gearshape")
+                                .symbolEffect(.bounce, value: model.showWorkerSettings)
+                        }
                             .accessibilityLabel("AI story settings")
                     }
                 }
@@ -519,56 +523,52 @@ struct ImportReviewView: View {
                     if newPath.isEmpty { Task { await importIncomingBatch() } }
                 }
         }
+        .tint(AK14Palette.accent)
+        .preferredColorScheme(.dark)
+        .background(Color.black.ignoresSafeArea())
     }
 
     private var photosStage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                StageProgress(active: .photos)
-                exactSetPicker
                 Text("Choose photos for your story.")
-                    .font(.title3.weight(.semibold))
+                    .font(.title2.weight(.semibold))
+                modeChoices
                 if model.authorization == .authorized || model.authorization == .limited {
-                    dateControls
-                    selectionHeader
-                    if model.state == .loading {
-                        ProgressView("Finding photos…").frame(maxWidth: .infinity, minHeight: 180)
-                    } else if model.assets.isEmpty {
-                        ContentUnavailableView("No photos in this range", systemImage: "photo.on.rectangle.angled",
-                                               description: Text("Choose another date range to find photos."))
-                            .frame(minHeight: 220)
+                    if model.exactSet {
+                        exactPickerSection
                     } else {
-                        LazyVGrid(columns: columns, spacing: 5) {
-                            ForEach(Array(model.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                AssetTile(asset: asset, ordinal: index + 1, total: model.assets.count,
-                                          selected: model.selectedIDs.contains(asset.localIdentifier)) {
-                                    model.toggle(asset)
-                                }
-                            }
-                        }
-                        .accessibilityLabel("Photo selection")
+                        dateControls
+                        selectionHeader
+                        rangeGrid
                     }
-                    if model.authorization == .limited {
-                        Label("Limited Photos access", systemImage: "checkmark.circle")
-                            .font(.caption).foregroundStyle(.secondary)
+                    if model.authorization == .limited && !model.exactSet {
                         Button("Choose more photos") { model.showLimitedLibraryPicker = true }
-                            .font(.caption)
+                            .font(.footnote)
                     }
                 } else {
                     permissionCard
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.top, 10)
+            .padding(.top, 8)
             .padding(.bottom, 18)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .scrollDismissesKeyboard(.interactively)
+        .background(AppBackdrop())
+        .containerBackground(Color.black, for: .navigation)
         .navigationTitle("Photos")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom, spacing: 0) { photoFooter }
+        .sheet(isPresented: $model.showSystemPicker) {
+            SystemPhotoPicker { model.usePickedAssets($0) }
+                .ignoresSafeArea()
+        }
         .task {
             model.authorization = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-            if model.authorization == .authorized || model.authorization == .limited, model.assets.isEmpty {
+            if model.authorization == .authorized || model.authorization == .limited, model.assets.isEmpty, !model.exactSet {
                 await model.loadAssets()
             }
         }
@@ -580,6 +580,91 @@ struct ImportReviewView: View {
             .frame(width: 0, height: 0)
         }
         .sensoryFeedback(.selection, trigger: model.selectedIDs.count)
+    }
+
+    private var modeChoices: some View {
+        HStack(spacing: 10) {
+            modeChoice("Choose the best", selected: !model.exactSet) { model.exactSet = false }
+            modeChoice("Use exactly these", selected: model.exactSet) { model.exactSet = true }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Photo selection mode")
+    }
+
+    private func modeChoice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .foregroundStyle(selected ? Color.black : Color.white)
+                .background(selected ? AK14Palette.field : Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var exactPickerSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Button {
+                model.showSystemPicker = true
+            } label: {
+                Label("Select photos", systemImage: "photo.badge.plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .disabled(model.state == .importing)
+            Toggle("Keep my order", isOn: $model.keepOrder)
+                .accessibilityHint("Uses photos in the order you selected them")
+            if model.assets.isEmpty {
+                Text("The photos you select show along the bottom.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var rangeGrid: some View {
+        Group {
+            if model.state == .loading {
+                ProgressView("Finding photos…").frame(maxWidth: .infinity, minHeight: 180)
+            } else if model.assets.isEmpty {
+                ContentUnavailableView("No photos in this range", systemImage: "photo.on.rectangle.angled",
+                                       description: Text("Choose another range, then find photos."))
+                    .frame(minHeight: 220)
+            } else {
+                LazyVGrid(columns: columns, spacing: 5) {
+                    ForEach(Array(model.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                        AssetTile(asset: asset, ordinal: index + 1, total: model.assets.count,
+                                  selected: model.selectedIDs.contains(asset.localIdentifier)) {
+                            model.toggle(asset)
+                        }
+                    }
+                }
+                .accessibilityLabel("Photo selection")
+            }
+        }
+    }
+
+    private var pickedStrip: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 0) {
+                ForEach(Array(model.selectionOrder.enumerated()), id: \.element) { index, id in
+                    if let asset = model.assets.first(where: { $0.localIdentifier == id }) {
+                        AssetTile(asset: asset, ordinal: index + 1, total: model.selectionOrder.count,
+                                  selected: model.selectedIDs.contains(id)) {
+                            model.toggle(asset)
+                        }
+                        .frame(width: 72)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .scrollIndicators(.hidden)
+        .accessibilityLabel("Selected photos")
     }
 
     private var permissionCard: some View {
@@ -599,56 +684,53 @@ struct ImportReviewView: View {
     }
 
     private var dateControls: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             datePickers
-            HStack {
-                Text(model.authorization == .limited ? "Showing photos you allowed" : "Filter your library by date")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Button {
-                    Task { await model.loadAssets() }
-                } label: {
-                    if model.state == .loading { ProgressView().controlSize(.small) }
-                    else { Label("Find photos", systemImage: "magnifyingglass") }
-                }
-                .labelStyle(.titleAndIcon)
-                .disabled(model.state == .loading || model.state == .importing)
+            Button {
+                Task { await model.loadAssets() }
+            } label: {
+                if model.state == .loading { ProgressView().controlSize(.small).frame(maxWidth: .infinity) }
+                else { Label("Find photos", systemImage: "magnifyingglass").frame(maxWidth: .infinity) }
             }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .disabled(model.state == .loading || model.state == .importing)
         }
         .padding(14)
-        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+        .ak14Card()
     }
 
     private var selectionHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("\(model.selectedIDs.count) selected")
-                .font(.headline).contentTransition(.numericText())
-                .accessibilityLabel("\(model.selectedIDs.count) photos selected")
+        HStack(alignment: .center) {
+            designerPill("Choose", label: "\(model.selectedIDs.count) photos selected")
             Spacer()
-            Button("Select all") { model.selectedIDs = Set(model.assets.map(\.localIdentifier)); model.selectionOrder = model.assets.map(\.localIdentifier) }
-                .disabled(model.assets.isEmpty || model.selectedIDs.count == model.assets.count)
-            Button("Clear") { model.selectedIDs.removeAll(); model.selectionOrder.removeAll() }
-                .disabled(model.selectedIDs.isEmpty)
+            if !model.assets.isEmpty, model.selectedIDs.count != model.assets.count {
+                Button("Select all") {
+                    model.selectedIDs = Set(model.assets.map(\.localIdentifier))
+                    model.selectionOrder = model.assets.map(\.localIdentifier)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.small)
+            }
         }
-        .buttonStyle(.borderless)
     }
 
     private var photoFooter: some View {
-        Group {
+        VStack(spacing: 0) {
+            if model.exactSet, !model.selectionOrder.isEmpty {
+                pickedStrip
+                    .background(Color.black)
+            }
             if model.state == .importing {
                 HStack(spacing: 12) {
-                    ProgressView(value: Double(model.importCompleted), total: Double(max(1, model.importTotal)))
-                        .tint(.accentColor)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(model.progressMessage).font(.subheadline.weight(.semibold))
-                            .accessibilityAddTraits(.updatesFrequently)
-                        Text("\(model.importCompleted) of \(model.importTotal)").font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
+                    designerPill("Keep processing images")
                     Button("Cancel", role: .cancel) { importTask?.cancel() }
                         .accessibilityHint("Stops after the photo currently being copied")
                 }
-                .padding(.horizontal, 18).padding(.vertical, 12)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(Color.black)
             } else if let failure = model.failureMessage {
                 VStack(alignment: .leading, spacing: 8) {
                     Label(failure, systemImage: "exclamationmark.icloud")
@@ -657,7 +739,7 @@ struct ImportReviewView: View {
                     Button("Retry import") {
                         importTask = Task { if await model.retry() { path.append(.review) } }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 18).padding(.vertical, 12)
@@ -673,7 +755,7 @@ struct ImportReviewView: View {
                          ? "Open Settings" : "Choose photos")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .controlSize(.large)
                 .disabled(model.state == .requestingAccess)
                 .padding(.horizontal, 18).padding(.vertical, 10)
@@ -688,21 +770,36 @@ struct ImportReviewView: View {
                     Text("Review \(model.selectedIDs.count) selected photos")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .controlSize(.large)
                 .disabled(model.selectedIDs.isEmpty || model.state == .loading || model.state == .requestingAccess)
                 .padding(.horizontal, 18).padding(.vertical, 10)
+                .background(Color.black)
                 .accessibilityHint("Copies the selected originals to prepare them for review")
             }
         }
-        .background(.regularMaterial)
+    }
+
+    private func designerPill(_ title: String, label: String? = nil) -> some View {
+        HStack(spacing: 8) {
+            if title == "Keep processing images" {
+                ProgressView().controlSize(.small).tint(.black)
+            }
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .accessibilityLabel(label ?? title)
+        }
+        .foregroundStyle(.black)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(AK14Palette.field, in: Capsule())
+        .accessibilityAddTraits(.updatesFrequently)
     }
 
     private var reviewStage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                StageProgress(active: .review)
-                exactSetPicker
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Review your selection")
                         .font(.title2.weight(.semibold))
@@ -710,25 +807,11 @@ struct ImportReviewView: View {
                         .font(.subheadline).foregroundStyle(.secondary)
                         .accessibilityIdentifier("exactSetCount")
                 }
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 10) {
-                        ForEach(model.records) { record in
-                            if let folder = model.importedFolder {
-                                ImportedThumbnail(record: record, folder: folder)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-                .scrollIndicators(.hidden)
-                .accessibilityLabel("Selected photos")
+                selectedPhotosSection
 
                 if !model.exactSet && model.events.count > 1 {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(model.isPreparingOccasions ? "Finding occasions…" : "Choose an event").font(.headline)
-                        if model.isPreparingOccasions {
-                            ProgressView(model.modelAssist ? "Classifying representative thumbnails…" : "Analyzing scene signatures on device…")
-                        }
+                        Text("Choose an event").font(.headline)
                         ForEach(model.events, id: \.index) { event in
                             Button {
                                 model.selectedEventIndex = event.index
@@ -762,13 +845,14 @@ struct ImportReviewView: View {
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.background, in: RoundedRectangle(cornerRadius: 16))
+                    .ak14Card()
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Story hint (optional)").font(.headline)
-                    TextField("What's this post about? e.g. Munnar trip with my cousins — the misty hike is the highlight, skip the hotel shots", text: $model.storyHint, axis: .vertical)
-                        .lineLimit(3...5)
+                    Text("What was this?").font(.headline)
+                    TextField("Munnar trip with my cousins — the misty hike is the highlight", text: $model.storyHint, axis: .vertical)
+                        .lineLimit(3...6)
+                        .focused($storyHintFocused)
                         .accessibilityLabel("Story hint")
                         .accessibilityIdentifier("storyHintField")
                         .onChange(of: model.storyHint) { _, value in
@@ -781,7 +865,7 @@ struct ImportReviewView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.background, in: RoundedRectangle(cornerRadius: 16))
+                .ak14Card()
 
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Your originals stay on this device.", systemImage: "lock.shield")
@@ -801,41 +885,70 @@ struct ImportReviewView: View {
                             .font(.footnote).foregroundStyle(.secondary)
                         if !model.modelAssist { localModeExplanation }
                         Button("Set up AI-assisted planning") { model.showWorkerSettings = true }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.glassProminent)
                     }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.background, in: RoundedRectangle(cornerRadius: 16))
+                .ak14Card()
             }
             .padding(18)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .scrollDismissesKeyboard(.interactively)
+        .background(AppBackdrop())
+        .containerBackground(Color.black, for: .navigation)
         .navigationTitle("Review")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom, spacing: 0) { reviewFooter }
+    }
+
+    private var selectedPhotosSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.snappy(duration: 0.28)) { showAllPhotos.toggle() }
+            } label: {
+                HStack {
+                    Text("Selected photos")
+                        .font(.headline)
+                    Spacer()
+                    Text(showAllPhotos ? "Show less" : "See all")
+                        .font(.subheadline.weight(.semibold))
+                    Image(systemName: showAllPhotos ? "chevron.up" : "chevron.down")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(AK14Palette.cream)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Selected photos")
+            if showAllPhotos, let folder = model.importedFolder {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 108), spacing: 8)], spacing: 8) {
+                    ForEach(model.records) { record in
+                        ImportedThumbnail(record: record, folder: folder, side: 108)
+                    }
+                }
+            } else if let folder = model.importedFolder {
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 8) {
+                        ForEach(model.records.prefix(12)) { record in
+                            ImportedThumbnail(record: record, folder: folder, side: 84)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .scrollIndicators(.hidden)
+                .frame(height: 88)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ak14Card()
     }
 
     private var localModeExplanation: some View {
         Text("Create a photos-only story using on-device photo analysis and layout. No thumbnails or descriptions are sent to a model.")
             .font(.footnote).foregroundStyle(.secondary)
-    }
-
-    private var exactSetPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Picker("Photo selection mode", selection: $model.exactSet) {
-                Text("Choose the best").tag(false)
-                Text("Use exactly these").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .accessibilityLabel("Photo selection mode")
-            if model.exactSet {
-                Toggle("Keep my order", isOn: $model.keepOrder)
-                    .accessibilityHint("Uses photos in the order you selected them")
-            }
-        }
-        .padding(14)
-        .background(.background, in: RoundedRectangle(cornerRadius: 16))
     }
 
     @MainActor private func importIncomingBatch() async {
@@ -918,42 +1031,43 @@ struct ImportReviewView: View {
     }
 
     private var reviewFooter: some View {
-        Group {
-            if model.isGenerating {
-                VStack(alignment: .leading, spacing: 8) {
-                    ProgressView()
-                    Text(model.progressMessage).font(.subheadline)
-                        .accessibilityAddTraits(.updatesFrequently)
-                        .accessibilityLabel("Generation progress: \(model.progressMessage)")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18).padding(.vertical, 12)
-            } else if let failure = model.failureMessage {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label(failure, systemImage: "exclamationmark.triangle")
-                        .font(.footnote).foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button("Retry generation") {
-                        Task { if await model.retry() { path.append(.options) } }
+        VStack(spacing: 0) {
+            if model.isPreparingOccasions || model.isGenerating {
+                designerPill("Keep processing images")
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.black)
+                    .accessibilityLabel("Generation progress: Keep processing images")
+            }
+            if !model.isGenerating {
+                if let failure = model.failureMessage {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(failure, systemImage: "exclamationmark.triangle")
+                            .font(.footnote).foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Retry generation") {
+                            Task { if await model.retry() { path.append(.options) } }
+                        }
+                        .buttonStyle(.glassProminent)
                     }
-                    .buttonStyle(.borderedProminent)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18).padding(.vertical, 12)
-            } else {
-                Button {
-                    Task {
-                        if await model.generateOptions() { path.append(.options) }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18).padding(.vertical, 12)
+                } else {
+                    Button {
+                        storyHintFocused = false
+                        Task {
+                            if await model.generateOptions() { path.append(.options) }
+                        }
+                    } label: {
+                        Text("Create options").frame(maxWidth: .infinity)
                     }
-                } label: {
-                    Text("Create options").frame(maxWidth: .infinity)
+                    .buttonStyle(.glassProminent).controlSize(.large)
+                    .padding(.horizontal, 18).padding(.vertical, 10)
+                    .background(Color.black)
+                    .disabled(model.isPreparingOccasions)
                 }
-                .buttonStyle(.borderedProminent).controlSize(.large)
-                .padding(.horizontal, 18).padding(.vertical, 10)
-                .disabled(model.isPreparingOccasions)
             }
         }
-        .background(.regularMaterial)
     }
 
     private var optionsStage: some View {
@@ -992,8 +1106,14 @@ struct ImportReviewView: View {
             .onChange(of: model.workerInviteToken) { _, value in
                 WorkerInviteToken.save(value)
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.black)
+            .preferredColorScheme(.dark)
+            .presentationBackground(Color.black)
             .navigationTitle("Story settings")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.black, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -1042,28 +1162,9 @@ private struct EventCover: View {
     }
 }
 
-private struct StageProgress: View {
-    let active: ImportStage
-
+private struct AppBackdrop: View {
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(ImportStage.allCases, id: \.rawValue) { stage in
-                HStack(spacing: 5) {
-                    Text("\(stage.rawValue + 1)")
-                        .font(.caption2.weight(.bold))
-                        .frame(width: 22, height: 22)
-                        .background(stage == active ? Color.accentColor : Color(uiColor: .tertiarySystemFill), in: Circle())
-                        .foregroundStyle(stage == active ? Color.white : Color.secondary)
-                    Text(stage.title)
-                        .font(.caption.weight(stage == active ? .semibold : .regular))
-                        .foregroundStyle(stage == active ? Color.primary : Color.secondary)
-                }
-                if stage != ImportStage.allCases.last { Spacer(minLength: 0) }
-            }
-        }
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(active.rawValue + 1) of 3: \(active.title)")
+        Color.black.ignoresSafeArea()
     }
 }
 
@@ -1085,15 +1186,13 @@ private struct AssetTile: View {
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .clipped()
-                    Circle()
-                        .fill(.regularMaterial)
-                        .frame(width: 27, height: 27)
-                        .overlay {
-                            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, selected ? .blue : .white.opacity(0.8))
-                                .font(.title3)
-                        }
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, selected ? Color.accentColor : .white.opacity(0.7))
+                        .symbolEffect(.bounce, value: selected)
+                        .padding(5)
+                        .glassEffect(.regular.tint(AK14Palette.pine.opacity(0.35)).interactive(), in: Circle())
                         .padding(7)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 9))
@@ -1169,14 +1268,16 @@ private struct LimitedLibraryPickerPresenter: UIViewControllerRepresentable {
 private struct ImportedThumbnail: View {
     let record: PhotoRecord
     let folder: URL
+    var side: CGFloat = 116
+    var cornerRadius: CGFloat = 12
     @State private var image: UIImage?
 
     var body: some View {
         Group {
             if let image { Image(uiImage: image).resizable().scaledToFill() }
-            else { Rectangle().fill(.quaternary).overlay(ProgressView()) }
+            else { Rectangle().fill(Color.white.opacity(0.08)).overlay(ProgressView()) }
         }
-        .frame(width: 116, height: 116).clipped().clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(width: side, height: side).clipped().clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .accessibilityLabel(record.metadata.capturedAt?.formatted(date: .abbreviated, time: .omitted) ?? "Selected photo")
         .task(id: record.assetID) {
             let source = folder.appending(path: record.sourceRelativePaths[0])
@@ -1191,84 +1292,42 @@ private struct ImportedThumbnail: View {
 
 private struct OptionsReviewStage: View {
     @Bindable var model: ImportReviewModel
-    @State private var slideIndex = 0
-    @State private var currentPlan: CarouselPlan?
-    @State private var editorPresented = false
-    @State private var canvasEditorPresented = false
-    @State private var isLoadingPlan = false
+    @State private var editorModel: EditorModel?
+    @State private var exportBusy = false
+    @State private var shareURLs: [URL] = []
+    @State private var sharePresented = false
+    @State private var shareExport: (document: CanvasDocument, revision: Int)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var option: StoryOption? { model.selectedOption }
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 12) {
-                    StageProgress(active: .options).padding(.horizontal, 18)
-                    Text("Choose an option")
-                        .font(.title3.weight(.semibold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 18)
-                    optionPicker
-                    if let option {
-                        if editorPresented {
-                            Color.clear
-                                .frame(height: max(240, geometry.size.height * 0.42))
-                                .accessibilityHidden(true)
-                        } else {
-                            TabView(selection: $slideIndex) {
-                                ForEach(Array(option.slides.enumerated()), id: \.offset) { index, url in
-                                    SlidePreview(url: url, index: index, count: option.slides.count)
-                                        .tag(index)
-                                }
-                            }
-                            .tabViewStyle(.page(indexDisplayMode: .never))
-                            .accessibilityLabel("Slides for \(option.title)")
-                            .frame(height: max(240, min(geometry.size.height * 0.48, 560)))
-                        }
-                        HStack(spacing: 6) {
-                            Image(systemName: "rectangle.stack")
-                            Text("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
-                                .contentTransition(.numericText())
-                        }
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Slide \(min(slideIndex + 1, option.slides.count)) of \(option.slides.count)")
-                        if option.generationMode == .photosOnly {
-                            Text("Created on this device from your selected photos.")
-                                .font(.footnote).foregroundStyle(.secondary)
-                                .padding(.horizontal, 18)
-                        }
-                    } else {
-                        ContentUnavailableView("No options available", systemImage: "photo.stack")
-                    }
+        VStack(spacing: 8) {
+            Text("Choose an option")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+            optionPicker
+            if let option {
+                if let editorModel, editorModel.option.id == option.id {
+                    CanvasEditorView(model: editorModel).id(option.id)
+                } else {
+                    ProgressView("Opening…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .padding(.bottom, 16)
-                .frame(minHeight: geometry.size.height, alignment: .top)
+            } else {
+                ContentUnavailableView("No options available", systemImage: "photo.stack", description: Text("Create a story to swipe through its slides."))
             }
-            .scrollIndicators(.hidden)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .padding(.top, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppBackdrop())
+        .containerBackground(Color.black, for: .navigation)
         .navigationTitle("Options")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                HStack {
-                    if currentPlan != nil {
-                        Button { editorPresented = true } label: { Image(systemName: "arrow.up.arrow.down") }
-                            .accessibilityLabel("Edit slides")
-                            .disabled(model.isEditingOption)
-                    }
-                    if option != nil {
-                        Button { canvasEditorPresented = true } label: { Image(systemName: "square.and.pencil") }
-                            .accessibilityLabel("Edit design")
-                    }
-                    if isLoadingPlan && currentPlan == nil {
-                        ProgressView().accessibilityLabel("Preparing slide editing").accessibilityAddTraits(.updatesFrequently)
-                    }
-                }
-            }
-        }
+        .toolbarBackground(.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .overlay(alignment: .topLeading) {
             if let option {
                 Text(option.runDirectory.appending(path: "interaction-events.jsonl").path)
@@ -1276,296 +1335,136 @@ private struct OptionsReviewStage: View {
                     .accessibilityIdentifier("interactionLogPath")
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) { actionFooter }
+        .safeAreaInset(edge: .bottom, spacing: 8) { actionFooter }
+        .sheet(isPresented: $sharePresented) { ActivityShareSheet(items: shareURLs, onCompletion: shareFinished) }
         .sensoryFeedback(.success, trigger: model.successfulSaves)
         .onChange(of: model.selectedOptionID) { _, _ in
-            slideIndex = 0
-            currentPlan = nil
-            isLoadingPlan = true
+            editorModel?.flushSave()
+            editorModel = nil
         }
         .task(id: option?.id) {
-            guard let option else { currentPlan = nil; isLoadingPlan = false; return }
-            isLoadingPlan = true
+            guard let option else { editorModel = nil; return }
             model.presentOptions(for: option)
-            currentPlan = await model.planForOption(option.id)
-            isLoadingPlan = false
+            do { editorModel = try EditorModel(option: option, records: model.records) }
+            catch { model.alert = .init(title: "Could not open design", message: error.localizedDescription) }
         }
         .onDisappear {
             if let option { model.leaveOptions(for: option) }
-        }
-        .sheet(isPresented: $editorPresented) {
-            if let option, let currentPlan {
-                SlideEditorSheet(option: option, plan: currentPlan, photos: model.records) { edit in
-                    let result = await model.applyEdit(edit, to: option.id)
-                    if let result {
-                        slideIndex = min(slideIndex, max(0, result.count - 1))
-                        self.currentPlan = await model.planForOption(option.id)
-                    }
-                    return result
-                }
-                .id(option.id)
-                .interactiveDismissDisabled()
-            }
-        }
-        .sheet(isPresented: $canvasEditorPresented) {
-            if let option, let editor = try? CanvasEditorView(option: option, records: model.records) {
-                editor.id(option.id).interactiveDismissDisabled()
-            } else {
-                ContentUnavailableView("Could not open design", systemImage: "square.and.pencil")
-            }
         }
     }
 
     private var optionPicker: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                ForEach(Array(model.options.enumerated()), id: \.element.id) { index, candidate in
-                    let selected = candidate.id == model.selectedOptionID
-                    Button {
-                        if reduceMotion { model.selectOption(candidate) }
-                        else { withAnimation(.snappy(duration: 0.22)) { model.selectOption(candidate) } }
-                    } label: {
-                        Text(candidate.title.isEmpty ? "Option \(index + 1)" : candidate.title)
-                            .font(.subheadline.weight(selected ? .semibold : .regular))
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(selected ? Color.accentColor.opacity(0.14) : Color(uiColor: .secondarySystemGroupedBackground),
-                                        in: Capsule())
-                            .overlay(Capsule().strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 1))
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(Array(model.options.enumerated()), id: \.element.id) { index, candidate in
+                        let selected = candidate.id == model.selectedOptionID
+                        let title = candidate.title.isEmpty ? "Option \(index + 1)" : candidate.title
+                        Button {
+                            if reduceMotion { model.selectOption(candidate) }
+                            else { withAnimation(.snappy(duration: 0.28)) { model.selectOption(candidate) } }
+                        } label: {
+                            Text(title)
+                                .font(.subheadline.weight(selected ? .semibold : .regular))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(selected ? Color.black : Color.white)
+                        .background(selected ? AK14Palette.field : Color.white.opacity(0.08), in: Capsule())
+                        .accessibilityLabel("\(title), \(candidate.slides.count) slides")
+                        .accessibilityAddTraits(selected ? .isSelected : [])
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(candidate.title.isEmpty ? "Option \(index + 1)" : candidate.title), \(candidate.slides.count) slides")
-                    .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 20)
         }
         .scrollIndicators(.hidden)
     }
 
+    private func share() async {
+        guard let editorModel else { return }
+        exportBusy = true
+        defer { exportBusy = false }
+        do {
+            let export = try await editorModel.exportRevision()
+            shareExport = (export.document, export.revision)
+            shareURLs = export.urls
+            sharePresented = true
+        } catch { model.alert = .init(title: "Could not share design", message: error.localizedDescription) }
+    }
+
+    /// Completion is recorded only when the system reports the share succeeded, against the revision shared.
+    private func shareFinished(_ activity: UIActivity.ActivityType?, _ completed: Bool) {
+        guard completed, let option, let editorModel, let shared = shareExport else { return }
+        let snapshot = try? editorModel.handoffSnapshot(shared.document, revision: shared.revision)
+        Task { await model.shareCompleted(for: option, activityType: activity, snapshot: snapshot) }
+    }
+
+    private func save() async {
+        guard let editorModel, let option else { return }
+        exportBusy = true
+        defer { exportBusy = false }
+        do {
+            let export = try await editorModel.exportRevision()
+            let snapshot = try? editorModel.handoffSnapshot(export.document, revision: export.revision)
+            await model.save(export.urls, for: option, snapshot: snapshot)
+        } catch { model.alert = .init(title: "Could not save design", message: error.localizedDescription) }
+    }
+
     private var actionFooter: some View {
-        HStack(spacing: 12) {
-            Button {
-                guard let option else { return }
-                model.shareURLs = option.slides
-                model.sharePresented = true
-            } label: {
-                Label("Share slides", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(option == nil)
-
-            Button {
-                Task { await model.saveSelectedOption() }
-            } label: {
-                if model.isSaving { ProgressView().frame(maxWidth: .infinity) }
-                else { Label("Save to Photos", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(option == nil || model.isSaving)
-        }
-        .controlSize(.large)
-        .padding(.horizontal, 18).padding(.vertical, 10)
-        .background(.regularMaterial)
-    }
-}
-
-private struct SlideEditorSheet: View {
-    let option: StoryOption
-    @Environment(\.dismiss) private var dismiss
-    @State private var plan: CarouselPlan
-    @State private var slides: [URL]
-    @State private var selectedSlideForRemoval: Int?
-    @State private var photoPickerPresented = false
-    @State private var isApplying = false
-    let photos: [PhotoRecord]
-    let onEdit: (PlanEdit) async -> [URL]?
-
-    init(option: StoryOption, plan: CarouselPlan, photos: [PhotoRecord],
-         onEdit: @escaping (PlanEdit) async -> [URL]?) {
-        self.option = option
-        self.photos = photos
-        self.onEdit = onEdit
-        _plan = State(initialValue: plan)
-        _slides = State(initialValue: option.slides)
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Text("Move slides with the arrows. Removing a photo changes this option only; the original photos remain in Photos.")
-                        .font(.footnote).foregroundStyle(.secondary)
+        GlassEffectContainer(spacing: 12) {
+            HStack(spacing: 12) {
+                Button { Task { await share() } } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .symbolEffect(.bounce, value: sharePresented)
+                        .frame(maxWidth: .infinity)
                 }
-                Section("Slides") {
-                    ForEach(Array(slides.enumerated()), id: \.offset) { index, url in
-                        slideRow(index: index, url: url)
-                    }
+                .buttonStyle(.glass)
+                .disabled(editorModel == nil || exportBusy)
+                .accessibilityLabel("Share slides")
+                Button { Task { await save() } } label: {
+                    if exportBusy { ProgressView().frame(maxWidth: .infinity) }
+                    else { Label("Save", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
                 }
+                .buttonStyle(.glassProminent)
+                .disabled(editorModel == nil || exportBusy)
+                .accessibilityLabel("Save to Photos")
             }
-            .navigationTitle("Edit slides")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                        .disabled(isApplying)
-                }
-            }
-            .overlay {
-                if isApplying { ProgressView("Updating option…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14)) }
-            }
-        }
-        .sheet(isPresented: $photoPickerPresented) {
-            if let index = selectedSlideForRemoval, plan.slides.indices.contains(index) {
-                let ids = Set(plan.slides[index].photos.map(\.assetID))
-                PhotoRemovalPicker(records: photos.filter { ids.contains($0.assetID) }, folder: option.sourceFolder) { id in
-                    await apply(.remove(slide: index, photo: id))
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func slideRow(index: Int, url: URL) -> some View {
-        HStack(spacing: 12) {
-            if let image = UIImage(contentsOfFile: url.path) {
-                Image(uiImage: image).resizable().scaledToFill()
-                    .frame(width: 52, height: 66).clipped().clipShape(RoundedRectangle(cornerRadius: 7))
-                    .accessibilityHidden(true)
-            }
-            Text("Slide \(index + 1)").font(.body.weight(.medium))
-            Spacer(minLength: 4)
-            Button {
-                beginApply(.reorder(from: index, to: index - 1))
-            } label: { Image(systemName: "arrow.up") }
-                .disabled(index == 0 || isApplying)
-                .accessibilityLabel("Move slide \(index + 1) earlier")
-            Button {
-                beginApply(.reorder(from: index, to: index + 1))
-            } label: { Image(systemName: "arrow.down") }
-                .disabled(index == slides.count - 1 || isApplying)
-                .accessibilityLabel("Move slide \(index + 1) later")
-            if plan.slides.indices.contains(index) {
-                let slide = plan.slides[index]
-                if slide.photos.count == 1 {
-                    Button(role: .destructive) {
-                        beginApply(.remove(slide: index, photo: slide.photos[0].assetID))
-                    } label: { Image(systemName: "trash") }
-                        .disabled(plan.photoAssetIDs.count <= 1 || isApplying)
-                        .accessibilityLabel("Remove photo from slide \(index + 1)")
-                } else {
-                    Button {
-                        selectedSlideForRemoval = index
-                        photoPickerPresented = true
-                    } label: { Image(systemName: "minus.circle") }
-                        .disabled(isApplying)
-                        .accessibilityLabel("Choose a photo to remove from slide \(index + 1)")
-                }
-            }
-        }
-        .padding(.vertical, 3)
-    }
-
-    private func beginApply(_ edit: PlanEdit) {
-        guard !isApplying else { return }
-        isApplying = true
-        Task { _ = await apply(edit) }
-    }
-
-    private func apply(_ edit: PlanEdit) async -> [URL]? {
-        isApplying = true
-        defer { isApplying = false }
-        guard let nextPlan = try? PlanEditor.apply(edit, to: plan) else { return nil }
-        guard let updatedSlides = await onEdit(edit) else { return nil }
-        plan = nextPlan
-        slides = updatedSlides
-        return updatedSlides
-    }
-}
-
-private struct PhotoRemovalPicker: View {
-    let records: [PhotoRecord]
-    let folder: URL
-    let onRemove: (AssetID) async -> [URL]?
-    @Environment(\.dismiss) private var dismiss
-    @State private var isRemoving = false
-
-    private let columns = [GridItem(.adaptive(minimum: 132), spacing: 10)]
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if records.isEmpty {
-                    ContentUnavailableView("Photos unavailable", systemImage: "photo")
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(records) { record in
-                                Button {
-                                    isRemoving = true
-                                    Task {
-                                        if await onRemove(record.assetID) != nil { dismiss() }
-                                        isRemoving = false
-                                    }
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        ImportedThumbnail(record: record, folder: folder)
-                                            .frame(maxWidth: .infinity)
-                                        Text(record.metadata.capturedAt?.formatted(date: .abbreviated, time: .omitted) ?? "Selected photo")
-                                            .font(.caption).foregroundStyle(.primary).lineLimit(1)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Remove photo from this option, \(record.metadata.capturedAt?.formatted(date: .abbreviated, time: .omitted) ?? "date unavailable")")
-                                .disabled(isRemoving)
-                            }
-                        }
-                        .padding(16)
-                    }
-                }
-            }
-            .navigationTitle("Choose photo to remove")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .overlay {
-                if isRemoving { ProgressView("Updating option…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14)) }
-            }
+            .controlSize(.large)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 4)
         }
     }
 }
 
-private struct SlidePreview: View {
-    let url: URL
-    let index: Int
-    let count: Int
+private struct SystemPhotoPicker: UIViewControllerRepresentable {
+    var onPicked: ([String]) -> Void
 
-    var body: some View {
-        GeometryReader { geometry in
-            Group {
-                if let image = UIImage(contentsOfFile: url.path) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                } else {
-                    ContentUnavailableView("Slide unavailable", systemImage: "photo")
-                }
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration(photoLibrary: .shared())
+        config.filter = .images
+        config.selectionLimit = 0
+        config.selection = .ordered
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPicked: onPicked) }
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let onPicked: ([String]) -> Void
+        init(onPicked: @escaping ([String]) -> Void) { self.onPicked = onPicked }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            let identifiers = results.compactMap(\.assetIdentifier)
+            picker.dismiss(animated: true) {
+                if !identifiers.isEmpty { self.onPicked(identifiers) }
             }
-            .overlay(alignment: .topLeading) {
-                Text("\(index + 1) / \(count)")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(.regularMaterial, in: Capsule())
-                    .padding(12)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Slide \(index + 1) of \(count)")
         }
-        .padding(.horizontal, 16)
     }
 }
 

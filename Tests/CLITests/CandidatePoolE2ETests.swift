@@ -31,16 +31,19 @@ private func candidateRun(_ tmp: TempDirectory, folder: URL, model: FakeModel) a
     let folder = try candidateSceneFolder(tmp)
     let store = try await candidateRun(tmp, folder: folder, model: FakeModel())
     let session = try RunSession(runDirectory: store.root)
-    let plan = try #require(session.plan("c1"))
+    // Diversity remedies may drop a direction depending on the run's seed; use the first one that survived.
+    let report = try store.read(ConceptsReport.self, from: "plans/director.json")
+    let id = try #require(report.plans.first { !$0.isBaseline }?.id)
+    let plan = try #require(session.plan(id))
     let direction = try #require(plan.direction)
     let seed = try #require(plan.compositionSeed.flatMap { UInt64($0, radix: 16) })
-    let layoutSeed = ComposerEngine.layoutSeed(runID: session.runID, id: "c1")
+    let layoutSeed = ComposerEngine.layoutSeed(runID: session.runID, id: id)
     let context = session.compositionContext()
 
-    let storedReplay = ComposerEngine.compose(direction, id: "c1", context: context, seed: seed, layoutSeed: layoutSeed)
+    let storedReplay = ComposerEngine.compose(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
     #expect(storedReplay.plan == plan)
 
-    let pool = ComposerEngine.candidates(direction, id: "c1", context: context, seed: seed, layoutSeed: layoutSeed)
+    let pool = ComposerEngine.candidates(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
     #expect((2...6).contains(pool.count))
     #expect(pool.indices.allSatisfy { i in pool.indices.allSatisfy { j in i == j || pool[i].plan != pool[j].plan } })
     #expect(pool.allSatisfy { $0.plan.compositionSeed == String(seed, radix: 16) })
@@ -48,7 +51,7 @@ private func candidateRun(_ tmp: TempDirectory, folder: URL, model: FakeModel) a
     let nearBest = pool.filter { $0.score <= pool[0].score + 0.04 }
     #expect(nearBest.contains(where: { $0.plan == storedReplay.plan }))
 
-    let paths = try #require(store.read(ConceptsReport.self, from: "plans/director.json").renderedSlides["c1"])
+    let paths = try #require(report.renderedSlides[id])
     let slideURLs = paths.map { store.root.appending(path: $0) }
     let renderer = StripRenderer()
     let first = try renderer.strip(slides: slideURLs)

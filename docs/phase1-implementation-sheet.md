@@ -10,6 +10,7 @@ Status: active (2026-09-27). The local iOS flow previously passed a simulator UI
 - Phase 1 minimum deployment target: iOS 26.
 - Backend: Cloudflare Worker for the model proxy and remote, versioned style configuration. Do not ship an OpenAI key in the app.
 - Prefer a thin iOS app over rebuilding the Mac engine. The existing Swift modules remain the reference implementation.
+- Imported designed sets are vocabulary for the existing layout resolver, not a second pipeline and not a `local-designed` option. The planner (v9) learns the page grammar in words. The resolver gives each imported set a job and lets the photos pick that job. A crop that would cut a face stays on the primitive path. The baseline stays photos-only. A set never changes the carousel aspect. Whole-carousel aspect adoption is withdrawn. Frames and stickers wait until one occasion's placement is something the owner would post.
 
 ## Work sequence
 

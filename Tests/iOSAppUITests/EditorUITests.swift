@@ -17,7 +17,7 @@ final class EditorUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Choose photos for your story."].waitForExistence(timeout: 20))
         if app.buttons["Find photos"].waitForExistence(timeout: 10) { app.buttons["Find photos"].tap() }
         let photo = app.buttons["photo-1"]
-        XCTAssertTrue(photo.waitForExistence(timeout: 20)); photo.tap()
+        XCTAssertTrue(photo.waitForExistence(timeout: 20))
         let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Review '")).firstMatch
         XCTAssertTrue(review.waitForExistence(timeout: 15)); review.tap()
         XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 60))
@@ -25,21 +25,14 @@ final class EditorUITests: XCTestCase {
         let generate = app.buttons["Create options"]
         XCTAssertTrue(generate.waitForExistence(timeout: 20)); generate.tap()
         XCTAssertTrue(app.staticTexts["Choose an option"].waitForExistence(timeout: 300))
-        let edit = app.buttons["Edit design"]
-        XCTAssertTrue(edit.waitForExistence(timeout: 20)); edit.tap()
-        XCTAssertTrue(app.navigationBars["Edit design"].waitForExistence(timeout: 30))
-        app.buttons["Text"].tap()
-        let field = app.textFields["Text"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Munnar")
-        app.alerts.buttons["Add"].tap()
-        app.buttons["Stickers"].tap()
-        XCTAssertTrue(app.navigationBars["Stickers"].waitForExistence(timeout: 5))
-        app.buttons.matching(NSPredicate(format: "label CONTAINS 'doodle-star'")).firstMatch.tap()
-        let layer = app.otherElements.matching(NSPredicate(format: "label CONTAINS 'Text: Munnar' OR label == 'Sticker layer'" )).firstMatch
-        XCTAssertTrue(layer.waitForExistence(timeout: 5))
-        layer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.6)))
-        app.buttons["Undo"].tap(); app.buttons["Redo"].tap()
+        // The selected option is edited in place: add text, and it becomes the selected element.
+        let field = app.textFields["newSlideText"]
+        XCTAssertTrue(field.waitForExistence(timeout: 30)); field.tap(); field.typeText("Munnar")
+        app.buttons["Add text"].tap()
+        let selected = app.textFields["selectedTextField"]
+        XCTAssertTrue(selected.waitForExistence(timeout: 10))
+        XCTAssertEqual(selected.value as? String, "Munnar")
+        app.buttons["Undo edit"].tap(); app.buttons["Redo edit"].tap()
         app.buttons["Save to Photos"].tap()
         XCTAssertTrue(app.alerts["Saved to Photos"].waitForExistence(timeout: 90))
     }

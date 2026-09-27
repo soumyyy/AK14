@@ -54,11 +54,13 @@ public struct DocumentLayer: Codable, Sendable, Equatable {
 }
 public struct CanvasDocument: Codable, Sendable, Equatable {
     public var id: String, aspect: CarouselAspect, slideCount: Int, seamless: Bool, background: Fill, layers: [DocumentLayer]
-    public var recipeID: String?, stylePackPin: String?, sourcePlanID: String?, version: String
+    public var recipeID: String?, templateID: String?, stylePackPin: String?, sourcePlanID: String?, version: String
     public var slideBackgrounds: [String], slideGrain: [Double], slideFilmEdges: [Bool], seed: String
-    public init(id: String, aspect: CarouselAspect, slideCount: Int, seamless: Bool = false, background: Fill = .colour("#F4F1EA"), layers: [DocumentLayer] = [], recipeID: String? = nil, stylePackPin: String? = nil, sourcePlanID: String? = nil, version: String = "document-1", slideBackgrounds: [String] = [], slideGrain: [Double] = [], slideFilmEdges: [Bool] = [], seed: String = "0") {
-        self.id=id; self.aspect=aspect; self.slideCount=slideCount; self.seamless=seamless; self.background=background; self.layers=layers; self.recipeID=recipeID; self.stylePackPin=stylePackPin; self.sourcePlanID=sourcePlanID; self.version=version
-        self.slideBackgrounds=slideBackgrounds; self.slideGrain=slideGrain; self.slideFilmEdges=slideFilmEdges; self.seed=seed
+    /// Per-slide resolver provenance. Optional so documents saved before this field was introduced still decode.
+    public var slideVariants: [String?]?
+    public init(id: String, aspect: CarouselAspect, slideCount: Int, seamless: Bool = false, background: Fill = .colour("#F4F1EA"), layers: [DocumentLayer] = [], recipeID: String? = nil, templateID: String? = nil, stylePackPin: String? = nil, sourcePlanID: String? = nil, version: String = "document-1", slideBackgrounds: [String] = [], slideGrain: [Double] = [], slideFilmEdges: [Bool] = [], seed: String = "0", slideVariants: [String?]? = nil) {
+        self.id=id; self.aspect=aspect; self.slideCount=slideCount; self.seamless=seamless; self.background=background; self.layers=layers; self.recipeID=recipeID; self.templateID=templateID; self.stylePackPin=stylePackPin; self.sourcePlanID=sourcePlanID; self.version=version
+        self.slideBackgrounds=slideBackgrounds; self.slideGrain=slideGrain; self.slideFilmEdges=slideFilmEdges; self.seed=seed; self.slideVariants=slideVariants
     }
     public func layers(onSlide index: Int) -> [DocumentLayer] {
         let selected = seamless
@@ -81,10 +83,44 @@ public extension CanvasDocument {
         for slide in carousel.slides { for (n, e) in slide.elements.enumerated() {
             let frame = UnitRect(x: (Double(slide.index) + e.frame.x) / Double(max(1, carousel.slides.count)), y: e.frame.y, width: e.frame.width / Double(max(1, carousel.slides.count)), height: e.frame.height)
             let kind: DocumentLayer.Kind = e.kind == .photo ? .photo : e.kind == .stamp ? .text : .sticker
-            layers.append(DocumentLayer(id: "s\(slide.index)-\(n)", kind: kind, frame: frame, rotation: e.rotationDegrees, z: e.zIndex, opacity: e.opacity, slideHint: slide.index, assetID: e.assetID, crop: e.crop, adjustments: e.adjustments, border: e.border, shadow: e.shadow, string: e.text, fontID: kind == .text ? "DSEG7Classic-Bold" : nil, size: kind == .text ? h * e.frame.height * 0.9 : nil, colour: kind == .text ? "#FF851F" : nil))
+            layers.append(DocumentLayer(id: "s\(slide.index)-\(n)", kind: kind, frame: frame, rotation: e.rotationDegrees, z: e.zIndex, opacity: e.opacity, slideHint: slide.index, assetID: e.assetID, crop: e.crop, adjustments: e.adjustments, border: e.border, shadow: e.shadow, string: e.text, fontID: kind == .text ? "DSEG7Classic-Bold" : nil, size: kind == .text ? h * e.frame.height * 0.9 : nil, colour: kind == .text ? "#FF851F" : nil, shapeKind: e.kind == .tape ? "legacy-tape" : e.kind == .stamp ? "legacy-stamp" : nil))
         } }
-        self.init(id: carousel.id, aspect: carousel.aspect, slideCount: carousel.slides.count, background: .colour("#F4F1EA"), layers: layers, sourcePlanID: carousel.id,
-                  slideBackgrounds: carousel.slides.map(\.background), slideGrain: carousel.slides.map(\.grain), slideFilmEdges: carousel.slides.map(\.filmEdge), seed: carousel.seed)
+        let variants = carousel.slides.map(\.variant)
+        let templateIDs = variants.compactMap { variant -> String? in
+            guard let variant, variant.hasPrefix("template.") else { return nil }
+            return String(variant.dropFirst("template.".count))
+        }
+        let templateID = templateIDs.first.flatMap { id in templateIDs.allSatisfy { $0 == id } ? id : nil }
+        self.init(id: carousel.id, aspect: carousel.aspect, slideCount: carousel.slides.count,
+                  seamless: Self.containsTemplateSeam(carousel.slides), background: .colour("#F4F1EA"), layers: layers, templateID: templateID, sourcePlanID: carousel.id,
+                  slideBackgrounds: carousel.slides.map(\.background), slideGrain: carousel.slides.map(\.grain), slideFilmEdges: carousel.slides.map(\.filmEdge), seed: carousel.seed,
+                  slideVariants: variants)
         _ = photos; _ = w
+    }
+
+    /// Template slots can intentionally span slide boundaries. The resolved form contains a clipped fragment
+    /// on each page; recover that authored continuity so document slicing and edit affordances keep it intact.
+    private static func containsTemplateSeam(_ slides: [ResolvedSlide]) -> Bool {
+        guard slides.contains(where: { $0.variant?.hasPrefix("template.") == true }), slides.count > 1 else { return false }
+        let count = Double(slides.count)
+        for index in 0..<(slides.count - 1) {
+            let boundary = Double(index + 1) / count
+            for left in slides[index].elements where left.kind == .photo {
+                guard let leftID = left.assetID, let leftCrop = left.crop,
+                      abs((Double(index) + left.frame.x + left.frame.width) / count - boundary) < 1e-5 else { continue }
+                for right in slides[index + 1].elements where right.kind == .photo && right.assetID == leftID {
+                    guard let rightCrop = right.crop,
+                          abs((Double(index + 1) + right.frame.x) / count - boundary) < 1e-5,
+                          abs(left.frame.y - right.frame.y) < 1e-5,
+                          abs(left.frame.height - right.frame.height) < 1e-5,
+                          abs(left.rotationDegrees - right.rotationDegrees) < 1e-5,
+                          abs(leftCrop.y - rightCrop.y) < 1e-5,
+                          abs(leftCrop.height - rightCrop.height) < 1e-5,
+                          abs(leftCrop.x + leftCrop.width - rightCrop.x) < 1e-4 else { continue }
+                    return true
+                }
+            }
+        }
+        return false
     }
 }

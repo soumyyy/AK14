@@ -45,6 +45,8 @@ Fill = colour | gradient | photo(assetID, blur, dim) | paper(assetID)
 
 ## 4. Automatic quality: recipes, seamless layout, type and assets
 
+2026-09-27: imported designed sets are also geometry, inside `LayoutResolver`, not a paste over one window and not a separate option. Recipes remain programs for decoration and type. A designed set is used when it matches the carousel's aspect, its job matches the photos, and the crop keeps faces. The rest of the slides stay on the primitive path. Frames and stickers still wait until one occasion's placement is something the owner would post.
+
 **Recipes** (`StylePack.recipes`). A recipe is a parametric page design, not a fixed template. It has:
 - slot rules: photo slots with aspect ranges, bleed or inset, overlap, rotation range and mask
 - a text slot (title, date, place or caption, from the owner's story hint and event data, never invented)

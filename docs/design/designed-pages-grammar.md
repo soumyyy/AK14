@@ -13,8 +13,12 @@ Measured from 120 carousel templates of the reference app 17V28 (a study only: n
 Rules for AK14 pages:
 1. Designed pages are hand-authored as data (unit-space slots, text slots, sticker anchors, seam behaviour), never generated procedurally.
 2. A page is used only when the photos fit its slots after face-safe cropping (people kept whole, crop at most about 35%). Otherwise the photo gets a clean full-bleed or white-border slide.
-3. At most 1–3 designed pages or seamless sets per carousel. The rest stay clean.
+3. Each designed set is 1–3 slides. The resolver may use one for every group whose photos fit. Slides that do not fit stay clean.
 4. Every page ships only after it has been rendered with real photos and reviewed by eye.
+
+## Engine note (2026-09-27)
+
+The 104 imported sets are vocabulary for `LayoutResolver`. The planner prompt (v9) describes this grammar in words: mostly white, one large photo, smaller photos as rhythm, a photo crosses a slide edge only as one continuous moment, and photos on a page belong to the same moment. The model still returns a spine and directions. It does not return template ids or coordinates. Every set of the carousel's own aspect is available. Its slots say what it is for, and the photos pick that job. A crop that would cut a face refuses the set. If none fit, the slide stays a full bleed or the other primitive. The photos-only baseline does not use the vocabulary. A set does not change the aspect of slides outside its window, because one carousel has one aspect.
 
 ## Permission (2026-09-27)
 The owner states that the 17V28 account owner (the team) permits AK14 to use 17V28's templates and assets. On that basis AK14 may convert 17V28 template geometry (photo placeholders, frames, layouts) into its own designed-set format. Keep the written confirmation from the account owner on file. Raw 17V28 files are not committed; only converted AK14 data is. Decorative assets (stickers, frames, fonts that are not OFL) come from the team's source files, with their provenance recorded in the asset manifest.

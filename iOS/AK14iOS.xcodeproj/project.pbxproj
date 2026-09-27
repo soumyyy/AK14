@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		02BD467FD87C0A2CC66FCE2B /* InteractionRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C35761776638637869EAB0 /* InteractionRecorder.swift */; };
 		09BB41C9C5227D168712FDEE /* AK14App.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4E8F4E42040AAE7DD421C8F /* AK14App.swift */; };
+		A14C010091C0DE0000000001 /* AK14Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14C010091C0DE0000000002 /* AK14Palette.swift */; };
 		1087594EF4DF256D01B3C65D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */; };
 		3D756A6C223337127BAE8925 /* Director in Frameworks */ = {isa = PBXBuildFile; productRef = D3166AE9C7956A1154E17AD1 /* Director */; };
 		579BAE047956EED0CEE6CA62 /* ImportReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */; };
@@ -68,6 +69,7 @@
 		B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryPipeline.swift; sourceTree = "<group>"; };
 		C038D955B0AA4FA87E2AA707 /* EditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorModel.swift; sourceTree = "<group>"; };
 		C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A14C010091C0DE0000000002 /* AK14Palette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AK14Palette.swift; sourceTree = "<group>"; };
 		D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportReviewView.swift; sourceTree = "<group>"; };
 		D7C63D705D22D93F8104E7BB /* CanvasEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasEditorView.swift; sourceTree = "<group>"; };
 		E8C35761776638637869EAB0 /* InteractionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionRecorder.swift; sourceTree = "<group>"; };
@@ -93,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				F4E8F4E42040AAE7DD421C8F /* AK14App.swift */,
+				A14C010091C0DE0000000002 /* AK14Palette.swift */,
 				C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */,
 				D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */,
 				E8C35761776638637869EAB0 /* InteractionRecorder.swift */,
@@ -303,6 +306,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				09BB41C9C5227D168712FDEE /* AK14App.swift in Sources */,
+				A14C010091C0DE0000000001 /* AK14Palette.swift in Sources */,
 				D230EE2C3FB10E5FCB17B9AF /* CanvasEditorView.swift in Sources */,
 				EF8FAF70670F17EC03A5D604 /* EditorModel.swift in Sources */,
 				579BAE047956EED0CEE6CA62 /* ImportReviewView.swift in Sources */,
@@ -332,6 +336,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AK14iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 4W769MPDJ6;
@@ -552,6 +557,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = AK14iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 4W769MPDJ6;

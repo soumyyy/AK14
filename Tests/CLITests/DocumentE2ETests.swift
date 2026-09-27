@@ -22,6 +22,58 @@ import TestSupport
     #expect(document.sliceGeometry(forSlide: 2).x == 2160)
 }
 
+@Test func carouselConversionPreservesTemplateProvenanceBackgroundsAndSeamContinuity() {
+    let photo = AssetID(rawValue: "template-photo")
+    let first = ResolvedSlide(index: 0, primitive: .hero, requestedPrimitive: .hero, background: "#FAF6F3",
+        grain: 0.12, filmEdge: true,
+        elements: [ResolvedElement(kind: .photo, assetID: photo, text: nil,
+            frame: UnitRect(x: 0.5, y: 0.2, width: 0.5, height: 0.6), rotationDegrees: 0,
+            crop: UnitRect(x: 0, y: 0.1, width: 0.5, height: 0.8), zIndex: 0, opacity: 1, border: 0, shadow: false)],
+        warnings: [], variant: "template.panorama-test")
+    let second = ResolvedSlide(index: 1, primitive: .hero, requestedPrimitive: .hero, background: "white",
+        grain: 0, filmEdge: false,
+        elements: [ResolvedElement(kind: .photo, assetID: photo, text: nil,
+            frame: UnitRect(x: 0, y: 0.2, width: 0.5, height: 0.6), rotationDegrees: 0,
+            crop: UnitRect(x: 0.5, y: 0.1, width: 0.5, height: 0.8), zIndex: 0, opacity: 1, border: 0, shadow: false)],
+        warnings: [], variant: "template.panorama-test")
+    let carousel = ResolvedCarousel(id: "template-test", aspect: .square, seed: "a14",
+        resolverVersion: ResolvedCarousel.resolverVersion, slides: [first, second])
+    let document = CanvasDocument(from: carousel, photos: [:])
+    #expect(document.templateID == "panorama-test")
+    #expect(document.slideVariants == ["template.panorama-test", "template.panorama-test"])
+    #expect(document.slideBackgrounds == ["#FAF6F3", "white"])
+    #expect(document.slideGrain == [0.12, 0])
+    #expect(document.slideFilmEdges == [true, false])
+    #expect(document.seamless)
+}
+
+@Test func mixedTemplateVariantsStayOnDocumentRendererAndKeepHexBackgrounds() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let photo = AssetID(rawValue: "unavailable-template-photo")
+    let slides = ["#FF0000", "#00FF00"].enumerated().map { index, background in
+        ResolvedSlide(index: index, primitive: .hero, requestedPrimitive: .hero, background: background,
+            grain: 0, filmEdge: false,
+            elements: [ResolvedElement(kind: .photo, assetID: photo, text: nil,
+                frame: UnitRect(x: 0, y: 0, width: 1, height: 1), rotationDegrees: 0,
+                crop: UnitRect(x: 0, y: 0, width: 1, height: 1), zIndex: 0, opacity: 1, border: 0, shadow: false)],
+            warnings: [], variant: "template.variant-\(index)")
+    }
+    let document = CanvasDocument(from: ResolvedCarousel(id: "mixed-template", aspect: .square, seed: "10",
+        resolverVersion: ResolvedCarousel.resolverVersion, slides: slides), photos: [:])
+    #expect(document.templateID == nil)
+    #expect(document.slideVariants == ["template.variant-0", "template.variant-1"])
+
+    let output = tmp.url.appending(path: "mixed-template")
+    let result = try DocumentRenderer().render(document, photos: [:], sourceFolder: tmp.url, outputDirectory: output)
+    #expect(result.failures.isEmpty)
+    #expect(result.names.count == 2)
+    let first = try rgba(of: output.appending(path: "slide-01.png"))
+    let second = try rgba(of: output.appending(path: "slide-02.png"))
+    let center = (CarouselAspect.square.exportHeight / 2 * first.width + first.width / 2) * 4
+    #expect(first.bytes[center] == 255 && first.bytes[center + 1] == 0 && first.bytes[center + 2] == 0)
+    #expect(second.bytes[center] == 0 && second.bytes[center + 1] == 255 && second.bytes[center + 2] == 0)
+}
+
 private func documentRun(_ tmp: TempDirectory) async throws -> RunStore {
     let folder = try tmp.sub("photos")
     for i in 0..<14 {
@@ -97,6 +149,13 @@ private func forcedElementsCarousel(_ tmp: TempDirectory) async throws -> (carou
             sawBackgrounds.insert(slide.background)
             for element in slide.elements { sawKinds.insert(element.kind) }
         }
+        // Options with imported template pages render natively (hex grounds, seams), so byte identity to
+        // legacyRender does not apply; they must still render every slide.
+        if slides.contains(where: { $0.variant?.hasPrefix("template.") == true }) {
+            let native = try DocumentRenderer().render(document, photos: byID, sourceFolder: tmp.url.appending(path: "photos"), outputDirectory: tmp.url.appending(path: "native-\(option.id)"))
+            #expect(native.failures.isEmpty && native.names.count == slides.count)
+            continue
+        }
         let old = try CarouselRenderer().legacyRender(carousel, photos: byID, sourceFolder: tmp.url.appending(path: "photos"), outputDirectory: tmp.url.appending(path: "old-\(option.id)"))
         let new = try CarouselRenderer().render(carousel, photos: byID, sourceFolder: tmp.url.appending(path: "photos"), outputDirectory: tmp.url.appending(path: "new-\(option.id)"))
         #expect(old.failures.isEmpty && new.failures.isEmpty)
@@ -149,6 +208,46 @@ private func singlePhoto(_ tmp: TempDirectory, folderName: String) async throws 
     #expect(exposed != noAdjustments, "a non-neutral exposure must change the rendered bytes")
 }
 
+@Test func addingModernTextKeepsConvertedWashTapeGrainAndFilmEdge() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let (photo, folder) = try await singlePhoto(tmp, folderName: "treatment-preservation")
+    let byID = [photo.assetID: photo]
+    let slide = ResolvedSlide(index: 0, primitive: .hero, requestedPrimitive: .hero,
+        background: "wash:\(photo.assetID.rawValue)", grain: 0.35, filmEdge: true,
+        elements: [
+            ResolvedElement(kind: .photo, assetID: photo.assetID, text: nil,
+                frame: UnitRect(x: 0.2, y: 0.2, width: 0.6, height: 0.6), rotationDegrees: 0,
+                crop: UnitRect(x: 0, y: 0, width: 1, height: 1), zIndex: 0, opacity: 1, border: 0, shadow: false),
+            ResolvedElement(kind: .tape, assetID: nil, text: nil,
+                frame: UnitRect(x: 0.08, y: 0.1, width: 0.2, height: 0.06), rotationDegrees: -4,
+                crop: nil, zIndex: 1, opacity: 0.8, border: 0, shadow: false),
+        ], warnings: [])
+    let carousel = ResolvedCarousel(id: "treatment-preservation", aspect: .square, seed: "cafe",
+        resolverVersion: ResolvedCarousel.resolverVersion, slides: [slide])
+    var document = CanvasDocument(from: carousel, photos: byID)
+    document.layers.append(DocumentLayer(id: "new-text", kind: .text,
+        frame: UnitRect(x: 0.2, y: 0.88, width: 0.6, height: 0.06), z: 2, slideHint: 0,
+        string: "Edited title", fontID: "font-inter", size: 32, colour: "#222222"))
+
+    func png(_ value: CanvasDocument, _ directory: String) throws -> Data {
+        let output = tmp.url.appending(path: directory)
+        let result = try DocumentRenderer().render(value, photos: byID, sourceFolder: folder, outputDirectory: output)
+        #expect(result.failures.isEmpty)
+        return try Data(contentsOf: output.appending(path: "slide-01.png"))
+    }
+    let rendered = try png(document, "with-treatment")
+
+    var noTape = document
+    noTape.layers.removeAll { $0.id == "s0-1" }
+    #expect(rendered != (try png(noTape, "without-tape")), "converted tape must remain visible after modern text forces document rendering")
+
+    var untreated = document
+    untreated.slideBackgrounds = ["plain"]
+    untreated.slideGrain = [0]
+    untreated.slideFilmEdges = [false]
+    #expect(rendered != (try png(untreated, "without-slide-treatment")), "wash, grain and film edge must survive the renderer switch")
+}
+
 /// Draws the image into a 1x1 sRGB context: a cheap, format-independent average of a small sample rect.
 private func averageColor(of image: CGImage, sampleRect: CGRect) -> (r: Double, g: Double, b: Double) {
     guard let cropped = image.cropping(to: sampleRect) else { return (-1, -1, -1) }
@@ -170,6 +269,9 @@ private func averageColor(of image: CGImage, sampleRect: CGRect) -> (r: Double, 
                               assetID: photo.assetID, crop: UnitRect(x: 0, y: 0, width: 1, height: 1))
     let document = CanvasDocument(id: "seam", aspect: .square, slideCount: 3, seamless: true, layers: [layer])
     let outDir = tmp.url.appending(path: "seam-out")
+    let preview = try DocumentRenderer().renderSlide(document, slide: 0, photos: byID, sourceFolder: folder)
+    let previewPath = tmp.url.appending(path: "preview.png")
+    try CarouselRenderer.writePNG(preview, to: previewPath)
     let outcome = try DocumentRenderer().render(document, photos: byID, sourceFolder: folder, outputDirectory: outDir)
     #expect(outcome.failures.isEmpty)
     #expect(outcome.names.count == 3)
@@ -182,6 +284,7 @@ private func averageColor(of image: CGImage, sampleRect: CGRect) -> (r: Double, 
         #expect(image.width == W && image.height == H, "\(name) is not a full slide-sized PNG")
         images.append(image)
     }
+    #expect(try Data(contentsOf: previewPath) == Data(contentsOf: outDir.appending(path: "slide-01.png")))
     // Paper background colour (see CarouselRenderer.paperColor): distinguishing a photo pixel from the
     // background needs only a loose threshold, since the fixture scene is randomly, vividly coloured.
     func isBackground(_ c: (r: Double, g: Double, b: Double)) -> Bool {

@@ -202,3 +202,29 @@ Owner: "photos should be grouped based on aesthetic; don't make such hard constr
 - [x] Pairwise disharmony drives grouping: colour ΔE, warmth, saturation, contrast, brightness, people vs scenery, shared scene labels, shape
 - [x] Live IMG run 20260926-094318-6d87c2 ($0.0044): pairs form across days on look (e.g. two misty grey shots from May 29 and 31); after weighting brightness more, the neon night ride no longer pairs with a daylight garden
 - [x] E2E: 45 passing
+
+## Imported sets inside the layout engine (2026-09-27)
+Owner: the model and the engine should learn from the 104 imported templates, and that knowledge should upgrade the existing layout engine rather than add a second pipeline.
+- [x] Planner v9 describes the page grammar in words (mostly white, one large photo, smaller photos as rhythm, a seam only for one continuous moment, photos on a page are the same moment). No template ids or coordinates.
+- [x] `LayoutResolver` takes those sets as optional vocabulary. Each set has a job read from its slots (one photo, a subject with notes, a pair, a gathering, or a photo that continues across a slide). The photos pick that job. Layouts are not scored against each other. A crop that would cut a face refuses that layout and the slide stays on the six primitives.
+- [x] The photos-only baseline does not use the vocabulary. There is no `local-designed` option, and a set does not change the carousel's aspect.
+- [x] Noted in the template spec and plan, the composer spec, the creative-studio spec, the grammar note, and the implementation sheet.
+- Frames, stickers, and more editor work wait until placement on one occasion is something the owner would post.
+
+## Coherent generation and direct editing (2026-09-27)
+Spec: docs/superpowers/specs/2026-09-27-coherent-design-editing.md. Codex (Luna) ran three workers until its usage limit hit at 16:41; Claude finished the integration.
+- [x] Generation: template matching reads intended hierarchy/grouping; seams need `Direction.seamless`; vocabulary shared by composition, judging and final resolution (Luna)
+- [x] Rendering: one `DocumentRenderer.renderSlide` for preview and export; template provenance, hex backgrounds, tape/stamp/grain/film edge kept through edits (Luna)
+- [x] Template pages now carry coverage/crop metrics (they were scored +2 per slide for missing metrics, which quietly worked against templates)
+- [x] Clean policy: a multi-photo group no template can host is split back into single slides, instead of falling back to an inset or collage
+- [x] Legacy parity test scoped to bridge conversions; template options must render every slide natively
+- [x] iOS: inline editing on the options screen (the Edit sheet is gone); Save and Share record the exact exported revision through the model's bookkeeping; the success alert and haptic are back
+- [x] Package tests: 105 passing
+- [x] iOS UI tests: 3/3 pass (fixed accessibility container overrides; removed an outdated "Keep my order" check on review)
+- [x] Template variety (Cursor Luna): seeded choice among near-best fits, no reuse within a carousel
+- [x] Gesture editing (Cursor Luna): drag/pinch/rotate, double-tap crop, thumbnail replace. Claude fixed a tap-shrinks-full-bleed bug and removed dead code
+- [x] Director latency (Cursor Luna): output caps and parallel thumbnails (0-5 s). Analysis in docs/reviews/2026-09-27-director-latency.md
+- [x] Carousel grade (Composer 2.5): subtle pull toward the set's centre, shared filter for both renderers. Claude fixed an inverted warmth sign
+- [x] Package tests: 110 pass (a brittle hard-coded "c1" test now follows the surviving direction)
+- [ ] Planner speed A/B on IMG (reasoning low / detail low): latency plus a visual review
+- [ ] iPhone screenshot review, then install on the phone

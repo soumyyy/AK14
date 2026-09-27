@@ -6,9 +6,12 @@ public struct LayoutContext: Sendable {
     public var features: [AssetID: PhotoFeatures]
     public var stylePack: StylePack
     public var seed: UInt64
+    /// Imported page arrangements the resolver may fill. Empty keeps the six primitives.
+    public var vocabulary: [DesignedSet]
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
-                stylePack: StylePack, seed: UInt64) {
-        self.aspect = aspect; self.photos = photos; self.features = features; self.stylePack = stylePack; self.seed = seed
+                stylePack: StylePack, seed: UInt64, vocabulary: [DesignedSet] = []) {
+        self.aspect = aspect; self.photos = photos; self.features = features; self.stylePack = stylePack
+        self.seed = seed; self.vocabulary = vocabulary
     }
 }
 
@@ -17,12 +20,50 @@ public enum LayoutResolver {
     public static func resolve(_ plan: CarouselPlan, context: LayoutContext) -> ResolvedCarousel {
         var rng = SeededRandom(seed: context.seed)
         var history: [String] = []
-        let slides = plan.slides.enumerated().map { i, s in
-            resolveSlide(s, index: i, plan: plan, context: context, history: &history, rng: &rng)
+        var slides: [ResolvedSlide] = []
+        var usedTemplateIDs = Set<String>()
+        var index = 0
+        let useVocabulary = !plan.isBaseline && !context.vocabulary.isEmpty
+        while index < plan.slides.count {
+            if useVocabulary, let placed = TemplateVocabulary.place(plan: plan, start: index, context: context,
+                                                                     usedTemplateIDs: &usedTemplateIDs) {
+                slides.append(contentsOf: placed)
+                index += placed.count
+            } else {
+                slides.append(resolveSlide(plan.slides[index], index: index, plan: plan, context: context, history: &history, rng: &rng))
+                index += 1
+            }
+        }
+        if !plan.isBaseline && CarouselGrade.gradeEnabled {
+            slides = applyGrade(slides, plan: plan, features: context.features)
         }
         return ResolvedCarousel(id: plan.id, aspect: context.aspect,
                                 seed: String(context.seed, radix: 16), resolverVersion: ResolvedCarousel.resolverVersion,
                                 slides: slides)
+    }
+
+    static func applyGrade(_ slides: [ResolvedSlide], plan: CarouselPlan, features: [AssetID: PhotoFeatures]) -> [ResolvedSlide] {
+        var seen = Set<AssetID>()
+        let photoIDs = plan.photoAssetIDs.filter { seen.insert($0).inserted }
+        let grades = CarouselGrade.adjustments(for: photoIDs, features: features)
+        guard !grades.isEmpty else { return slides }
+        return slides.map { slide in
+            var copy = slide
+            copy.elements = slide.elements.map { element in
+                guard element.kind == .photo, let id = element.assetID, let grade = grades[id] else { return element }
+                var updated = element
+                if var existing = updated.adjustments {
+                    existing.exposure += grade.exposure
+                    existing.warmth += grade.warmth
+                    existing.saturation += grade.saturation
+                    updated.adjustments = existing
+                } else {
+                    updated.adjustments = grade
+                }
+                return updated
+            }
+            return copy
+        }
     }
 
     // MARK: - Slide

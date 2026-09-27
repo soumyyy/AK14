@@ -15,15 +15,19 @@ public struct CompositionContext: Sendable {
     public var exactSet: Bool
     public var keepOrder: Bool
     public var storyHint: String?
+    /// Imported page arrangements shared by composition, scoring, and judging.
+    public var vocabulary: [DesignedSet]
 
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
                 triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
-                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false, storyHint: String? = nil) {
+                stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false,
+                storyHint: String? = nil, vocabulary: [DesignedSet] = []) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
         self.sequenceIntent = sequenceIntent; self.stylePack = stylePack; self.maxSlides = maxSlides
         self.exactSet = exactSet
         self.keepOrder = keepOrder
         self.storyHint = storyHint
+        self.vocabulary = vocabulary
     }
 }
 
@@ -152,10 +156,14 @@ public enum ComposerEngine {
     /// cover and rhythm.
     public static let cleanOutput = true
 
-    static func cleaned(_ style: StyleVector) -> StyleVector {
+    static func cleaned(_ style: StyleVector, vocabulary: [DesignedSet] = []) -> StyleVector {
         guard cleanOutput else { return style }
         var s = style
-        s.grouping = "single"; s.overlap = "none"; s.rotation = "none"; s.whitespace = "tight"
+        let supportsGroups = vocabulary.contains {
+            $0.slideCount == 1 && $0.expandedSlots.count > 1 && !$0.expandedSlots.contains(where: \.crossesSeam)
+        }
+        if !supportsGroups { s.grouping = "single" }
+        s.overlap = "none"; s.rotation = "none"; s.whitespace = "tight"
         if s.decoration == "rich" { s.decoration = "light" }
         return s
     }
@@ -166,7 +174,8 @@ public enum ComposerEngine {
         guard !generated.ranked.isEmpty else { return generated.empty }
         let near = generated.ranked.filter { $0.score <= generated.ranked[0].score + 0.04 }
         let pick = near[Int(generated.rng.next() % UInt64(near.count))]
-        return composition(pick, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings, context: context)
+        return composition(pick, direction: generated.direction, id: id, seed: seed, layoutSeed: layoutSeed ?? seed,
+                           warnings: generated.warnings, context: context)
     }
 
     /// Returns distinct, safe whole-carousel candidates ranked by composer score.
@@ -177,21 +186,27 @@ public enum ComposerEngine {
         return generated.ranked.reduce(into: [Composition]()) { result, candidate in
             guard result.count < limit, !result.contains(where: { $0.plan.slides == candidate.plan.slides }) else { return }
             let layout = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
-                features: context.features, stylePack: context.stylePack, seed: layoutSeed ?? seed))
+                features: context.features, stylePack: context.stylePack, seed: layoutSeed ?? seed,
+                vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
             guard !layout.slides.contains(where: { slide in
                 slide.warnings.contains { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }
             }) else { return }
-            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed, warnings: generated.warnings, context: context))
+            result.append(composition(candidate, direction: generated.direction, id: id, seed: seed,
+                                      layoutSeed: layoutSeed ?? seed, warnings: generated.warnings, context: context))
         }
     }
 
     private static func composition(_ candidate: (plan: CarouselPlan, score: Double), direction: Direction, id: String,
-                                    seed: UInt64, warnings: [String], context: CompositionContext) -> Composition {
+                                    seed: UInt64, layoutSeed: UInt64, warnings: [String], context: CompositionContext) -> Composition {
         var plan = candidate.plan
         plan.compositionSeed = String(seed, radix: 16)
         // Recipe selection (spec §3/§4) happens for every composed plan, so any path that produces one —
         // composeSet, recompose, a diversity-remedy retry, or a raw `compose` call — assigns it the same way.
-        if let recipes = context.stylePack.recipes,
+        let selectedTemplate = !plan.isBaseline && !context.vocabulary.isEmpty
+            && LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+                features: context.features, stylePack: context.stylePack, seed: layoutSeed,
+                vocabulary: context.vocabulary)).slides.contains { $0.variant?.hasPrefix("template.") == true }
+        if !selectedTemplate, let recipes = context.stylePack.recipes,
            let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
             plan.recipeID = recipe.id
         }
@@ -204,7 +219,7 @@ public enum ComposerEngine {
         var rng = SeededRandom(seed: seed)
         var warnings: [String] = []
         var d = direction
-        d.style = cleaned(d.style.normalized)
+        d.style = cleaned(d.style.normalized, vocabulary: context.vocabulary)
         var seen = Set<AssetID>()
         var ids = d.orderedAssetIDs.filter { context.photos[$0] != nil && seen.insert($0).inserted }
         guard !ids.isEmpty else {
@@ -231,12 +246,36 @@ public enum ComposerEngine {
             if k == 0 && context.exactSet && context.maxSlides.map({ ids.count > $0 }) == true {
                 warnings.append("grouped exact photos to honor the requested slide limit")
             }
-            let plan = build(groups, id: id, direction: d, context: context, rng: &rng)
+            var plan = build(groups, id: id, direction: d, context: context, rng: &rng)
+            if cleanOutput { plan = splitUnhostedGroups(plan, direction: d, context: context, seed: layoutSeed ?? seed, rng: &rng) }
             candidates.append((plan, evaluate(plan, context: context, seed: layoutSeed ?? seed)))
         }
         let ranked = candidates.enumerated().sorted { ($0.element.score, $0.offset) < ($1.element.score, $1.offset) }
         return (ranked.map { $0.element }, d, warnings, rng,
                 Composition(plan: ranked[0].element.plan, score: ranked[0].element.score, warnings: warnings))
+    }
+
+    /// Under the clean policy photos share a slide only on an imported page. A group no page can hold is split
+    /// back into single-photo slides instead of falling back to an inset or collage. Exact sets over their slide
+    /// limit keep their groups: every photo must still be placed.
+    static func splitUnhostedGroups(_ plan: CarouselPlan, direction d: Direction, context: CompositionContext,
+                                    seed: UInt64, rng: inout SeededRandom) -> CarouselPlan {
+        // Rebuilding re-decorates and shifts template windows, so repeat until every remaining group is hosted.
+        // Each pass adds slides, so this ends.
+        var plan = plan
+        while plan.slides.contains(where: { $0.photos.count > 1 }) {
+            let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+                features: context.features, stylePack: context.stylePack, seed: seed, vocabulary: context.vocabulary))
+            var groups: [[AssetID]] = [], split = false
+            for (index, slide) in plan.slides.enumerated() {
+                let ids = slide.photos.map(\.assetID)
+                let hosted = layout.slides.indices.contains(index) && layout.slides[index].variant?.hasPrefix("template.") == true
+                if ids.count > 1 && !hosted { groups += ids.map { [$0] }; split = true } else { groups.append(ids) }
+            }
+            guard split, groups.count <= max(1, min(context.maxSlides ?? 20, 20)) else { return plan }
+            plan = build(groups, id: plan.id, direction: d, context: context, rng: &rng)
+        }
+        return plan
     }
 
     // MARK: - Grouping
@@ -252,8 +291,12 @@ public enum ComposerEngine {
         // Exact sets must retain every photo and honor the requested slide limit. Let
         // those slides grow enough to hold the full set when the normal four-photo
         // cap would make the limit impossible.
+        let desiredGroupSize = style.grouping == "single" ? 1 : style.grouping == "mixed" ? 3 : 4
+        let designedGroupSize = context.vocabulary.filter {
+            $0.aspect == context.aspect && $0.slideCount == 1 && !$0.expandedSlots.contains(where: \.crossesSeam)
+        }.map { $0.expandedSlots.count }.max() ?? 1
         let maxSize = context.exactSet ? max(4, (ids.count + maxSlides - 1) / maxSlides)
-            : style.grouping == "single" ? 1 : style.overlap == "none" ? 2 : style.grouping == "mixed" ? 3 : 4
+            : min(desiredGroupSize, designedGroupSize)
         var keepIndex: [AssetID: Int] = [:]
         for (g, members) in d.keepTogether.enumerated() { for m in members { keepIndex[m] = g } }
         let emphasis = Set(d.emphasisAssetIDs)
@@ -430,7 +473,7 @@ public enum ComposerEngine {
         guard !plan.slides.isEmpty else { return .infinity }
         let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                                                                           features: context.features, stylePack: context.stylePack,
-                                                                          seed: seed))
+                                                                          seed: seed, vocabulary: plan.isBaseline ? [] : context.vocabulary))
         let n = Double(layout.slides.count)
         var perSlide = 0.0, coverageGap = 0.0, framed = 0.0
         for (slide, planned) in zip(layout.slides, plan.slides) {

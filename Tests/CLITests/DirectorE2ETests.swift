@@ -14,6 +14,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     private let lock = NSLock()
     private var script: [String: [Behaviour]]
     private(set) var stages: [String] = []
+    private(set) var maxOutputTokens: [String: Int] = [:]
     /// When set, triage flags the first 3 photos (blink) and the planner puts flagged photos first (as cover).
     let flagCover: Bool
     private var flagged: [String] = []
@@ -26,6 +27,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         let stage = format["name"]!.stringValue!
         let behaviour: Behaviour = lock.withLock {
             stages.append(stage)
+            maxOutputTokens[stage] = request["max_output_tokens"]?.intValue
             guard var queue = script[stage], !queue.isEmpty else { return .valid }
             let b = queue.removeFirst(); script[stage] = queue
             return b
@@ -179,6 +181,14 @@ func directorRun(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: In
     try RerenderCommand.rerender(runDirectory: store.root, source: tmp.url.appending(path: "trip"))
     #expect(try Data(contentsOf: store.url("slides/baseline/slide-01.png")) == before)
     #expect(model.stages.count == 3)
+}
+
+@Test func directorCapsOutputByStageWithoutChangingResponseSchemas() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let model = FakeModel()
+    _ = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
+    #expect(model.maxOutputTokens["triage"] == 5_000)
+    #expect(model.maxOutputTokens["planner"] == 8_000)
 }
 
 @Test func invalidPlanTriggersRepairThenValid() async throws {

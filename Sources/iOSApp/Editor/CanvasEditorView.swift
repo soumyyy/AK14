@@ -1,172 +1,632 @@
 import Core
-import Render
+import Foundation
+import ImageIO
 import SwiftUI
 import UIKit
 
+/// The option is edited on its own full-screen carousel. Paging remains a native UIScrollView;
+/// every edit writes the document and replaces the preview only after a complete render succeeds.
 struct CanvasEditorView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var model: EditorModel
-    @State private var showStickers = false
-    @State private var showText = false
-    @State private var text = ""
-    @State private var exportBusy = false
-    @State private var shareItems: [URL] = []
-    @State private var sharePresented = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var page = 0
+    @State private var newText = ""
+    @State private var textDrafts: [String: String] = [:]
+    @State private var transformPreview: TransformPreview?
+    @State private var cropSession: CropSession?
+    @State private var cropGestureStart: UnitRect?
+    @State private var cropImage: UIImage?
 
-    init(option: StoryOption, records: [PhotoRecord]) throws { _model = State(initialValue: try EditorModel(option: option, records: records)) }
+    init(option: StoryOption, records: [PhotoRecord]) throws {
+        _model = State(initialValue: try EditorModel(option: option, records: records))
+    }
+
+    init(model: EditorModel) { _model = State(initialValue: model) }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                header
-                canvasArea
-                toolbar
-            }
-            .navigationTitle("Edit design").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Done") { model.flushSave(); dismiss() } } }
-            .sheet(isPresented: $showStickers) { StickerBrowser { model.addSticker($0); showStickers = false } }
-            .alert("Add text", isPresented: $showText) {
-                TextField("Text", text: $text)
-                Button("Add") { model.addText(text); text = "" }
-                Button("Cancel", role: .cancel) { }
-            }
-            .alert("", isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })) {
-                Button("OK", role: .cancel) { model.alert = nil }
-            } message: { Text(model.alert ?? "") }
-            .sheet(isPresented: $sharePresented) { ActivityShareSheet(items: shareItems) { _, _ in } }
-        }
-    }
-
-    private var header: some View {
-        HStack {
-            Button("Undo", systemImage: "arrow.uturn.backward") { model.undo() }.disabled(!model.canUndo)
-            Button("Redo", systemImage: "arrow.uturn.forward") { model.redo() }.disabled(!model.canRedo)
-            Spacer()
-            Text("Slide \(model.visibleSlide + 1) of \(model.document.slideCount)").font(.subheadline)
-        }.padding(.horizontal).padding(.vertical, 10)
-    }
-
-    private var canvasArea: some View {
-        GeometryReader { (geo: GeometryProxy) -> AnyView in
-            let slideW: CGFloat = geo.size.height * CGFloat(self.model.document.aspect.exportWidth) / CGFloat(self.model.document.aspect.exportHeight)
-            let content = ScrollView(.horizontal) {
-                HStack(spacing: 0) {
-                    ForEach(0..<self.model.document.slideCount, id: \.self) { (index: Int) in
-                        self.slideCell(index: index, slideWidth: slideW, height: geo.size.height)
+        VStack(spacing: 10) {
+            GeometryReader { geo in
+                let aspect = CGFloat(model.document.aspect.exportWidth) / CGFloat(max(1, model.document.aspect.exportHeight))
+                let pageWidth = geo.size.width
+                let pageHeight = min(geo.size.height, pageWidth / aspect)
+                ZStack(alignment: .bottom) {
+                    SlidePager(urls: model.previewURLs, page: $page)
+                        .frame(width: pageWidth, height: pageHeight)
+                        .simultaneousGesture(SpatialTapGesture().onEnded { value in
+                            guard cropSession == nil else { return }
+                            let x = Double(value.location.x / max(1, pageWidth))
+                            let y = Double(value.location.y / max(1, pageHeight))
+                            model.selectedLayerID = model.selectLayer(at: x, y: y, on: page)
+                        })
+                        .overlay {
+                            editorOverlay(size: CGSize(width: pageWidth, height: pageHeight))
+                        }
+                    if model.document.slideCount > 1 {
+                        HStack(spacing: 5) {
+                            ForEach(0..<model.document.slideCount, id: \.self) { index in
+                                Capsule().fill(index == page ? AK14Palette.field : Color.white.opacity(0.4))
+                                    .frame(width: index == page ? 18 : 6, height: 6)
+                            }
+                        }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Color.black.opacity(0.35), in: Capsule())
+                        .padding(.bottom, 14).allowsHitTesting(false)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Slide \(page + 1) of \(model.document.slideCount)")
                     }
                 }
-            }.scrollIndicators(.hidden)
-            return AnyView(content)
-        }.padding(.vertical, 10)
-    }
+                .frame(width: pageWidth, height: pageHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
-    private func slideCell(index: Int, slideWidth: CGFloat, height: CGFloat) -> some View {
-        let totalWidth = slideWidth * CGFloat(model.document.slideCount)
-        return ZStack(alignment: .topLeading) {
-            Rectangle().fill(Color(hex: backgroundColour(index)))
-            slideLayers(index: index, totalWidth: totalWidth, height: height)
-            Rectangle().stroke(Color.primary.opacity(0.35), lineWidth: 1).allowsHitTesting(false)
-            Text("\(index + 1)").font(.caption).padding(5).background(.regularMaterial, in: Capsule()).padding(7).accessibilityHidden(true)
-        }
-        .frame(width: slideWidth, height: height)
-        .overlay(alignment: .trailing) { Rectangle().fill(.white.opacity(0.9)).frame(width: 2) }
-        .contentShape(Rectangle()).onTapGesture { model.visibleSlide = index }
-    }
-
-    private func slideLayers(index: Int, totalWidth: CGFloat, height: CGFloat) -> some View {
-        ForEach(model.document.layers(onSlide: index), id: \.id) { (layer: DocumentLayer) in
-            layerView(layer, slide: index, width: totalWidth, height: height)
-        }
-    }
-
-    private func layerView(_ layer: DocumentLayer, slide: Int, width: CGFloat, height: CGFloat) -> some View {
-        let slideWidth = width / CGFloat(model.document.slideCount)
-        let fullX = (CGFloat(layer.frame.x) * CGFloat(model.document.slideCount) - CGFloat(slide)) * slideWidth
-        let w = CGFloat(layer.frame.width) * width
-        let h = CGFloat(layer.frame.height) * height
-        return Group {
-            if layer.kind == .photo, let id = layer.assetID, let record = model.photos[id], let path = record.sourceRelativePaths.first,
-               let image = UIImage(contentsOfFile: model.option.sourceFolder.appending(path: path).path) {
-                Image(uiImage: image).resizable().scaledToFill().frame(width: w, height: h).clipped().clipShape(RoundedRectangle(cornerRadius: layer.mask == .rounded ? 12 : 0))
-            } else if layer.kind == .sticker, let id = layer.assetID, let asset = KitAssetRegistry.asset(id: id.rawValue) {
-                Image(uiImage: stickerImage(asset, size: CGSize(width: max(32,w), height: max(32,h)))).resizable().scaledToFit().frame(width: w,height: h)
-            } else if layer.kind == .text {
-                Text(layer.string ?? "Text").font(.system(size: CGFloat(layer.size ?? 32), weight: .medium, design: layer.fontID?.contains("fraunces") == true ? .serif : .default)).foregroundStyle(Color(hex: layer.colour ?? "#222222")).multilineTextAlignment(.center).minimumScaleFactor(0.25)
-            } else { Color.clear }
-        }
-        .frame(width: w, height: h)
-        .overlay { if model.selectedLayerID == layer.id { Rectangle().stroke(Color.accentColor, lineWidth: 2).overlay(alignment: .topLeading) { Circle().fill(.white).frame(width: 12,height: 12).overlay(Circle().stroke(Color.accentColor)).offset(x: -6,y: -6) }.overlay(alignment: .bottomTrailing) { Circle().fill(.white).frame(width: 12,height: 12).overlay(Circle().stroke(Color.accentColor)).offset(x: 6,y: 6) } } }
-        .rotationEffect(.degrees(layer.rotation))
-        .position(x: fullX + w / 2, y: CGFloat(layer.frame.y) * height + h / 2)
-        .accessibilityElement().accessibilityLabel(layer.kind == .photo ? "Photo layer \((layer.slideHint ?? 0) + 1)" : layer.kind == .text ? "Text: \(layer.string ?? "")" : "Sticker layer")
-        .onTapGesture { model.selectedLayerID = layer.id }
-        .gesture(DragGesture(minimumDistance: 4).onChanged { _ in model.selectedLayerID = layer.id }.onEnded { value in
-            guard !layer.locked else { return }
-            let dx = Double(value.translation.width / width), dy = Double(value.translation.height / height)
-            if abs(dx) + abs(dy) > 0.002 { model.move(layer.id, dx: dx, dy: dy); if !reduceMotion { UIImpactFeedbackGenerator(style: .light).impactOccurred() } }
-        })
-        .simultaneousGesture(MagnificationGesture().onEnded { scale in if scale != 1 { model.resize(layer.id, scale: Double(scale)) } })
-        .simultaneousGesture(RotationGesture().onEnded { angle in if angle != .zero { model.rotate(layer.id, angle: angle.radians) } })
-        .onTapGesture(count: 2) { if layer.kind == .photo { model.selectedLayerID = layer.id } }
-    }
-
-    private var toolbar: some View {
-        ScrollView(.horizontal) {
             HStack(spacing: 10) {
-                Button("Text", systemImage: "textformat") { showText = true }
-                Button("Stickers", systemImage: "face.smiling") { showStickers = true }
-                Button("Background", systemImage: "paintpalette") { model.change("background_changed") { $0.background = .colour("#F4F1EA") } }
-                if let layer = model.selectedLayer {
-                    if layer.kind == .photo {
-                        Button("Replace", systemImage: "arrow.triangle.2.circlepath") { replacePhoto(layer) }
-                        Button("Crop", systemImage: "crop") { model.selectedLayerID = layer.id }
-                        Button("Adjust", systemImage: "slider.horizontal.3") { model.change("photo_adjusted", layerID: layer.id) { doc in if let i = doc.layers.firstIndex(where: {$0.id == layer.id}) { var a = doc.layers[i].adjustments ?? PhotoAdjustments(); a.exposure += 0.1; doc.layers[i].adjustments = a } } }
-                        Menu("Mask") { ForEach([Mask.rect,.rounded,.torn],id:\.self) { mask in Button(mask.rawValue.capitalized) { model.change("layer_resized",layerID:layer.id) { doc in if let i=doc.layers.firstIndex(where:{$0.id == layer.id}) { doc.layers[i].mask=mask } } } } }
-                        Button("Border") { model.change("layer_resized",layerID:layer.id) { doc in if let i=doc.layers.firstIndex(where:{$0.id == layer.id}) { doc.layers[i].border = doc.layers[i].border == 0 ? 0.01 : 0 } } }
-                    }
-                    Button("Forward") { model.change("layer_moved",layerID:layer.id) { doc in if let i=doc.layers.firstIndex(where:{$0.id == layer.id}) { doc.layers[i].z += 1 } } }
-                    Button("Lock") { model.change("layer_moved",layerID:layer.id) { doc in if let i=doc.layers.firstIndex(where:{$0.id == layer.id}) { doc.layers[i].locked.toggle() } } }
-                    Button("Delete",systemImage:"trash",role:.destructive) { model.deleteSelected() }
+                if model.isRendering { ProgressView().controlSize(.small).accessibilityLabel("Updating preview") }
+                Spacer()
+                Text("Slide \(page + 1) of \(model.document.slideCount)")
+                    .font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 20)
+
+            elementControls
+                .padding(.horizontal, 18)
+                .padding(.bottom, 4)
+        }
+        .background(Color.black)
+        .onChange(of: page) { _, index in
+            model.visibleSlide = index
+            model.selectedLayerID = nil
+            transformPreview = nil
+            cropSession = nil
+        }
+        .sensoryFeedback(.selection, trigger: page)
+        .alert("Design", isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })) {
+            Button("OK", role: .cancel) { model.alert = nil }
+        } message: { Text(model.alert ?? "") }
+        .task(id: cropSession?.layerID) {
+            guard let session = cropSession,
+                  let layer = model.document.layers.first(where: { $0.id == session.layerID }),
+                  let assetID = layer.assetID,
+                  let record = model.photos[assetID],
+                  let relativePath = record.sourceRelativePaths.first else {
+                cropImage = nil
+                return
+            }
+            let path = model.option.sourceFolder.appending(path: relativePath).path
+            if let cgImage = await Task.detached(priority: .utility, operation: {
+                EditorThumbnailLoader.load(path: path, maxPixel: 900)
+            }).value {
+                cropImage = UIImage(cgImage: cgImage)
+            }
+        }
+        .onDisappear { model.flushSave() }
+    }
+
+
+    private func transformGesture(size: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .simultaneously(with: MagnifyGesture())
+            .simultaneously(with: RotationGesture())
+            .onChanged { value in
+                beginTransformIfNeeded()
+                guard let start = transformPreview else { return }
+                let translation = value.first?.first?.translation ?? .zero
+                let magnification = value.first?.second?.magnification ?? 1
+                let rotation = value.second?.radians ?? 0
+                transformPreview = TransformPreview(
+                    layerID: start.layerID,
+                    baseFrame: start.baseFrame,
+                    frame: transformedFrame(start, translation: translation, magnification: magnification, size: size),
+                    rotation: start.baseRotation + rotation
+                )
+            }
+            .onEnded { _ in commitTransform() }
+    }
+
+    private func cropGesture(frame: CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .simultaneously(with: MagnifyGesture())
+            .onChanged { value in
+                guard let session = cropSession else { return }
+                if cropGestureStart == nil { cropGestureStart = session.crop }
+                guard let start = cropGestureStart else { return }
+                let translation = value.first?.translation ?? .zero
+                let magnification = value.second?.magnification ?? 1
+                cropSession = CropSession(
+                    layerID: session.layerID,
+                    originalCrop: session.originalCrop,
+                    crop: transformedCrop(start, translation: translation, magnification: magnification, frame: frame)
+                )
+            }
+            .onEnded { _ in cropGestureStart = nil }
+    }
+
+    private func beginTransformIfNeeded() {
+        guard transformPreview == nil, let layer = model.selectedLayer else { return }
+        transformPreview = TransformPreview(layerID: layer.id, baseFrame: layer.frame, frame: layer.frame, rotation: layer.rotation)
+    }
+
+    /// Scales about the centre, then moves. The only limit is that the centre stays on its slide (or on the canvas
+    /// when seamless), so full-bleed and bleeding layers keep their size and a gesture with no movement changes nothing.
+    private func transformedFrame(_ start: TransformPreview, translation: CGSize, magnification: CGFloat, size: CGSize) -> UnitRect {
+        let count = Double(max(1, model.document.slideCount))
+        let base = start.baseFrame
+        let scale = min(4, max(0.25, Double(magnification)))
+        let width = base.width * scale, height = base.height * scale
+        var centerX = base.x + base.width / 2 + Double(translation.width / max(1, size.width)) / count
+        var centerY = base.y + base.height / 2 + Double(translation.height / max(1, size.height))
+        let low = model.document.seamless ? 0 : Double(page) / count
+        let high = model.document.seamless ? 1 : Double(page + 1) / count
+        centerX = min(high, max(low, centerX))
+        centerY = min(1, max(0, centerY))
+        return UnitRect(x: centerX - width / 2, y: centerY - height / 2, width: width, height: height)
+    }
+
+    private func transformedCrop(_ start: UnitRect, translation: CGSize, magnification: CGFloat, frame: CGRect) -> UnitRect {
+        let scale = min(20, max(0.05, Double(magnification)))
+        let width = min(1, max(0.05, start.width / scale))
+        let height = min(1, max(0.05, start.height / scale))
+        let x = min(1 - width, max(0, start.x + (start.width - width) / 2
+            + Double(translation.width / max(1, frame.width))))
+        let y = min(1 - height, max(0, start.y + (start.height - height) / 2
+            + Double(translation.height / max(1, frame.height))))
+        return UnitRect(x: x, y: y, width: width, height: height)
+    }
+
+    private func commitTransform() {
+        guard let preview = transformPreview,
+              let current = model.document.layers.first(where: { $0.id == preview.layerID }),
+              !(model.document.seamless && crossesSeam(current.frame)),
+              current.frame != preview.frame || abs(current.rotation - preview.rotation) > 0.0001 else {
+            transformPreview = nil
+            return
+        }
+        let nextFrame = preview.frame
+        let nextRotation = preview.rotation
+        model.change("layer_transformed", layerID: preview.layerID) { document in
+            guard let index = document.layers.firstIndex(where: { $0.id == preview.layerID }),
+                  !document.layers[index].locked else { return }
+            document.layers[index].frame = nextFrame
+            document.layers[index].rotation = nextRotation
+        }
+        transformPreview = nil
+    }
+
+    private func beginCrop(for layer: DocumentLayer) {
+        guard layer.kind == .photo, !model.document.seamless else { return }
+        let crop = layer.crop ?? UnitRect(x: 0, y: 0, width: 1, height: 1)
+        cropSession = CropSession(layerID: layer.id, originalCrop: crop, crop: crop)
+        cropImage = nil
+    }
+
+    private func finishCrop() {
+        guard let session = cropSession else { return }
+        if session.crop != session.originalCrop {
+            let crop = session.crop
+            model.change("photo_cropped", layerID: session.layerID) { document in
+                guard !document.seamless,
+                      let index = document.layers.firstIndex(where: { $0.id == session.layerID }),
+                      document.layers[index].kind == .photo else { return }
+                document.layers[index].crop = crop
+            }
+        }
+        cropSession = nil
+        cropGestureStart = nil
+        cropImage = nil
+    }
+
+    @ViewBuilder
+    private func editorOverlay(size: CGSize) -> some View {
+        if let layer = model.selectedLayer,
+           let baseFrame = unitFrame(layer, page: page) {
+            let documentFrame = transformPreview?.layerID == layer.id ? transformPreview!.frame : layer.frame
+            let localFrame = localFrame(documentFrame, page: page)
+            if let cropSession, cropSession.layerID == layer.id {
+                cropOverlay(layer: layer, crop: cropSession.crop, frame: baseFrame, size: size)
+            } else {
+                transformOverlay(layer: layer, frame: localFrame, size: size)
+                    .gesture(transformGesture(size: size))
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { beginCrop(for: layer) })
+            }
+        }
+    }
+
+    private func transformOverlay(layer: DocumentLayer, frame: CGRect, size: CGSize) -> some View {
+        let previewing = transformPreview?.layerID == layer.id
+        let rotation = transformPreview?.rotation ?? layer.rotation
+        return ZStack {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(previewing ? AK14Palette.accent.opacity(0.13) : .clear)
+            if previewing {
+                Image(systemName: layer.kind == .photo ? "photo" : "textformat")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(AK14Palette.accent.opacity(0.85))
+            }
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .stroke(AK14Palette.accent, style: StrokeStyle(lineWidth: 2, dash: previewing ? [7, 4] : []))
+        }
+        .frame(width: max(22, frame.width * size.width), height: max(22, frame.height * size.height))
+        .rotationEffect(.degrees(rotation))
+        .position(x: frame.midX * size.width, y: frame.midY * size.height)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(layer.kind == .photo ? "Selected photo" : "Selected text")
+        .accessibilityHint("Drag to move. Pinch to resize. Use a two-finger twist to rotate. Double-tap a photo to crop.")
+        .accessibilityAction(named: "Move left") { model.move(layer.id, dx: -0.025, dy: 0) }
+        .accessibilityAction(named: "Move right") { model.move(layer.id, dx: 0.025, dy: 0) }
+        .accessibilityAction(named: "Move up") { model.move(layer.id, dx: 0, dy: -0.025) }
+        .accessibilityAction(named: "Move down") { model.move(layer.id, dx: 0, dy: 0.025) }
+        .accessibilityAction(named: "Resize smaller") { model.resize(layer.id, scale: 0.9) }
+        .accessibilityAction(named: "Resize larger") { model.resize(layer.id, scale: 1.1) }
+        .accessibilityAction(named: "Rotate") { model.rotate(layer.id) }
+    }
+
+    private func cropOverlay(layer: DocumentLayer, crop: UnitRect, frame: CGRect, size: CGSize) -> some View {
+        CropPreview(image: cropImage, crop: crop)
+            .frame(width: max(22, frame.width * size.width), height: max(22, frame.height * size.height))
+            .rotationEffect(.degrees(layer.rotation))
+            .position(x: frame.midX * size.width, y: frame.midY * size.height)
+            .contentShape(Rectangle())
+            .gesture(cropGesture(frame: frame))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Crop photo")
+            .accessibilityHint("Drag to pan the crop and pinch to zoom. Activate Done when finished.")
+    }
+
+    @ViewBuilder
+    private var elementControls: some View {
+        if let layer = model.selectedLayer,
+           layer.slideHint == nil || layer.slideHint == page || model.document.seamless {
+            if cropSession?.layerID == layer.id {
+                cropControls
+            } else {
+                selectedControls(for: layer)
+            }
+        } else {
+            emptyControls
+        }
+    }
+
+    private func selectedControls(for layer: DocumentLayer) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(layer.kind == .photo ? "Photo" : "Text", systemImage: layer.kind == .photo ? "photo" : "textformat")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+            }
+            if layer.kind == .text {
+                HStack {
+                    TextField("Edit text", text: Binding(get: { textDrafts[layer.id] ?? layer.string ?? "" }, set: { textDrafts[layer.id] = $0 }), axis: .vertical)
+                        .lineLimit(1...3).textFieldStyle(.roundedBorder).accessibilityIdentifier("selectedTextField")
+                    Button("Apply") {
+                        model.replaceText(layerID: layer.id, with: textDrafts[layer.id] ?? layer.string ?? "")
+                        textDrafts[layer.id] = nil
+                    }.buttonStyle(.borderedProminent)
                 }
-                Button("Save to Photos",systemImage:"square.and.arrow.down") { Task { await model.saveToPhotos() } }.disabled(exportBusy)
-                Button("Share",systemImage:"square.and.arrow.up") { Task { if let urls = try? await model.export() { shareItems = urls; sharePresented = true } } }
-            }.font(.body).buttonStyle(.bordered).padding(12)
-        }.scrollIndicators(.hidden).background(.regularMaterial)
+            } else if layer.kind == .photo {
+                photoStrip(for: layer)
+            }
+            secondaryControls(selectedLayerID: layer.id)
+        }
+        .padding(12).background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .contain).accessibilityIdentifier("elementControls")
     }
 
-    private func replacePhoto(_ layer: DocumentLayer) {
-        guard let replacement = model.photos.values.first(where: { $0.assetID != layer.assetID }) else { return }
-        model.change("photo_replaced", layerID: layer.id) { doc in if let i=doc.layers.firstIndex(where:{$0.id == layer.id}) { doc.layers[i].assetID = replacement.assetID } }
-    }
-    private func backgroundColour(_ slide: Int) -> String {
-        if slide < model.document.slideBackgrounds.count, model.document.slideBackgrounds[slide] == "paper" { return "#F1EBDD" }
-        if case .colour(let value) = model.document.background { return value }
-        return "#F4F1EA"
-    }
-    private func stickerImage(_ asset: KitAsset, size: CGSize) -> UIImage {
-        UIGraphicsImageRenderer(size: size).image { renderer in
-            asset.draw(in: renderer.cgContext, rect: CGRect(origin: .zero, size: size), seed: 0)
+    private var cropControls: some View {
+        HStack {
+            Label("Crop photo", systemImage: "crop")
+                .font(.subheadline.weight(.semibold))
+            Spacer()
+            Button("Done") { finishCrop() }
+                .buttonStyle(.borderedProminent)
         }
+        .padding(12)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .contain).accessibilityIdentifier("elementControls")
+    }
+
+    private var emptyControls: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                TextField("Add text to this slide", text: $newText)
+                    .textFieldStyle(.roundedBorder).accessibilityIdentifier("newSlideText")
+                Button("Add text", systemImage: "plus") {
+                    let value = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !value.isEmpty else { return }
+                    model.addText(value)
+                    newText = ""
+                }
+                .buttonStyle(.borderedProminent).disabled(newText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityLabel("Add text")
+            }
+            secondaryControls()
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .contain).accessibilityIdentifier("emptyElementControls")
+    }
+
+    private func secondaryControls(selectedLayerID: String? = nil) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                if let selectedLayerID {
+                    Button("Remove", systemImage: "trash", role: .destructive) {
+                        model.deleteLayer(selectedLayerID)
+                    }
+                    .accessibilityLabel("Remove selected element")
+                }
+                Button("Undo", systemImage: "arrow.uturn.backward") { model.undo() }
+                    .disabled(!model.canUndo || model.isExporting).accessibilityLabel("Undo edit")
+                Button("Redo", systemImage: "arrow.uturn.forward") { model.redo() }
+                    .disabled(!model.canRedo || model.isExporting).accessibilityLabel("Redo edit")
+            }
+            .buttonStyle(.bordered).controlSize(.small)
+            if model.canEditSlidesSafely {
+                HStack(spacing: 8) {
+                    Button("Move slide left", systemImage: "chevron.left") {
+                        let destination = max(0, page - 1)
+                        model.moveSlide(from: page, to: destination)
+                        page = destination
+                    }
+                    .disabled(page == 0)
+                    Button("Move slide right", systemImage: "chevron.right") {
+                        let destination = min(model.document.slideCount - 1, page + 1)
+                        model.moveSlide(from: page, to: destination)
+                        page = destination
+                    }
+                    .disabled(page == model.document.slideCount - 1)
+                    Button("Remove slide", systemImage: "xmark", role: .destructive) {
+                        model.removeSlide(at: page)
+                        page = model.visibleSlide
+                    }
+                    .disabled(model.document.slideCount <= 1)
+                }
+                .font(.caption).buttonStyle(.bordered).controlSize(.small)
+            }
+        }
+    }
+
+    private func photoStrip(for layer: DocumentLayer) -> some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(photoRecords, id: \.assetID) { photo in
+                    let selected = photo.assetID == layer.assetID
+                    Button {
+                        model.replacePhoto(layerID: layer.id, with: photo)
+                    } label: {
+                        PhotoThumbnail(
+                            sourceURL: model.option.sourceFolder.appending(path: photo.sourceRelativePaths[0]),
+                            selected: selected
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.document.seamless || model.isExporting)
+                    .accessibilityLabel("Replace photo with \(photo.sourceRelativePaths.first ?? photo.assetID.rawValue)")
+                    .accessibilityValue(selected ? "Current photo" : "")
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollIndicators(.hidden)
+        .frame(height: 60)
+    }
+
+    private var photoRecords: [PhotoRecord] {
+        model.photos.values.sorted { ($0.sourceRelativePaths.first ?? "") < ($1.sourceRelativePaths.first ?? "") }
+    }
+
+    private func crossesSeam(_ frame: UnitRect) -> Bool {
+        guard model.document.slideCount > 1 else { return false }
+        return (1..<model.document.slideCount).contains { seam in
+            let boundary = Double(seam) / Double(model.document.slideCount)
+            return frame.x < boundary - 0.0001 && frame.x + frame.width > boundary + 0.0001
+        }
+    }
+
+    private func unitFrame(_ layer: DocumentLayer, page: Int) -> CGRect? {
+        let frame = localFrame(layer.frame, page: page)
+        guard frame.maxX > 0, frame.minX < 1 else { return nil }
+        return frame
+    }
+
+    private func localFrame(_ frame: UnitRect, page: Int) -> CGRect {
+        let scale = Double(max(1, model.document.slideCount))
+        return CGRect(x: frame.x * scale - Double(page), y: frame.y,
+                      width: frame.width * scale, height: frame.height)
+    }
+
+}
+
+private struct TransformPreview {
+    let layerID: String
+    let baseFrame: UnitRect
+    var frame: UnitRect
+    var rotation: Double
+    var baseRotation: Double
+
+    init(layerID: String, baseFrame: UnitRect, frame: UnitRect, rotation: Double) {
+        self.layerID = layerID
+        self.baseFrame = baseFrame
+        self.frame = frame
+        self.rotation = rotation
+        baseRotation = rotation
     }
 }
 
-private struct StickerBrowser: View {
-    let choose: (String) -> Void
-    @State private var category: KitCategory = .doodle
+private struct CropSession {
+    let layerID: String
+    let originalCrop: UnitRect
+    var crop: UnitRect
+}
+
+private struct CropPreview: View {
+    let image: UIImage?
+    let crop: UnitRect
+
     var body: some View {
-        NavigationStack {
-            VStack {
-                Picker("Category", selection: $category) { ForEach(KitCategory.allCases,id:\.self) { Text($0.rawValue.capitalized).tag($0) } }.pickerStyle(.menu)
-                List(KitAssetRegistry.all.filter { $0.category == category }) { asset in Button(asset.id) { choose(asset.id) }.accessibilityLabel(asset.id) }
-            }.navigationTitle("Stickers").navigationBarTitleDisplayMode(.inline)
+        GeometryReader { geometry in
+            ZStack {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .frame(width: geometry.size.width / CGFloat(max(0.05, crop.width)),
+                               height: geometry.size.height / CGFloat(max(0.05, crop.height)))
+                        .position(x: geometry.size.width * CGFloat(0.5 - crop.x) / CGFloat(max(0.05, crop.width)),
+                                  y: geometry.size.height * CGFloat(0.5 - crop.y) / CGFloat(max(0.05, crop.height)))
+                } else {
+                    Color.white.opacity(0.08)
+                }
+                Color.black.opacity(0.12)
+                CropGrid()
+            }
+            .clipped()
+        }
+        .overlay(RoundedRectangle(cornerRadius: 5).stroke(AK14Palette.accent, lineWidth: 2))
+    }
+}
+
+private struct CropGrid: View {
+    var body: some View {
+        GeometryReader { geometry in
+            Path { path in
+                let width = geometry.size.width
+                let height = geometry.size.height
+                path.move(to: CGPoint(x: width / 3, y: 0))
+                path.addLine(to: CGPoint(x: width / 3, y: height))
+                path.move(to: CGPoint(x: width * 2 / 3, y: 0))
+                path.addLine(to: CGPoint(x: width * 2 / 3, y: height))
+                path.move(to: CGPoint(x: 0, y: height / 3))
+                path.addLine(to: CGPoint(x: width, y: height / 3))
+                path.move(to: CGPoint(x: 0, y: height * 2 / 3))
+                path.addLine(to: CGPoint(x: width, y: height * 2 / 3))
+            }
+            .stroke(.white.opacity(0.7), lineWidth: 1)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct PhotoThumbnail: View {
+    let sourceURL: URL
+    let selected: Bool
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Group {
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else {
+                    Rectangle().fill(Color.white.opacity(0.08)).overlay(ProgressView().controlSize(.small))
+                }
+            }
+            .frame(width: 56, height: 56)
+            .clipped()
+            if selected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.white, AK14Palette.accent)
+                    .padding(3)
+            }
+        }
+        .frame(width: 56, height: 56)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .stroke(selected ? AK14Palette.accent : Color.white.opacity(0.12), lineWidth: selected ? 2 : 1))
+        .task(id: sourceURL.path) {
+            let path = sourceURL.path
+            if let cgImage = await Task.detached(priority: .utility, operation: {
+                EditorThumbnailLoader.load(path: path, maxPixel: 180)
+            }).value {
+                image = UIImage(cgImage: cgImage)
+            }
         }
     }
 }
 
-private extension Color {
-    init(hex: String) {
-        let value = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0
-        self.init(.sRGB, red: Double((value >> 16) & 255)/255, green: Double((value >> 8) & 255)/255, blue: Double(value & 255)/255, opacity: 1)
+private enum EditorThumbnailLoader {
+    nonisolated static func load(path: String, maxPixel: Int) -> CGImage? {
+        let url = URL(fileURLWithPath: path)
+        if let source = CGImageSourceCreateWithURL(url as CFURL, nil) {
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+                kCGImageSourceCreateThumbnailWithTransform: true
+            ]
+            if let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) {
+                return image
+            }
+        }
+        return UIImage(contentsOfFile: path)?.cgImage
+    }
+}
+
+private struct SlidePager: UIViewRepresentable {
+    var urls: [URL]
+    @Binding var page: Int
+    func makeCoordinator() -> Coordinator { Coordinator(page: $page) }
+    func makeUIView(context: Context) -> PagerStrip {
+        let strip = PagerStrip()
+        strip.onPage = { index in if context.coordinator.page.wrappedValue != index { context.coordinator.page.wrappedValue = index } }
+        strip.setURLs(urls)
+        return strip
+    }
+    func updateUIView(_ strip: PagerStrip, context: Context) {
+        context.coordinator.page = $page
+        strip.setURLs(urls)
+        strip.showPage(page)
+    }
+    final class Coordinator { var page: Binding<Int>; init(page: Binding<Int>) { self.page = page } }
+}
+
+private final class PagerStrip: UIScrollView, UIScrollViewDelegate {
+    var onPage: (Int) -> Void = { _ in }
+    private var urls: [URL] = []
+    private var tiles: [UIImageView] = []
+    private var laidOutWidth: CGFloat = 0
+    private var currentPage = 0
+    override init(frame: CGRect) {
+        super.init(frame: frame); isPagingEnabled = true; bounces = true; alwaysBounceHorizontal = true
+        showsHorizontalScrollIndicator = false; showsVerticalScrollIndicator = false
+        contentInsetAdjustmentBehavior = .never; backgroundColor = .black; clipsToBounds = true
+        delegate = self; delaysContentTouches = false
+    }
+    required init?(coder: NSCoder) { nil }
+    func setURLs(_ urls: [URL]) {
+        guard urls != self.urls else { return }
+        self.urls = urls
+        tiles.forEach { $0.removeFromSuperview() }
+        tiles = urls.map { _ in
+            let view = UIImageView(); view.contentMode = .scaleAspectFill; view.clipsToBounds = true
+            view.backgroundColor = .black; view.isAccessibilityElement = true; addSubview(view); return view
+        }
+        currentPage = min(currentPage, max(0, urls.count - 1)); laidOutWidth = 0
+        let paths = urls.map(\.path)
+        Task.detached(priority: .userInitiated) {
+            let images = paths.map { UIImage(contentsOfFile: $0) }
+            await MainActor.run { [weak self] in
+                guard let self, self.urls.map(\.path) == paths else { return }
+                for (tile, image) in zip(self.tiles, images) { tile.image = image }
+            }
+        }
+        setNeedsLayout()
+    }
+    func showPage(_ page: Int) {
+        currentPage = min(max(page, 0), max(0, tiles.count - 1))
+        if bounds.width > 1 { contentOffset = CGPoint(x: CGFloat(currentPage) * bounds.width, y: 0) }
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews(); let width = bounds.width; let height = bounds.height
+        guard width > 1, height > 1, !tiles.isEmpty else { return }
+        let widthChanged = abs(width - laidOutWidth) > 0.5
+        for (index, tile) in tiles.enumerated() {
+            tile.frame = CGRect(x: CGFloat(index) * width, y: 0, width: width, height: height)
+            tile.accessibilityLabel = "Slide \(index + 1) of \(tiles.count)"
+        }
+        contentSize = CGSize(width: width * CGFloat(tiles.count), height: height)
+        if widthChanged { laidOutWidth = width; if !isDragging && !isDecelerating { contentOffset = CGPoint(x: CGFloat(currentPage) * width, y: 0) } }
+    }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let width = scrollView.bounds.width
+        guard width > 1, !tiles.isEmpty else { return }
+        let index = min(max(0, Int((scrollView.contentOffset.x / width).rounded())), tiles.count - 1)
+        guard index != currentPage else { return }
+        currentPage = index; onPage(index)
     }
 }

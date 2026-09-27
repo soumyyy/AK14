@@ -20,6 +20,7 @@ public enum ConceptRendering {
                           seedOverride: UInt64? = nil, storyHint: String? = nil) throws -> Result {
         var result = Result()
         let store = RunStore.open(root)
+        let vocabulary = (try? StylePackLoader.loadDesignedSets())?.vocabulary(for: aspect) ?? []
         for plan in plans {
             let concept = plan.id
             if !plan.isBaseline, let recipeID = plan.recipeID, let direction = plan.direction,
@@ -30,7 +31,8 @@ public enum ConceptRendering {
                    let saved = try? JSONDecoder().decode(CanvasDocument.self, from: data) { document = saved }
                 else {
                     let composition = CompositionContext(aspect: aspect, photos: photos, features: features, triage: [:],
-                        flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil, storyHint: storyHint)
+                        flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil, storyHint: storyHint,
+                        vocabulary: vocabulary)
                     document = RecipeFiller.fill(plan: plan, direction: direction, recipe: recipe, context: composition,
                                                  seed: seedOverride ?? seed(runID: runID, concept: concept))
                     try store.write(document, to: "documents/\(concept).json")
@@ -43,7 +45,8 @@ public enum ConceptRendering {
                 continue
             }
             let context = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
-                                        seed: seedOverride ?? seed(runID: runID, concept: plan.id))
+                                        seed: seedOverride ?? seed(runID: runID, concept: plan.id),
+                                        vocabulary: plan.isBaseline ? [] : vocabulary)
             let carousel = LayoutResolver.resolve(plan, context: context)
             for slide in carousel.slides {
                 try store.write(slide, to: String(format: "layouts/%@/slide-%02d.json", concept, slide.index + 1))

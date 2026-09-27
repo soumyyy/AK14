@@ -1,0 +1,11 @@
+# Implementation plan: template generation and inline options
+
+2026-09-27 revision: steps 1 and 2 below replace the window-paste adapter, the `local-designed` option, and whole-carousel aspect adoption. Those are withdrawn. The imported sets are vocabulary inside the existing layout resolver.
+
+1. **Vocabulary in the resolver.** Pass every imported set of this carousel's aspect. Each set's slots say its job: one photo, a subject with notes, a pair, a gathering, or a photo that continues across a slide. The photos pick that job. The hero goes in the largest slot. A crop that would cut a face refuses that layout. Otherwise the slide stays on the six primitives. The baseline does not receive the vocabulary. Tests cover the filter, hero assignment, crop fallback, baseline, seam slicing, and a single photo ignoring the seed.
+2. **One generation path.** `StoryPipeline`, `ConceptRendering`, edit re-resolution, and judge strips pass that vocabulary into `LayoutContext`. Delete the `local-designed` plan. Planner v9 states the page grammar in words and does not name templates. Note the decision in the template spec, the composer spec, the creative-studio spec, the grammar note, and the implementation sheet.
+3. **Editor source of truth.** Make `EditorModel` load the persisted document or the actual `layouts/<id>/slides.json` fallback. Make editing changes render to preview/export URLs and notify the options model, so Save and Share use current output.
+4. **Options interface.** Replace the large static page preview and edit sheet buttons with an embedded editable canvas. Keep option switching, slide navigation, Undo/Redo, selected-layer tools and Save/Share on one screen. Put slide ordering and photo swap/removal in inline controls. Simplify typography, spacing and materials for iPhone.
+5. **Verification.** Run focused Swift tests, all package tests, simulator build, and a phone build/install if connected. Exercise option selection, layer edit, switch back, save and share. Review screenshots at iPhone size and fix layout or accessibility problems found.
+
+Work split: the resolver vocabulary and the SwiftUI options screen meet at the rendered slides. A chosen set is stored as the slide variant `template.<id>` inside `layouts/<id>/slides.json`.
