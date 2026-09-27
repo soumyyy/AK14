@@ -1,5 +1,8 @@
 import Core
 import Foundation
+import ImageIO
+import CryptoKit
+import Render
 
 public struct CandidateCard: Sendable {
     public let assetID: AssetID
@@ -32,6 +35,8 @@ public struct DirectorInput: Sendable {
     public var composition: CompositionContext
     /// Seeds composition and layout, so a run's carousels are reproducible.
     public var runID: String
+    public var analysisThumbnails: [AssetID: Data] = [:]
+    public var judgeEnabled = false
     public init(storyLabel: String, dateSpan: String, requestedSlides: Int?, shortlist: [CandidateCard],
                 selectPool: @escaping @Sendable ([AssetID: TriageScore]) -> [AssetID], composition: CompositionContext,
                 runID: String, storyHint: String? = nil) {
@@ -64,6 +69,7 @@ public struct DirectorOutput: Sendable {
     public var warnings: [String] = []
     public var exchanges: [Exchange] = []
     public var promptVersions: [String: String] = [:]
+    public var judgeResults: [JudgeResult] = []
 }
 
 public struct ArtDirector: Sendable {
@@ -139,8 +145,85 @@ public struct ArtDirector: Sendable {
             out.diversity = set.distances
             out.warnings += set.warnings
             for p in out.plans where !p.isBaseline { out.deviations[p.id] = PlanMetrics.deviation(plan: p, spine: spine) }
+            if input.judgeEnabled { await judge(directions: directions, input: input, context: context, out: &out) }
         }
         return out
+    }
+
+    private func judge(directions: [Direction], input: DirectorInput, context: CompositionContext, out: inout DirectorOutput) async {
+        guard let prompt = load("judge.system", &out) else { return }
+        let count = min(6, max(2, stylePack.judge?.candidates ?? 6))
+        for (index, direction) in directions.enumerated() {
+            let id = "c\(index + 1)"
+            let seed = ComposerEngine.layoutSeed(runID: input.runID, id: id)
+            guard let composed = out.plans.first(where: { $0.id == id }), let finalDirection = composed.direction,
+                  let compositionSeed = composed.compositionSeed, let seed = UInt64(compositionSeed, radix: 16) else { continue }
+            let candidates = ComposerEngine.candidates(finalDirection, id: id, context: context, seed: seed, layoutSeed: seed, limit: count)
+            guard candidates.count >= 2 else {
+                out.judgeResults.append(JudgeResult(directionID: id, candidateFingerprints: candidates.map { Self.fingerprint($0.plan) }, model: client.model, promptVersion: prompt.version, skipped: "fewer than two safe candidates")); continue
+            }
+            let labels = (0..<candidates.count).map { String(UnicodeScalar(65 + $0)!) }
+            do {
+                let sourceFolder = FileManager.default.temporaryDirectory.appending(path: "ak14-judge-\(UUID().uuidString)", directoryHint: .isDirectory)
+                try FileManager.default.createDirectory(at: sourceFolder, withIntermediateDirectories: true)
+                defer { try? FileManager.default.removeItem(at: sourceFolder) }
+                var thumbnailRecords = context.photos
+                for (asset, original) in context.photos {
+                    guard let data = input.analysisThumbnails[asset], let path = original.sourceRelativePaths.first else { continue }
+                    let target = sourceFolder.appending(path: path)
+                    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try data.write(to: target)
+                    if let image = CGImageSourceCreateWithData(data as CFData, nil).flatMap({ CGImageSourceCreateImageAtIndex($0, 0, nil) }) {
+                        thumbnailRecords[asset] = PhotoRecord(assetID: original.assetID, contentSHA256: original.contentSHA256, sourceRelativePaths: original.sourceRelativePaths, byteCount: data.count, fileType: "public.jpeg", pixelWidth: image.width, pixelHeight: image.height, exifOrientation: 1, metadata: original.metadata)
+                    }
+                }
+                let stripData = try candidates.map { candidate -> Data in
+                    let resolved = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos, features: context.features, stylePack: context.stylePack, seed: ComposerEngine.layoutSeed(runID: input.runID, id: id)))
+                    return try StripRenderer().strip(resolved, photos: thumbnailRecords, sourceFolder: sourceFolder)
+                }
+                let stripURLs = try stripData.enumerated().map { index, bytes -> URL in
+                    let url = FileManager.default.temporaryDirectory.appending(path: "ak14-judge-strip-\(UUID().uuidString).jpg")
+                    try bytes.write(to: url); return url
+                }
+                defer { stripURLs.forEach { try? FileManager.default.removeItem(at: $0) } }
+                var totalCost = 0.0, totalLatency = 0.0
+                var rankings: [[String]] = [], reasons: [String] = []
+                for order in [Array(candidates.indices), Array(candidates.indices.reversed())] {
+                    let orderedLabels = order.map { labels[$0] }
+                    var content: [ContentPart] = [.text("Constitution:\n\(stylePack.constitution ?? "")\nTrend notes: \(stylePack.trendNotes?.joined(separator: " ") ?? "")\nOwner story: \(input.storyHint ?? "")\nDirection brief: \(direction.brief)\nRank these strips, labelled in this order: \(orderedLabels.joined(separator: ", ")).")]
+                    for i in order {
+                        let bytes = try Data(contentsOf: stripURLs[i])
+                        content.append(.text("Candidate \(labels[i])"))
+                        content.append(.image(jpeg: bytes, assetID: candidates[i].plan.coverAssetID ?? direction.coverAssetID, detail: "low"))
+                    }
+                    let result = try await client.call(system: prompt.text, content: content, schemaName: "judge", schema: Schemas.judge(labels: labels), reasoning: "low")
+                    totalCost += Pricing.estimate(result.usage); totalLatency += result.latencySeconds
+                    var record = ProviderCallRecord(stage: "judge", model: client.model, promptVersion: prompt.version)
+                    record.inputTokens = result.usage.input; record.cachedTokens = result.usage.cached; record.outputTokens = result.usage.output
+                    record.reasoningTokens = result.usage.reasoning; record.imageCount = result.imageCount; record.thumbnailBytes = result.imageBytes
+                    record.latencySeconds = result.latencySeconds; record.retryCount = result.retryCount; record.estimatedCost = Pricing.estimate(result.usage)
+                    record.ok = true; record.responseID = result.responseID; out.calls.append(record)
+                    out.exchanges.append(Exchange(name: "\(out.exchanges.count + 1)-judge", request: result.redactedRequest, response: result.rawResponse))
+                    let decoded = try JSONDecoder().decode(JudgeEnvelope.self, from: Data(result.outputText.utf8))
+                    guard decoded.ranking.count == candidates.count, Set(decoded.ranking) == Set(labels),
+                          !decoded.reasons.isEmpty, decoded.reasons.allSatisfy(Schemas.judgeReasons.contains) else { throw JudgeError.invalid }
+                    rankings.append(decoded.ranking); reasons += decoded.reasons
+                }
+                var points = Dictionary(uniqueKeysWithValues: labels.map { ($0, 0) })
+                for ranking in rankings { for (rank, label) in ranking.enumerated() { points[label, default: 0] += candidates.count - rank } }
+                guard let winner = labels.sorted(by: { points[$0, default: 0] == points[$1, default: 0] ? $0 < $1 : points[$0, default: 0] > points[$1, default: 0] }).first,
+                      let winningIndex = labels.firstIndex(of: winner) else { throw JudgeError.invalid }
+                if let planIndex = out.plans.firstIndex(where: { $0.id == id }) { out.plans[planIndex] = candidates[winningIndex].plan }
+                out.judgeResults.append(JudgeResult(directionID: id, candidateFingerprints: candidates.map { Self.fingerprint($0.plan) }, stripSHA256: stripData.map { SHA256.hash(data: $0).map { String(format: "%02x", $0) }.joined() }, winnerIndex: winningIndex, ranking: rankings[0].compactMap { labels.firstIndex(of: $0) }, orderRankings: rankings.map { $0.compactMap { labels.firstIndex(of: $0) } }, reasons: Array(Set(reasons)).sorted(), model: client.model, promptVersion: prompt.version, costUSD: totalCost, latency: totalLatency))
+            } catch {
+                out.judgeResults.append(JudgeResult(directionID: id, candidateFingerprints: candidates.map { Self.fingerprint($0.plan) }, model: client.model, promptVersion: prompt.version, skipped: "\(error)"))
+            }
+        }
+    }
+
+    private static func fingerprint(_ plan: CarouselPlan) -> String {
+        let data = (try? JSONCoding.encoder.encode(plan.slides)) ?? Data()
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Steps
@@ -338,3 +421,6 @@ private struct TriageEnvelope: Decodable {
     }
     let results: [Item]
 }
+
+private struct JudgeEnvelope: Decodable { let ranking: [String]; let reasons: [String] }
+private enum JudgeError: Error { case invalid }

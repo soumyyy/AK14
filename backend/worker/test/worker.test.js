@@ -42,7 +42,7 @@ function request(value = body(), auth = token()) {
     body: JSON.stringify(value) });
 }
 
-test("forwards a bounded hashed-token request and returns provider response", async () => {
+test("forwards bounded triage and judge schemas and returns provider response", async () => {
   let seen;
   const handler = createHandler(async (url, options) => {
     seen = { url, options };
@@ -54,6 +54,8 @@ test("forwards a bounded hashed-token request and returns provider response", as
   assert.equal(seen.options.headers.authorization, "Bearer upstream-test-key");
   assert.equal(JSON.parse(seen.options.body).store, false);
   assert.equal((await response.json()).status, "completed");
+  const judge = body(); judge.text.format.name = "judge";
+  assert.equal((await handler(request(judge), env)).status, 200);
   assert.ok(env.AK14_USAGE.values.has(`${inviteHash}:${new Date().toISOString().slice(0, 10)}:requests`));
 });
 

@@ -19,6 +19,7 @@ struct RunOptions: Equatable, Sendable {
     var event: Int? = nil
     var allEvents: Bool = false
     var story: String? = nil
+    var judge: Bool? = nil
 }
 
 enum Command: Equatable {
@@ -76,7 +77,7 @@ enum Arguments {
       ak14 eval pairs <runDir>… --out <evalDir> [--seed HEX]
       ak14 eval label <evalDir> --rater <name>
       ak14 eval import <evalDir> <labels.json>
-      ak14 eval score <evalDir>
+      ak14 eval score <evalDir> [--chooser composer|judge]
     """
 
     static func parse(_ args: [String], cwd: URL) throws -> Command {
@@ -216,6 +217,8 @@ enum Arguments {
                     guard v.count <= 280 else { throw ArgumentError.invalidStory(v) }
                     o.story = v
                 case "--no-llm": o.noLLM = true
+                case "--judge": o.judge = true
+                case "--no-judge": o.judge = false
                 case "--yes": o.assumeYes = true; o.consent = true
                 case "--study-code":
                     let v = try value()

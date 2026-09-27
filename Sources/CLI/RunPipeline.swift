@@ -138,7 +138,7 @@ struct RunPipeline: Sendable {
             let stylePack = try StylePackLoader.load()
             let output = try await direct(reduction: reduction, photos: photos, features: features,
                                                    index: index, folder: folder, options: options, stylePack: stylePack,
-                                                   aspect: aspect, runID: store.root.lastPathComponent, warnings: &warnings)
+                                                   aspect: aspect, runID: store.root.lastPathComponent, thumbnailURLs: thumbByID, warnings: &warnings)
             lap("director", start)
             calls = output.calls
             directorStatus = output.status
@@ -148,6 +148,10 @@ struct RunPipeline: Sendable {
             versions["resolver"] = ResolvedCarousel.resolverVersion
             versions["composer"] = ComposerEngine.version
             versions["renderer"] = CarouselRenderer.version
+            if options.judge == true || (stylePack.judge?.enabled == true) {
+                versions["judge"] = "\(output.promptVersions["judge.system"] ?? "judge-v1")+\(stylePack.judge?.model ?? client!.model)"
+                try store.write(output.judgeResults, to: "plans/judge.json")
+            }
             for (name, v) in output.promptVersions { versions["prompt:\(name)"] = v }
 
             // Persist raw exchanges (images redacted to thumbnail references) and plans.
@@ -252,7 +256,7 @@ struct RunPipeline: Sendable {
 
     private func direct(reduction: ReductionResult, photos: [PhotoRecord], features: [AssetID: PhotoFeatures],
                         index: FeaturePrintIndex, folder: URL, options: RunOptions, stylePack: StylePack,
-                        aspect: CarouselAspect, runID: String, warnings: inout [String]) async throws -> DirectorOutput {
+                        aspect: CarouselAspect, runID: String, thumbnailURLs: [AssetID: URL], warnings: inout [String]) async throws -> DirectorOutput {
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
         let shortlistPhotos = reduction.shortlist.compactMap { photoByID[$0.assetID] }
         let triageThumbs = try await thumbnails(shortlistPhotos, tier: .triage, folder: folder, warnings: &warnings)
@@ -298,9 +302,12 @@ struct RunPipeline: Sendable {
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
                                              sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
-        return await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: span,
+        var input = DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,
-                                                   composition: composition, runID: runID, storyHint: options.story))
+                                                   composition: composition, runID: runID, storyHint: options.story)
+        input.analysisThumbnails = Dictionary(uniqueKeysWithValues: thumbnailURLs.compactMap { id, url in try? (id, Data(contentsOf: url)) })
+        input.judgeEnabled = options.judge == true || (options.judge != false && stylePack.judge?.enabled == true)
+        return await director.direct(input)
     }
 
     /// Updates rank scores with triage, records the planning pool and funnel counts.
