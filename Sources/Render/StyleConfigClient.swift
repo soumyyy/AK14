@@ -50,6 +50,7 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
     case invalidJudgeConfig
     case invalidRecipes(String)
     case unsupportedRecipeFontID(String)
+    case invalidDesignedSets(String)
 
     public var errorDescription: String? {
         switch self {
@@ -72,6 +73,7 @@ public enum StyleConfigError: Error, LocalizedError, Sendable, Equatable {
         case .invalidJudgeConfig: "Style pack judge configuration is invalid."
         case .invalidRecipes(let detail): "Style pack recipes are invalid: \(detail)."
         case .unsupportedRecipeFontID(let id): "Unsupported recipe font ID: \(id)."
+        case .invalidDesignedSets(let detail): "Designed sets are invalid: \(detail)."
         }
     }
 }
@@ -207,6 +209,17 @@ public enum StyleConfigClient {
                           page.stickerBudget.allSatisfy({ (0...12).contains($0.count) }) else { throw StyleConfigError.invalidRecipes("page spacing or sticker budget") }
                 }
             }
+        }
+        if let file = pack.designedSetsFile {
+            guard file.range(of: "^[a-z0-9][a-z0-9-]{0,63}$", options: .regularExpression) != nil,
+                  let url = Bundle.module.url(forResource: file, withExtension: "json", subdirectory: "StylePacks") else {
+                throw StyleConfigError.invalidDesignedSets("missing or unsafe resource name")
+            }
+            do {
+                let library = try JSONDecoder().decode(DesignedSetLibrary.self, from: Data(contentsOf: url))
+                if let error = library.validationError() { throw StyleConfigError.invalidDesignedSets(error) }
+            } catch let error as StyleConfigError { throw error }
+            catch { throw StyleConfigError.invalidDesignedSets("cannot decode library") }
         }
     }
 

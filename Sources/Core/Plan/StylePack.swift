@@ -20,6 +20,7 @@ public struct StylePack: Codable, Sendable, Equatable {
     public var trendNotes: [String]?
     public var judge: JudgeConfig?
     public var recipes: [Recipe]?
+    public var designedSetsFile: String?
 }
 
 public struct ReferenceImage: Codable, Sendable, Equatable {

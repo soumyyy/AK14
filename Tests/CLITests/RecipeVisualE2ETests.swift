@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Analysis
 import TestSupport
 @testable import Core
 @testable import Render
