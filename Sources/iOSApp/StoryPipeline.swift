@@ -43,7 +43,15 @@ struct StoryPipeline: Sendable {
         guard !ingest.photos.isEmpty else { throw PipelineFailure.noPhotos }
         let events = exactSet ? [] : (eventSegments ?? EventSegmenter.segment(ingest.photos))
         let chosenEvent = eventAssetIDs.flatMap { ids in events.first { Set($0.assetIDs) == ids }?.index }
-        let photos = exactSet ? ingest.photos : (eventAssetIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos)
+        // FolderIngester intentionally returns a stable identity-sorted result. For an explicit
+        // keep-order request, recover the caller's sequence from the ordered import filenames
+        // (the Share Extension writes photo-0000, photo-0001, … in selection order).
+        let orderedExactPhotos = exactSet && keepOrder
+            ? ingest.photos.sorted {
+                ($0.sourceRelativePaths.first ?? "") < ($1.sourceRelativePaths.first ?? "")
+            }
+            : ingest.photos
+        let photos = exactSet ? orderedExactPhotos : (eventAssetIDs.map { ids in ingest.photos.filter { ids.contains($0.assetID) } } ?? ingest.photos)
         guard !photos.isEmpty else { throw PipelineFailure.noPhotos }
         let photoByID = Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) })
         let support = try Self.applicationSupport()
@@ -218,7 +226,10 @@ struct StoryPipeline: Sendable {
                                        seed: ComposerEngine.layoutSeed(runID: runID, id: plan.id))
             let resolved = LayoutResolver.resolve(plan, context: layout)
             let directory = runRoot.appending(path: "slides/\(plan.id)", directoryHint: .isDirectory)
-            let result = try CarouselRenderer().render(resolved, photos: photoByID, sourceFolder: folder, outputDirectory: directory)
+            let recipe = RecipeSelection.recipe(for: plan, in: stylePack)
+            let result = try CarouselRenderer().render(resolved, photos: photoByID, sourceFolder: folder,
+                                                       outputDirectory: directory, recipe: recipe,
+                                                       recipeText: plan.brief)
             guard result.failures.isEmpty, !result.names.isEmpty else { throw PipelineFailure.renderFailed(result.failures.joined(separator: "; ")) }
             byID[plan.id] = result.names.map { directory.appending(path: $0) }
             try store.write(resolved.slides, to: "layouts/\(plan.id)/slides.json")

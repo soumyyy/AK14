@@ -4,6 +4,7 @@ import TestSupport
 @testable import CLI
 @testable import Core
 @testable import Director
+@testable import Render
 
 private func evalScene(_ tmp: TempDirectory, name: String) throws -> URL {
     let folder = try tmp.sub(name)
@@ -19,6 +20,19 @@ private func evalRun(_ tmp: TempDirectory, folder: URL) async throws -> RunStore
     let options = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"),
                              cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
     return try await RunPipeline.live(options: options, client: ResponsesClient(transport: FakeModel(), sleep: { _ in }), log: { _ in }).run(options)
+}
+
+@Test func groupedSplitStripMarksBoundariesForSamePhotos() throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    var firstExif = FixtureFactory.Exif(); firstExif.date = "2026:05:29 08:10:00"
+    var secondExif = FixtureFactory.Exif(); secondExif.date = "2026:05:29 09:10:00"
+    let first = tmp.url.appending(path: "one.jpg"), second = tmp.url.appending(path: "two.jpg")
+    try FixtureFactory.writeScene(to: first, scene: 0, exif: firstExif)
+    try FixtureFactory.writeScene(to: second, scene: 1, exif: secondExif)
+    let renderer = StripRenderer()
+    let merged = try renderer.strip(slides: [first, second])
+    let split = try renderer.strip(groups: [[first], [second]])
+    #expect(split != merged)
 }
 
 @Test func evalPairsLabelsImportAndScoreEndToEnd() async throws {

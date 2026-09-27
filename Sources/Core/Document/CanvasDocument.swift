@@ -79,7 +79,7 @@ public extension CanvasDocument {
         for slide in carousel.slides { for (n, e) in slide.elements.enumerated() {
             let frame = UnitRect(x: (Double(slide.index) + e.frame.x) / Double(max(1, carousel.slides.count)), y: e.frame.y, width: e.frame.width / Double(max(1, carousel.slides.count)), height: e.frame.height)
             let kind: DocumentLayer.Kind = e.kind == .photo ? .photo : e.kind == .stamp ? .text : .sticker
-            layers.append(DocumentLayer(id: "s\(slide.index)-\(n)", kind: kind, frame: frame, rotation: e.rotationDegrees, z: e.zIndex, opacity: e.opacity, slideHint: slide.index, assetID: e.assetID, crop: e.crop, border: e.border, shadow: e.shadow, string: e.text, fontID: kind == .text ? "DSEG7Classic-Bold" : nil, size: kind == .text ? h * e.frame.height * 0.9 : nil, colour: kind == .text ? "#FF851F" : nil))
+            layers.append(DocumentLayer(id: "s\(slide.index)-\(n)", kind: kind, frame: frame, rotation: e.rotationDegrees, z: e.zIndex, opacity: e.opacity, slideHint: slide.index, assetID: e.assetID, crop: e.crop, adjustments: e.adjustments, border: e.border, shadow: e.shadow, string: e.text, fontID: kind == .text ? "DSEG7Classic-Bold" : nil, size: kind == .text ? h * e.frame.height * 0.9 : nil, colour: kind == .text ? "#FF851F" : nil))
         } }
         self.init(id: carousel.id, aspect: carousel.aspect, slideCount: carousel.slides.count, background: .colour("#F4F1EA"), layers: layers, sourcePlanID: carousel.id,
                   slideBackgrounds: carousel.slides.map(\.background), slideGrain: carousel.slides.map(\.grain), slideFilmEdges: carousel.slides.map(\.filmEdge), seed: carousel.seed)

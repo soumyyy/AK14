@@ -44,7 +44,11 @@ final class ShareViewController: UIViewController {
             button.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(button)
             NSLayoutConstraint.activate([button.centerXAnchor.constraint(equalTo: view.centerXAnchor), button.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 20)])
-        } catch { label.text = "Could not prepare photos. Open AK14 and try again." }
+        } catch {
+            // Leave no partial directory that could be mistaken for a completed handoff.
+            try? FileManager.default.removeItem(at: batch)
+            label.text = "Could not prepare photos. Open AK14 and try again."
+        }
     }
 
     private func loadImage(_ provider: NSItemProvider) async throws -> (Data, String)? {

@@ -238,12 +238,24 @@ extension LayoutResolver {
     }
 
     static func clusterCandidates(_ photos: [PhotoElement], maxRot: Double, env: SlideEnv, rng: inout SeededRandom) -> [Candidate] {
+        func fanSet() -> [(String, [(Double, Double)])] {
+            let n = photos.count
+            // The last anchor receives the highest ranked photo (the hero). Give it
+            // the optical center and fan the supporting images around it.
+            var fan = Array(repeating: (0.5, 0.5), count: n)
+            for index in 0..<(n - 1) {
+                let angle = -Double.pi / 2 + 2 * Double.pi * Double(index) / Double(n - 1)
+                fan[index] = (0.5 + 0.38 * cos(angle), 0.5 + 0.38 * sin(angle))
+            }
+            return [("fan", fan)]
+        }
         let sets: [(String, [(Double, Double)])] = switch photos.count {
         case 2: [("diag", [(0.37, 0.33), (0.64, 0.69)]), ("drop", [(0.45, 0.30), (0.57, 0.72)])]
         case 3: [("zigzag", [(0.34, 0.28), (0.66, 0.47), (0.40, 0.75)]), ("crown", [(0.50, 0.32), (0.28, 0.73), (0.72, 0.71)]),
                  ("core", [(0.52, 0.50), (0.28, 0.21), (0.72, 0.80)])]
-        default: [("grid", [(0.31, 0.27), (0.69, 0.31), (0.33, 0.73), (0.69, 0.74)]),
-                  ("core", [(0.50, 0.47), (0.26, 0.19), (0.76, 0.24), (0.50, 0.83)])]
+        case 4: [("grid", [(0.31, 0.27), (0.69, 0.31), (0.33, 0.73), (0.69, 0.74)]),
+                 ("core", [(0.50, 0.47), (0.26, 0.19), (0.76, 0.24), (0.50, 0.83)])]
+        default: fanSet()
         }
         var out: [Candidate] = []
         for (name, anchors) in sets { for mirror in [false, true] {
@@ -259,7 +271,8 @@ extension LayoutResolver {
     static func cluster(_ photos: [PhotoElement], anchors: [(Double, Double)], env: SlideEnv, maxRot: Double,
                         rng: inout SeededRandom) -> ([ResolvedElement], Double) {
         let n = photos.count, u = env.usable
-        let baseWidth = (n == 2 ? 0.60 : n == 3 ? 0.52 : 0.46) * (env.densityScale + 0.08)
+        let baseWidth = (n == 2 ? 0.60 : n == 3 ? 0.52 : n <= 4 ? 0.46 : 0.46 * sqrt(4 / Double(n)))
+            * (env.densityScale + 0.08)
         let order = Array(photos.enumerated().reversed())   // least important at the bottom
 
         func layout(spread: Double, scale: Double, rng: inout SeededRandom) -> [ResolvedElement] {

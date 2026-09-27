@@ -6,7 +6,7 @@ public struct DocumentRenderer: Sendable {
     public init() {}
 
     public func render(_ document: CanvasDocument, photos: [AssetID: PhotoRecord], sourceFolder: URL,
-                       outputDirectory: URL) throws -> CarouselRenderer.Outcome {
+                       outputDirectory: URL, recipe: Recipe? = nil, recipeText: String? = nil) throws -> CarouselRenderer.Outcome {
         let slides = (0..<document.slideCount).map { index in
             let elements = document.layers(onSlide: index).map { layer in
                 ResolvedElement(kind: layer.kind == .photo ? .photo : layer.kind == .text ? .stamp : .tape,
@@ -20,7 +20,8 @@ public struct DocumentRenderer: Sendable {
         }
         let carousel = ResolvedCarousel(id: document.id, aspect: document.aspect, seed: document.seed,
                                         resolverVersion: ResolvedCarousel.resolverVersion, slides: slides)
-        return try CarouselRenderer().legacyRender(carousel, photos: photos, sourceFolder: sourceFolder, outputDirectory: outputDirectory)
+        return try CarouselRenderer().legacyRender(carousel, photos: photos, sourceFolder: sourceFolder,
+                                                  outputDirectory: outputDirectory, recipe: recipe, recipeText: recipeText)
     }
 }
 

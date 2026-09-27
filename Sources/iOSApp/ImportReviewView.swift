@@ -158,7 +158,7 @@ final class ImportReviewModel {
             }
             importedFolder = folder
             importDuration = (ContinuousClock().now - importStart).seconds
-            records = result.photos
+            records = result.photos.sorted { ($0.sourceRelativePaths.first ?? "") < ($1.sourceRelativePaths.first ?? "") }
             events = EventSegmenter.segment(result.photos)
             selectedEventIndex = events.max(by: { $0.photoCount < $1.photoCount })?.index
             await prepareOccasionChoices(useModel: modelAssist)
@@ -465,6 +465,8 @@ struct ImportReviewView: View {
     @State private var model: ImportReviewModel
     @State private var path: [ImportRoute] = []
     @State private var importTask: Task<Void, Never>?
+    @State private var isImportingIncomingBatch = false
+    @State private var didSeedIncomingBatch = false
     @Environment(\.scenePhase) private var scenePhase
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 5)]
@@ -513,6 +515,9 @@ struct ImportReviewView: View {
                     if phase == .active { Task { await importIncomingBatch() } }
                 }
                 .task { await importIncomingBatch() }
+                .onChange(of: path) { _, newPath in
+                    if newPath.isEmpty { Task { await importIncomingBatch() } }
+                }
         }
     }
 
@@ -834,7 +839,9 @@ struct ImportReviewView: View {
     }
 
     @MainActor private func importIncomingBatch() async {
-        guard path.isEmpty else { return }
+        guard path.isEmpty, !isImportingIncomingBatch else { return }
+        isImportingIncomingBatch = true
+        defer { isImportingIncomingBatch = false }
         #if DEBUG
         let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ak14.app")
             ?? ((try? StoryPipeline.applicationSupport())?.appending(path: "SharedAppGroup", directoryHint: .isDirectory))
@@ -844,8 +851,14 @@ struct ImportReviewView: View {
         guard let container else { return }
         let incoming = container.appending(path: "incoming", directoryHint: .isDirectory)
         #if DEBUG
-        let existingBatches = (try? FileManager.default.contentsOfDirectory(at: incoming, includingPropertiesForKeys: nil)) ?? []
-        if ProcessInfo.processInfo.arguments.contains("--seed-incoming-batch"), existingBatches.isEmpty {
+        if ProcessInfo.processInfo.arguments.contains("--seed-incoming-batch"), !didSeedIncomingBatch {
+            didSeedIncomingBatch = true
+            try? FileManager.default.removeItem(at: incoming)
+            // Exercise recovery from an extension interrupted between its first photo and its
+            // atomic order manifest. The importer must continue to the complete batch below.
+            let interrupted = incoming.appending(path: "000-interrupted", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: interrupted, withIntermediateDirectories: true)
+            try? Data([0x00]).write(to: interrupted.appending(path: "photo-0000.jpg"))
             let batch = incoming.appending(path: UUID().uuidString, directoryHint: .isDirectory)
             try? FileManager.default.createDirectory(at: batch, withIntermediateDirectories: true)
             var names: [String] = []
@@ -862,9 +875,25 @@ struct ImportReviewView: View {
             try? JSONEncoder().encode(names).write(to: batch.appending(path: "order.json"))
         }
         #endif
-        guard let batch = (try? FileManager.default.contentsOfDirectory(at: incoming, includingPropertiesForKeys: nil))?.first else { return }
-        let manifest = batch.appending(path: "order.json")
-        guard let data = try? Data(contentsOf: manifest), let names = try? JSONDecoder().decode([String].self, from: data), !names.isEmpty else { return }
+        // Share extensions can be interrupted while copying providers. Ignore batches until their
+        // atomic order manifest exists and every listed file has landed; an incomplete first
+        // directory must not prevent recovery of a later, complete share.
+        let batches = ((try? FileManager.default.contentsOfDirectory(at: incoming, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? [])
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let fm = FileManager.default
+        let readyBatch = batches.first { batch in
+            guard (try? batch.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+                  let data = try? Data(contentsOf: batch.appending(path: "order.json")),
+                  let names = try? JSONDecoder().decode([String].self, from: data), !names.isEmpty else { return false }
+            return names.allSatisfy { name in
+                guard !name.isEmpty, name != "order.json", URL(fileURLWithPath: name).lastPathComponent == name else { return false }
+                var isDirectory: ObjCBool = false
+                return fm.fileExists(atPath: batch.appending(path: name).path, isDirectory: &isDirectory) && !isDirectory.boolValue
+            }
+        }
+        guard let batch = readyBatch,
+              let data = try? Data(contentsOf: batch.appending(path: "order.json")),
+              let names = try? JSONDecoder().decode([String].self, from: data) else { return }
         do {
             let root = try StoryPipeline.applicationSupport().appending(path: "imports", directoryHint: .isDirectory)
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -875,9 +904,15 @@ struct ImportReviewView: View {
                 try FileManager.default.copyItem(at: batch.appending(path: name), to: folder.appending(path: String(format: "photo-%04d.%@", index, ext)))
             }
             let result = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
-            model.importedFolder = folder; model.records = result.photos; model.events = []; model.selectedEventIndex = nil
+            if let old = model.importedFolder, !model.retainedSourceFolders.contains(old) {
+                try? fm.removeItem(at: old)
+            }
+            model.importedFolder = folder
+            model.records = result.photos.sorted { ($0.sourceRelativePaths.first ?? "") < ($1.sourceRelativePaths.first ?? "") }
+            model.events = []; model.selectedEventIndex = nil
             model.exactSet = true; model.keepOrder = true; model.state = .ready; model.storyHint = ""
-            try? FileManager.default.removeItem(at: batch)
+            model.occasionSplitResult = nil; model.options = []; model.selectedOptionID = nil
+            try? fm.removeItem(at: batch)
             path = [.review]
         } catch { model.alert = .init(title: "Could not import shared photos", message: error.localizedDescription) }
     }
