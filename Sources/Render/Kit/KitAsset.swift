@@ -46,22 +46,31 @@ public struct KitAsset: Sendable, Identifiable {
 
     private func tape(_ c: CGContext, _ r: CGRect, id: String, rng: inout KitRandom) {
         c.saveGState()
-        let angle = rng.signed(0.07)
+        let angle = rng.signed(0.035)
         c.translateBy(x: r.midX, y: r.midY); c.rotate(by: angle); c.translateBy(x: -r.midX, y: -r.midY)
         let bandH = r.height * 0.60
-        let band = CGRect(x: r.minX - r.width * 0.06, y: r.midY - bandH / 2, width: r.width * 1.12, height: bandH)
-        let ragged = raggedRect(band, rng: &rng, amp: bandH * 0.16, edges: [.left, .right], segments: 5)
+        let band = CGRect(x: r.minX + r.width * 0.01, y: r.midY - bandH / 2, width: r.width * 0.98, height: bandH)
+        let ragged = raggedRect(band, rng: &rng, amp: bandH * 0.24, edges: [.left, .right], segments: 8)
         let base = tapeColor(for: id)
         let isClear = id.contains("clear")
-        c.setFillColor(base.copy(alpha: isClear ? 0.16 : 0.58) ?? base)
+        c.setFillColor(base.copy(alpha: isClear ? 0.17 : 0.80) ?? base)
         c.addPath(ragged); c.fillPath()
         c.saveGState(); c.addPath(ragged); c.clip()
         // fibre texture
-        c.setStrokeColor(CGColor(gray: 1, alpha: isClear ? 0.35 : 0.16)); c.setLineWidth(0.6)
+        c.setStrokeColor(CGColor(gray: 1, alpha: isClear ? 0.40 : 0.11)); c.setLineWidth(0.6)
         var ty = band.minY + band.height * 0.18
         while ty < band.maxY - band.height * 0.08 {
             c.move(to: CGPoint(x: band.minX, y: ty)); c.addLine(to: CGPoint(x: band.maxX, y: ty))
             ty += band.height * 0.20
+        }
+        // Fine seeded fibres give even the unpatterned tapes a paper-like surface.
+        c.setStrokeColor(CGColor(gray: 0.18, alpha: isClear ? 0.10 : 0.09)); c.setLineWidth(0.45)
+        for _ in 0..<22 {
+            let fx = rng.range(band.minX, band.maxX)
+            let fy = rng.range(band.minY, band.maxY)
+            let length = rng.range(band.width * 0.008, band.width * 0.035)
+            c.move(to: CGPoint(x: fx, y: fy))
+            c.addLine(to: CGPoint(x: min(band.maxX, fx + length), y: fy + rng.signed(1.1)))
         }
         c.strokePath()
         // pattern variants
@@ -99,12 +108,15 @@ public struct KitAsset: Sendable, Identifiable {
         }
         c.restoreGState()
         // gentle top sheen
-        c.setStrokeColor(CGColor(gray: 1, alpha: isClear ? 0.5 : 0.22)); c.setLineWidth(1)
+        c.setStrokeColor(CGColor(gray: 1, alpha: isClear ? 0.78 : 0.34)); c.setLineWidth(isClear ? 1.5 : 1)
         c.move(to: CGPoint(x: band.minX, y: band.minY + band.height * 0.14))
         c.addLine(to: CGPoint(x: band.maxX, y: band.minY + band.height * 0.14)); c.strokePath()
         if isClear {
             // clear tape still needs a readable silhouette
-            c.setStrokeColor(CGColor(gray: 0.55, alpha: 0.35)); c.setLineWidth(1)
+            c.setStrokeColor(CGColor(gray: 0.42, alpha: 0.52)); c.setLineWidth(1.25)
+            c.addPath(ragged); c.strokePath()
+        } else {
+            c.setStrokeColor(CGColor(gray: 0.18, alpha: 0.14)); c.setLineWidth(1)
             c.addPath(ragged); c.strokePath()
         }
         c.restoreGState()
@@ -266,7 +278,7 @@ public struct KitAsset: Sendable, Identifiable {
         func w(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x + rng.signed(wobAmt), y: p.y + rng.signed(wobAmt)) }
 
         if id.contains("heart") {
-            func pt(_ nx: CGFloat, _ ny: CGFloat) -> CGPoint { w(CGPoint(x: b.minX + nx * b.width, y: b.minY + ny * b.height)) }
+            func pt(_ nx: CGFloat, _ ny: CGFloat) -> CGPoint { w(CGPoint(x: b.minX + nx * b.width, y: b.maxY - ny * b.height)) }
             let p = CGMutablePath()
             p.move(to: pt(0.5, 0.906))
             p.addCurve(to: pt(0, 0.4375), control1: pt(0.1875, 0.594), control2: pt(0, 0.4375))
@@ -277,14 +289,14 @@ public struct KitAsset: Sendable, Identifiable {
             p.addCurve(to: pt(0.5, 0.906), control1: pt(1, 0.4375), control2: pt(0.8125, 0.594))
             c.addPath(p); c.strokePath()
         } else if id.contains("star") {
-            let n = 5
             var pts: [CGPoint] = []
-            for i in 0..<n {
-                let a = -CGFloat.pi / 2 + CGFloat(i) * (2 * .pi / CGFloat(n))
-                pts.append(w(CGPoint(x: b.midX + cos(a) * b.width / 2, y: b.midY + sin(a) * b.height / 2)))
+            for i in 0..<10 {
+                let a = -CGFloat.pi / 2 + CGFloat(i) * (.pi / 5)
+                let radius = min(b.width, b.height) * (i.isMultiple(of: 2) ? 0.5 : 0.23)
+                pts.append(w(CGPoint(x: b.midX + cos(a) * radius, y: b.midY + sin(a) * radius)))
             }
             let p = CGMutablePath(); p.move(to: pts[0])
-            for k in 1...5 { p.addLine(to: pts[(k * 2) % 5]) }
+            for k in 1..<pts.count { p.addLine(to: pts[k]) }
             p.closeSubpath(); c.addPath(p); c.strokePath()
         } else if id.contains("sparkle") {
             // classic four-point twinkle/sparkle glyph
@@ -469,7 +481,7 @@ public struct KitAsset: Sendable, Identifiable {
     }
     /// Classic two-lobe heart silhouette, built from a normalised 0...1 (x, y-down) template.
     private func heartPath(in b: CGRect) -> CGPath {
-        func pt(_ nx: CGFloat, _ ny: CGFloat) -> CGPoint { CGPoint(x: b.minX + nx * b.width, y: b.minY + ny * b.height) }
+        func pt(_ nx: CGFloat, _ ny: CGFloat) -> CGPoint { CGPoint(x: b.minX + nx * b.width, y: b.maxY - ny * b.height) }
         let p = CGMutablePath()
         p.move(to: pt(0.5, 0.906))
         p.addCurve(to: pt(0, 0.4375), control1: pt(0.1875, 0.594), control2: pt(0, 0.4375))
