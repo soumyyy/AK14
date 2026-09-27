@@ -123,16 +123,7 @@ public enum LayoutResolver {
             variant = chosen.variant
             elements = chosen.elements
             background = chosen.background
-            // Multi-photo slides need a surface that belongs to their images. Reuse the hero scene as
-            // a subdued wash so inset/pair/cluster layouts do not read as photos pasted onto blank paper.
-            if background == "plain" && [.inset, .asymmetricPair, .overlapCluster].contains(primitive) {
-                background = "wash:\(ranked[0].assetID.rawValue)"
-            }
-            let photoCoverage = metrics(elements, heroID: ranked[0].assetID, env: env).coverage
-            if background == "plain" && [.hero, .framedHero].contains(primitive)
-                && slide.density != "quiet" && photoCoverage < 0.75 {
-                background = "wash:\(ranked[0].assetID.rawValue)"
-            }
+            // No photo-derived washes: a blurred copy of the photo behind itself reads as filler, not design.
             warnings += chosen.notes
             for e in elements where e.crop.map({ $0.width * $0.height < 0.999 }) == true
                 && !CropPlanner.facesFit(context.features[e.assetID!], crop: e.crop!) {

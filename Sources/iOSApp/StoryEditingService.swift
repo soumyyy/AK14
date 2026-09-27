@@ -131,10 +131,8 @@ actor StoryEditingService {
         try store.write(edited, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/plan.json")
         try store.write(stylePackPin, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/style-pack-pin.json")
         try store.write(resolved.slides, to: "edits/.staging/\(stagingRoot.lastPathComponent)/new/layouts/slides.json")
-        let recipe = RecipeSelection.recipe(for: edited, in: stylePack)
         let render = try CarouselRenderer().render(resolved, photos: photos, sourceFolder: sourceFolder,
-                                                  outputDirectory: stagedOption.appending(path: "slides", directoryHint: .isDirectory),
-                                                  recipe: recipe, recipeText: edited.brief)
+                                                  outputDirectory: stagedOption.appending(path: "slides", directoryHint: .isDirectory))
         guard render.failures.isEmpty, !render.names.isEmpty else {
             throw StoryEditingFailure.renderFailed(render.failures)
         }
