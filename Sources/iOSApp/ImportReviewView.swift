@@ -1194,6 +1194,7 @@ private struct OptionsReviewStage: View {
     @State private var slideIndex = 0
     @State private var currentPlan: CarouselPlan?
     @State private var editorPresented = false
+    @State private var canvasEditorPresented = false
     @State private var isLoadingPlan = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -1252,16 +1253,19 @@ private struct OptionsReviewStage: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                if currentPlan != nil {
-                    Button { editorPresented = true } label: {
-                        Image(systemName: "arrow.up.arrow.down")
+                HStack {
+                    if currentPlan != nil {
+                        Button { editorPresented = true } label: { Image(systemName: "arrow.up.arrow.down") }
+                            .accessibilityLabel("Edit slides")
+                            .disabled(model.isEditingOption)
                     }
-                    .accessibilityLabel("Edit slides")
-                    .disabled(model.isEditingOption)
-                } else if isLoadingPlan {
-                    ProgressView()
-                        .accessibilityLabel("Preparing slide editing")
-                        .accessibilityAddTraits(.updatesFrequently)
+                    if option != nil {
+                        Button { canvasEditorPresented = true } label: { Image(systemName: "square.and.pencil") }
+                            .accessibilityLabel("Edit design")
+                    }
+                    if isLoadingPlan && currentPlan == nil {
+                        ProgressView().accessibilityLabel("Preparing slide editing").accessibilityAddTraits(.updatesFrequently)
+                    }
                 }
             }
         }
@@ -1301,6 +1305,13 @@ private struct OptionsReviewStage: View {
                 }
                 .id(option.id)
                 .interactiveDismissDisabled()
+            }
+        }
+        .sheet(isPresented: $canvasEditorPresented) {
+            if let option, let editor = try? CanvasEditorView(option: option, records: model.records) {
+                editor.id(option.id).interactiveDismissDisabled()
+            } else {
+                ContentUnavailableView("Could not open design", systemImage: "square.and.pencil")
             }
         }
     }
