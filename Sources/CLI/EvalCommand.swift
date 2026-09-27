@@ -15,23 +15,31 @@ enum EvalCommand {
         var pairs: [EvalPair] = []
         for run in records {
             let plans = run.report.plans
-            let index = try? JSONCoding.decoder.decode(IngestResult.self, from: Data(contentsOf: run.root.appending(path: "input-index.json")))
-            let photos = Dictionary(uniqueKeysWithValues: (index?.photos ?? []).map { ($0.assetID, $0) })
+            let inputIndexURL = run.root.appending(path: "input-index.json")
+            let indexedPhotos = (try? JSONCoding.decoder.decode(IngestResult.self, from: Data(contentsOf: inputIndexURL)).photos)
+                ?? (try? JSONCoding.decoder.decode([PhotoRecord].self, from: Data(contentsOf: inputIndexURL))) ?? []
+            let photos = Dictionary(uniqueKeysWithValues: indexedPhotos.map { ($0.assetID, $0) })
             func thumb(_ id: AssetID) -> URL? {
                 guard photos[id] != nil else { return nil }
                 let url = run.root.appending(path: "cache/thumbnails/analysis/\(id.rawValue).jpg")
                 return fm.fileExists(atPath: url.path) ? url : nil
             }
-            func add(_ stage: EvalPair.Stage, _ leftID: String, _ leftAssets: [AssetID], _ rightID: String, _ rightAssets: [AssetID]) throws {
+            func add(_ stage: EvalPair.Stage, _ leftID: String, _ leftAssets: [AssetID], _ rightID: String, _ rightAssets: [AssetID],
+                    leftGroups: [[AssetID]]? = nil, rightGroups: [[AssetID]]? = nil) throws {
                 guard !leftAssets.isEmpty, !rightAssets.isEmpty else { return }
                 let refs = [CandidateRef(carouselID: leftID, compositionSeed: "0", runID: run.id), CandidateRef(carouselID: rightID, compositionSeed: "0", runID: run.id)]
                 let sides = [leftAssets, rightAssets]
                 for (i, ref) in refs.enumerated() {
                     let urls = sides[i].compactMap(thumb)
                     guard !urls.isEmpty else { return }
+                    let assetGroups = (i == 0 ? leftGroups : rightGroups) ?? [sides[i]]
+                    let urlGroups = assetGroups.map { $0.compactMap(thumb) }.filter { !$0.isEmpty }
                     let key = "\(run.id)/\(stage.rawValue)/\(ref.carouselID)"
                     let name = "\(run.id)-\(stage.rawValue)-\(ref.carouselID).jpg"
-                    try StripRenderer().strip(slides: urls, height: stage == .cover ? 420 : 128, quality: 0.82).write(to: out.appending(path: "strips/\(name)"), options: .atomic)
+                    let data = (stage == .split && urlGroups.count > 1)
+                        ? try StripRenderer().strip(groups: urlGroups, height: 128, quality: 0.82)
+                        : try StripRenderer().strip(slides: urls, height: stage == .cover ? 420 : 128, quality: 0.82)
+                    try data.write(to: out.appending(path: "strips/\(name)"), options: .atomic)
                     stripMap[key] = "strips/\(name)"
                 }
                 pairs.append(EvalPair(pairID: "\(run.id)-\(stage.rawValue)-\(pairs.filter { $0.runID == run.id && $0.stage == stage }.count + 1)", runID: run.id, stage: stage, left: refs[0], right: refs[1]))
@@ -43,10 +51,14 @@ enum EvalCommand {
             let covers = plans.compactMap { $0.coverAssetID.map { ($0, $0) } }
             if covers.count >= 2 { try add(.cover, "cover-\(covers[0].0.rawValue)", [covers[0].1], "cover-\(covers[1].0.rawValue)", [covers[1].1]) }
             if let manifest = try? JSONCoding.decoder.decode(RunManifest.self, from: Data(contentsOf: run.root.appending(path: "manifest.json"))), manifest.events.count > 1,
-               let all = run.report.spine?.orderedAssetIDs, !all.isEmpty {
-                let groups = manifest.events.map(\.photoCount)
-                let cut = min(all.count - 1, max(1, groups.first ?? 1))
-                try add(.split, "event-groups", Array(all.prefix(cut)) + Array(all.dropFirst(cut)), "single-group", all)
+               let all = run.report.spine?.orderedAssetIDs, !all.isEmpty, !indexedPhotos.isEmpty {
+                let groups = EventSegmenter.segment(indexedPhotos).map { event in
+                    all.filter { event.assetIDs.contains($0) }
+                }.filter { !$0.isEmpty }
+                if groups.count > 1 {
+                    try add(.split, "event-groups", groups.flatMap { $0 }, "single-group", all,
+                            leftGroups: groups, rightGroups: [all])
+                }
             }
             for plan in plans {
                 guard let paths = run.report.renderedSlides[plan.id], !paths.isEmpty else { continue }

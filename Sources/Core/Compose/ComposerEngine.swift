@@ -234,8 +234,12 @@ public enum ComposerEngine {
     static func group(_ ids: [AssetID], direction d: Direction, context: CompositionContext, noise: Double,
                       rng: inout SeededRandom) -> ([[AssetID]], [AssetID]) {
         let style = d.style
-        let maxSize = context.exactSet ? 4 : style.grouping == "single" ? 1 : style.overlap == "none" ? 2 : style.grouping == "mixed" ? 3 : 4
         let maxSlides = max(1, min(context.maxSlides ?? 20, 20))
+        // Exact sets must retain every photo and honor the requested slide limit. Let
+        // those slides grow enough to hold the full set when the normal four-photo
+        // cap would make the limit impossible.
+        let maxSize = context.exactSet ? max(4, (ids.count + maxSlides - 1) / maxSlides)
+            : style.grouping == "single" ? 1 : style.overlap == "none" ? 2 : style.grouping == "mixed" ? 3 : 4
         var keepIndex: [AssetID: Int] = [:]
         for (g, members) in d.keepTogether.enumerated() { for m in members { keepIndex[m] = g } }
         let emphasis = Set(d.emphasisAssetIDs)

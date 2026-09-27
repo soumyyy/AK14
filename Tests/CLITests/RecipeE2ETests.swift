@@ -1,6 +1,8 @@
 import Foundation
 import Testing
+import TestSupport
 @testable import Core
+@testable import Analysis
 @testable import Render
 
 private final class RecipeConfigURLProtocol: URLProtocol, @unchecked Sendable {
@@ -64,6 +66,62 @@ private func recipeSession() -> URLSession {
     let recipe = try #require(try JSONDecoder().decode(StylePack.self, from: pack).recipes?.first)
     let data = try JSONEncoder().encode(recipe)
     #expect(try JSONDecoder().decode(Recipe.self, from: data) == recipe)
+}
+
+@Test func generatedOptionsSelectDistinctCuratedRenderTreatmentsAndBaselineStaysClean() throws {
+    let pack = try StylePackLoader.load()
+    let assets: [AssetID] = [AssetID(rawValue: "photo-a")]
+    let slides = [SlidePlan(primitive: .hero, mood: "", density: "balanced",
+                            photos: [.plain(assets[0])], decorations: [], stamps: [])]
+    let baseline = CarouselPlan(id: "baseline", brief: "", direction: nil, slides: slides)
+    #expect(RecipeSelection.recipe(for: baseline, in: pack) == nil)
+
+    func option(_ id: String, decoration: String, grouping: String, whitespace: String) -> CarouselPlan {
+        let style = StyleVector(density: "balanced", overlap: "none", grouping: grouping,
+                                decoration: decoration, rotation: "none", whitespace: whitespace)
+        let direction = Direction(brief: "", style: style, coverAssetID: assets[0], orderedAssetIDs: assets)
+        return CarouselPlan(id: id, brief: "", direction: direction, slides: slides)
+    }
+    let minimal = try #require(RecipeSelection.recipe(for: option("c1", decoration: "light", grouping: "single", whitespace: "tight"), in: pack))
+    let journal = try #require(RecipeSelection.recipe(for: option("c2", decoration: "light", grouping: "single", whitespace: "airy"), in: pack))
+    let scrapbook = try #require(RecipeSelection.recipe(for: option("c3", decoration: "rich", grouping: "single", whitespace: "tight"), in: pack))
+    #expect(minimal.family == .minimal)
+    #expect(journal.family == .journal)
+    #expect(scrapbook.family == .scrapbook)
+}
+
+@Test func renderingUsesRecipeSlotsAndMaterialsWhileCleanBaselineRemainsDeterministic() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try tmp.sub("recipe-source")
+    try FixtureFactory.writeScene(to: folder.appending(path: "photo.jpg"), scene: 2)
+    let record = try #require(try await FolderIngester().ingest(folder: folder, options: IngestOptions()).photos.first)
+    let photo = ResolvedElement(kind: .photo, assetID: record.assetID, text: nil,
+                                frame: UnitRect(x: 0.08, y: 0.08, width: 0.84, height: 0.82),
+                                rotationDegrees: 0, crop: UnitRect(x: 0, y: 0, width: 1, height: 1),
+                                zIndex: 0, opacity: 1, border: 0, shadow: false)
+    let slide = ResolvedSlide(index: 0, primitive: .hero, requestedPrimitive: .hero, background: "plain",
+                              grain: 0, filmEdge: false, elements: [photo], warnings: [])
+    let carousel = ResolvedCarousel(id: "recipe-test", aspect: .portrait4x5, seed: "41",
+                                    resolverVersion: ResolvedCarousel.resolverVersion, slides: [slide])
+    let photos = [record.assetID: record]
+    let renderer = CarouselRenderer()
+    func render(_ name: String, recipe: Recipe? = nil) throws -> Data {
+        let destination = tmp.url.appending(path: name, directoryHint: .isDirectory)
+        _ = try renderer.render(carousel, photos: photos, sourceFolder: folder, outputDirectory: destination,
+                                recipe: recipe, recipeText: "A day worth remembering")
+        return try Data(contentsOf: destination.appending(path: "slide-01.png"))
+    }
+    let cleanFirst = try render("clean-a")
+    let cleanAgain = try render("clean-b")
+    #expect(cleanFirst == cleanAgain, "recipe-free output remains deterministic")
+    let pack = try StylePackLoader.load()
+    let journal = try #require(pack.recipes?.first { $0.family == .journal })
+    let scrapbook = try #require(pack.recipes?.first { $0.family == .scrapbook })
+    let minimal = try #require(pack.recipes?.first { $0.family == .minimal })
+    let looks = [try render("minimal", recipe: minimal), try render("journal", recipe: journal),
+                 try render("scrapbook", recipe: scrapbook)]
+    #expect(Set(looks.map { $0.base64EncodedString() }).count == 3, "the curated recipe treatments render visibly distinct images")
+    #expect(looks.allSatisfy { $0 != cleanFirst }, "recipes alter only the designed output; the clean baseline stays intact")
 }
 
 @Test(arguments: ["frame", "aspect", "rotations", "six", "font", "text-size", "gutter", "stickers", "cross"])

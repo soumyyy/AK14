@@ -28,6 +28,9 @@ final class ImportReviewModel {
     var endDate = Date.now
     var assets: [PHAsset] = []
     var selectedIDs: Set<String> = []
+    var selectionOrder: [String] = []
+    var exactSet = false
+    var keepOrder = false
     var records: [PhotoRecord] = []
     var events: [EventSegment] = []
     var isPreparingOccasions = false
@@ -56,7 +59,7 @@ final class ImportReviewModel {
     var importCompleted = 0
     var importTotal = 0
     private var importDuration: Double = 0
-    var modelAssist = UserDefaults.standard.object(forKey: "ak14.modelAssist") as? Bool ?? true
+    var modelAssist = UserDefaults.standard.object(forKey: "ak14.modelAssist") == nil ? true : UserDefaults.standard.bool(forKey: "ak14.modelAssist")
     var shareURLs: [URL] = []
     var sharePresented = false
     var showWorkerSettings = false
@@ -100,6 +103,7 @@ final class ImportReviewModel {
         // Keep the user's current choices when the date range or limited library changes.
         // A fresh install starts with nothing selected so importing a large library is deliberate.
         selectedIDs.formIntersection(Set(assets.map(\.localIdentifier)))
+        selectionOrder = selectionOrder.filter(selectedIDs.contains)
         records = []
         events = []
         occasionFeatures = [:]
@@ -113,12 +117,13 @@ final class ImportReviewModel {
     }
 
     func toggle(_ asset: PHAsset) {
-        if selectedIDs.contains(asset.localIdentifier) { selectedIDs.remove(asset.localIdentifier) }
-        else { selectedIDs.insert(asset.localIdentifier) }
+        if selectedIDs.contains(asset.localIdentifier) { selectedIDs.remove(asset.localIdentifier); selectionOrder.removeAll { $0 == asset.localIdentifier } }
+        else { selectedIDs.insert(asset.localIdentifier); selectionOrder.append(asset.localIdentifier) }
     }
 
     func importSelection() async -> Bool {
-        let chosen = assets.filter { selectedIDs.contains($0.localIdentifier) }
+        let orderedAssets = selectionOrder.compactMap { id in assets.first { $0.localIdentifier == id } }
+        let chosen = orderedAssets + assets.filter { selectedIDs.contains($0.localIdentifier) && !selectionOrder.contains($0.localIdentifier) }
         guard !chosen.isEmpty else { return false }
         state = .importing
         failureMessage = nil
@@ -153,7 +158,7 @@ final class ImportReviewModel {
             }
             importedFolder = folder
             importDuration = (ContinuousClock().now - importStart).seconds
-            records = result.photos
+            records = result.photos.sorted { ($0.sourceRelativePaths.first ?? "") < ($1.sourceRelativePaths.first ?? "") }
             events = EventSegmenter.segment(result.photos)
             selectedEventIndex = events.max(by: { $0.photoCount < $1.photoCount })?.index
             await prepareOccasionChoices(useModel: modelAssist)
@@ -254,7 +259,8 @@ final class ImportReviewModel {
                 .run(folder: importedFolder, modelAssist: useModelAssistance, importDuration: importDuration,
                      eventAssetIDs: selectedEventIndex.flatMap { selected in events.first { $0.index == selected }.map { Set($0.assetIDs) } },
                      storyHint: storyHint.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-                     eventSegments: events, occasionResult: occasionSplitResult) { [weak self] message in
+                     eventSegments: events, occasionResult: occasionSplitResult,
+                     exactSet: exactSet, keepOrder: keepOrder) { [weak self] message in
                     Task { @MainActor in self?.progressMessage = message }
                 }
             options = generated
@@ -459,6 +465,9 @@ struct ImportReviewView: View {
     @State private var model: ImportReviewModel
     @State private var path: [ImportRoute] = []
     @State private var importTask: Task<Void, Never>?
+    @State private var isImportingIncomingBatch = false
+    @State private var didSeedIncomingBatch = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private let columns = [GridItem(.adaptive(minimum: 104), spacing: 5)]
 
@@ -502,6 +511,13 @@ struct ImportReviewView: View {
                     guard !model.records.isEmpty else { return }
                     Task { await model.prepareOccasionChoices(useModel: enabled) }
                 }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await importIncomingBatch() } }
+                }
+                .task { await importIncomingBatch() }
+                .onChange(of: path) { _, newPath in
+                    if newPath.isEmpty { Task { await importIncomingBatch() } }
+                }
         }
     }
 
@@ -509,6 +525,7 @@ struct ImportReviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 StageProgress(active: .photos)
+                exactSetPicker
                 Text("Choose photos for your story.")
                     .font(.title3.weight(.semibold))
                 if model.authorization == .authorized || model.authorization == .limited {
@@ -608,9 +625,9 @@ struct ImportReviewView: View {
                 .font(.headline).contentTransition(.numericText())
                 .accessibilityLabel("\(model.selectedIDs.count) photos selected")
             Spacer()
-            Button("Select all") { model.selectedIDs = Set(model.assets.map(\.localIdentifier)) }
+            Button("Select all") { model.selectedIDs = Set(model.assets.map(\.localIdentifier)); model.selectionOrder = model.assets.map(\.localIdentifier) }
                 .disabled(model.assets.isEmpty || model.selectedIDs.count == model.assets.count)
-            Button("Clear") { model.selectedIDs.removeAll() }
+            Button("Clear") { model.selectedIDs.removeAll(); model.selectionOrder.removeAll() }
                 .disabled(model.selectedIDs.isEmpty)
         }
         .buttonStyle(.borderless)
@@ -685,11 +702,13 @@ struct ImportReviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 StageProgress(active: .review)
+                exactSetPicker
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Review your selection")
                         .font(.title2.weight(.semibold))
-                    Text("\(model.records.count) photos ready\(dateSummary.map { " · \($0)" } ?? "")")
+                    Text(model.exactSet ? "All \(model.records.count) photos will be used" : "\(model.records.count) photos ready\(dateSummary.map { " · \($0)" } ?? "")")
                         .font(.subheadline).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("exactSetCount")
                 }
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 10) {
@@ -704,7 +723,7 @@ struct ImportReviewView: View {
                 .scrollIndicators(.hidden)
                 .accessibilityLabel("Selected photos")
 
-                if model.events.count > 1 {
+                if !model.exactSet && model.events.count > 1 {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(model.isPreparingOccasions ? "Finding occasions…" : "Choose an event").font(.headline)
                         if model.isPreparingOccasions {
@@ -800,6 +819,102 @@ struct ImportReviewView: View {
     private var localModeExplanation: some View {
         Text("Create a photos-only story using on-device photo analysis and layout. No thumbnails or descriptions are sent to a model.")
             .font(.footnote).foregroundStyle(.secondary)
+    }
+
+    private var exactSetPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Photo selection mode", selection: $model.exactSet) {
+                Text("Choose the best").tag(false)
+                Text("Use exactly these").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Photo selection mode")
+            if model.exactSet {
+                Toggle("Keep my order", isOn: $model.keepOrder)
+                    .accessibilityHint("Uses photos in the order you selected them")
+            }
+        }
+        .padding(14)
+        .background(.background, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    @MainActor private func importIncomingBatch() async {
+        guard path.isEmpty, !isImportingIncomingBatch else { return }
+        isImportingIncomingBatch = true
+        defer { isImportingIncomingBatch = false }
+        #if DEBUG
+        let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ak14.app")
+            ?? ((try? StoryPipeline.applicationSupport())?.appending(path: "SharedAppGroup", directoryHint: .isDirectory))
+        #else
+        let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.ak14.app")
+        #endif
+        guard let container else { return }
+        let incoming = container.appending(path: "incoming", directoryHint: .isDirectory)
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--seed-incoming-batch"), !didSeedIncomingBatch {
+            didSeedIncomingBatch = true
+            try? FileManager.default.removeItem(at: incoming)
+            // Exercise recovery from an extension interrupted between its first photo and its
+            // atomic order manifest. The importer must continue to the complete batch below.
+            let interrupted = incoming.appending(path: "000-interrupted", directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: interrupted, withIntermediateDirectories: true)
+            try? Data([0x00]).write(to: interrupted.appending(path: "photo-0000.jpg"))
+            let batch = incoming.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try? FileManager.default.createDirectory(at: batch, withIntermediateDirectories: true)
+            var names: [String] = []
+            for index in 0..<3 {
+                let renderer = UIGraphicsImageRenderer(size: CGSize(width: 128, height: 128))
+                let color = [UIColor.systemBlue, .systemOrange, .systemGreen][index]
+                let data = renderer.jpegData(withCompressionQuality: 0.9) { context in
+                    color.setFill(); context.cgContext.fill(CGRect(x: 0, y: 0, width: 128, height: 128))
+                    UIColor.white.setFill(); context.cgContext.fill(CGRect(x: 20 + index * 12, y: 20, width: 45, height: 70))
+                }
+                let name = String(format: "photo-%04d.jpg", index)
+                try? data.write(to: batch.appending(path: name)); names.append(name)
+            }
+            try? JSONEncoder().encode(names).write(to: batch.appending(path: "order.json"))
+        }
+        #endif
+        // Share extensions can be interrupted while copying providers. Ignore batches until their
+        // atomic order manifest exists and every listed file has landed; an incomplete first
+        // directory must not prevent recovery of a later, complete share.
+        let batches = ((try? FileManager.default.contentsOfDirectory(at: incoming, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? [])
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        let fm = FileManager.default
+        let readyBatch = batches.first { batch in
+            guard (try? batch.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+                  let data = try? Data(contentsOf: batch.appending(path: "order.json")),
+                  let names = try? JSONDecoder().decode([String].self, from: data), !names.isEmpty else { return false }
+            return names.allSatisfy { name in
+                guard !name.isEmpty, name != "order.json", URL(fileURLWithPath: name).lastPathComponent == name else { return false }
+                var isDirectory: ObjCBool = false
+                return fm.fileExists(atPath: batch.appending(path: name).path, isDirectory: &isDirectory) && !isDirectory.boolValue
+            }
+        }
+        guard let batch = readyBatch,
+              let data = try? Data(contentsOf: batch.appending(path: "order.json")),
+              let names = try? JSONDecoder().decode([String].self, from: data) else { return }
+        do {
+            let root = try StoryPipeline.applicationSupport().appending(path: "imports", directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let folder = root.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            for (index, name) in names.enumerated() {
+                let ext = URL(fileURLWithPath: name).pathExtension
+                try FileManager.default.copyItem(at: batch.appending(path: name), to: folder.appending(path: String(format: "photo-%04d.%@", index, ext)))
+            }
+            let result = try await FolderIngester().ingest(folder: folder, options: IngestOptions())
+            if let old = model.importedFolder, !model.retainedSourceFolders.contains(old) {
+                try? fm.removeItem(at: old)
+            }
+            model.importedFolder = folder
+            model.records = result.photos.sorted { ($0.sourceRelativePaths.first ?? "") < ($1.sourceRelativePaths.first ?? "") }
+            model.events = []; model.selectedEventIndex = nil
+            model.exactSet = true; model.keepOrder = true; model.state = .ready; model.storyHint = ""
+            model.occasionSplitResult = nil; model.options = []; model.selectedOptionID = nil
+            try? fm.removeItem(at: batch)
+            path = [.review]
+        } catch { model.alert = .init(title: "Could not import shared photos", message: error.localizedDescription) }
     }
 
     private var reviewFooter: some View {

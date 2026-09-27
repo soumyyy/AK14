@@ -10,7 +10,7 @@ public struct DocumentRenderer: Sendable {
     public init() {}
 
     public func render(_ document: CanvasDocument, photos: [AssetID: PhotoRecord], sourceFolder: URL,
-                       outputDirectory: URL) throws -> CarouselRenderer.Outcome {
+                       outputDirectory: URL, recipe: Recipe? = nil, recipeText: String? = nil) throws -> CarouselRenderer.Outcome {
         // Keep the historical renderer for documents produced by the lossless ResolvedCarousel bridge.
         if isLegacyConversion(document) {
             let slides = (0..<document.slideCount).map { index in
@@ -29,7 +29,8 @@ public struct DocumentRenderer: Sendable {
             }
             let carousel = ResolvedCarousel(id: document.id, aspect: document.aspect, seed: document.seed,
                                             resolverVersion: ResolvedCarousel.resolverVersion, slides: slides)
-            return try CarouselRenderer().legacyRender(carousel, photos: photos, sourceFolder: sourceFolder, outputDirectory: outputDirectory)
+            return try CarouselRenderer().legacyRender(carousel, photos: photos, sourceFolder: sourceFolder, outputDirectory: outputDirectory,
+                                                      recipe: recipe, recipeText: recipeText)
         }
 
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)

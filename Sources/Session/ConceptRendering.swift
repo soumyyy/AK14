@@ -49,6 +49,8 @@ public enum ConceptRendering {
                 try store.write(slide, to: String(format: "layouts/%@/slide-%02d.json", concept, slide.index + 1))
                 result.warnings += slide.warnings.map { "\(concept) slide \(slide.index + 1): \($0)" }
             }
+            // Recipes only come through RecipeFiller (face-safe slots, grounded text). The internal brief is
+            // operator-facing and must never be printed on a slide.
             let outcome = try CarouselRenderer().render(carousel, photos: photos, sourceFolder: sourceFolder,
                                                         outputDirectory: store.url("slides/\(concept)"))
             result.slides[concept] = outcome.names.map { "slides/\(concept)/\($0)" }

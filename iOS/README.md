@@ -4,7 +4,7 @@ Open `iOS/AK14iOS.xcodeproj` in Xcode. The project is generated from `iOS/Projec
 
 The app targets iOS 26 or newer. It imports selected Photos originals into app storage, analyzes them locally, and lets you review, reorder, remove, save, or share generated slides. AI-assisted planning starts on and needs a one-time invite token in Story settings; the HTTPS Worker URL is prefilled. The token is stored in the device Keychain, and the app explains that small thumbnails and short descriptions are sent for planning. Full-resolution originals stay on the device. The Worker is deployed, but its model-assisted flow has not yet been verified on an iPhone.
 
-For an iPhone development install, sign in to Xcode with the Apple ID for your development team. Select that team for the `AK14iOS` target or pass `DEVELOPMENT_TEAM` to `xcodebuild`; Xcode must create a development provisioning profile for the bundle ID. The device must have Developer Mode enabled.
+For an iPhone development install, sign in to Xcode with the Apple ID for your development team. Select that team for both `AK14iOS` and `AK14ShareExtension`, and enable the `group.com.ak14.app` App Group for both targets in Signing & Capabilities. Both development provisioning profiles must include that App Group. The device must have Developer Mode enabled.
 
 The simulator smoke test is:
 

@@ -34,13 +34,14 @@ public struct CarouselRenderer: Sendable {
     public init() {}
 
     public func render(_ carousel: ResolvedCarousel, photos: [AssetID: PhotoRecord], sourceFolder: URL,
-                       outputDirectory: URL) throws -> Outcome {
+                       outputDirectory: URL, recipe: Recipe? = nil, recipeText: String? = nil) throws -> Outcome {
         let document = CanvasDocument(from: carousel, photos: photos)
-        return try DocumentRenderer().render(document, photos: photos, sourceFolder: sourceFolder, outputDirectory: outputDirectory)
+        return try DocumentRenderer().render(document, photos: photos, sourceFolder: sourceFolder,
+                                             outputDirectory: outputDirectory, recipe: recipe, recipeText: recipeText)
     }
 
     func legacyRender(_ carousel: ResolvedCarousel, photos: [AssetID: PhotoRecord], sourceFolder: URL,
-                      outputDirectory: URL) throws -> Outcome {
+                      outputDirectory: URL, recipe: Recipe? = nil, recipeText: String? = nil) throws -> Outcome {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         var outcome = Outcome()
         let seed = UInt64(carousel.seed, radix: 16) ?? 0
@@ -48,7 +49,8 @@ public struct CarouselRenderer: Sendable {
             let name = String(format: "slide-%02d.png", slide.index + 1)
             do {
                 let image = try renderSlide(slide, aspect: carousel.aspect, photos: photos, sourceFolder: sourceFolder,
-                                            seed: seed &+ UInt64(slide.index) &* 0x9E37)
+                                            seed: seed &+ UInt64(slide.index) &* 0x9E37, recipe: recipe,
+                                            recipeText: recipeText, slideCount: carousel.slides.count)
                 try Self.writePNG(image, to: outputDirectory.appending(path: name))
                 outcome.names.append(name)
             } catch {
@@ -59,7 +61,8 @@ public struct CarouselRenderer: Sendable {
     }
 
     func renderSlide(_ slide: ResolvedSlide, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
-                     sourceFolder: URL, seed: UInt64) throws -> CGImage {
+                     sourceFolder: URL, seed: UInt64, recipe: Recipe? = nil,
+                     recipeText: String? = nil, slideCount: Int = 1) throws -> CGImage {
         let W = aspect.exportWidth, H = aspect.exportHeight
         let short = Double(min(W, H))
         guard let ctx = CGContext(data: nil, width: W, height: H, bitsPerComponent: 8, bytesPerRow: 0,
@@ -70,9 +73,14 @@ public struct CarouselRenderer: Sendable {
         ctx.interpolationQuality = .high
         let canvas = CGRect(x: 0, y: 0, width: W, height: H)
         var rng = SeededRandom(seed: seed)
+        let recipePage = Self.recipePage(recipe, slideIndex: slide.index, slideCount: slideCount,
+                                         photoCount: slide.elements.filter { $0.kind == .photo }.count)
 
         // Background
         ctx.setFillColor(Self.paperColor); ctx.fill(canvas)
+        if recipePage?.background.kind == .paper || recipe?.family == .journal || recipe?.family == .scrapbook {
+            StyleLayer.paper(ctx, size: canvas.size, rng: &rng)
+        }
         if slide.background == "paper" { StyleLayer.paper(ctx, size: canvas.size, rng: &rng) }
         if slide.background.hasPrefix("wash:"),
            let rawID = slide.background.split(separator: ":").dropFirst().first.map(String.init),
@@ -87,7 +95,15 @@ public struct CarouselRenderer: Sendable {
             }
         }
 
-        for e in slide.elements.sorted(by: { $0.zIndex < $1.zIndex }) {
+        var elements = slide.elements.sorted(by: { $0.zIndex < $1.zIndex })
+        let photoIndices = elements.indices.filter { elements[$0].kind == .photo }
+        if let slots = recipePage?.photoSlots, slots.count == photoIndices.count {
+            for (index, slot) in zip(photoIndices, slots) {
+                elements[index].frame = UnitRect(x: slot.frame.x, y: slot.frame.y,
+                                                 width: slot.frame.width, height: slot.frame.height)
+            }
+        }
+        for (elementIndex, e) in elements.enumerated() {
             let rect = Self.cgRect(e.frame, W: Double(W), H: Double(H))
             switch e.kind {
             case .photo:
@@ -104,16 +120,40 @@ public struct CarouselRenderer: Sendable {
                 ctx.rotate(by: -e.rotationDegrees * .pi / 180)
                 let local = CGRect(x: -rect.width / 2, y: -rect.height / 2, width: rect.width, height: rect.height)
                 let border = e.border * short
-                if e.shadow {
+                let slot: Recipe.PhotoSlot? = photoIndices.firstIndex(of: elementIndex).flatMap { index in
+                    guard let slots = recipePage?.photoSlots, slots.indices.contains(index) else { return nil }
+                    return slots[index]
+                }
+                let isMatte = recipe?.family == .scrapbook || recipe?.family == .journal
+                if e.shadow || isMatte {
                     ctx.setShadow(offset: CGSize(width: 0, height: -0.006 * short), blur: 0.022 * short,
                                   color: CGColor(gray: 0, alpha: 0.28))
                 }
-                if border > 0 {
-                    ctx.setFillColor(CGColor(gray: 1, alpha: 1))
-                    ctx.fill(local.insetBy(dx: -border, dy: -border))
+                if border > 0 || isMatte {
+                    let mat = local.insetBy(dx: -max(border, short * (recipe?.family == .scrapbook ? 0.012 : 0.004)),
+                                            dy: -max(border, short * (recipe?.family == .scrapbook ? 0.012 : 0.004)))
+                    ctx.setFillColor(recipe?.family == .scrapbook
+                                     ? CGColor(srgbRed: 1, green: 0.995, blue: 0.97, alpha: 1)
+                                     : CGColor(srgbRed: 0.98, green: 0.97, blue: 0.93, alpha: 1))
+                    ctx.fill(mat)
                     ctx.setShadow(offset: .zero, blur: 0, color: nil)
                 }
-                ctx.draw(image, in: local)
+                let inset = recipe?.family == .scrapbook ? short * 0.006 : 0
+                let photoRect = local.insetBy(dx: inset, dy: inset)
+                let photoAspect = CGFloat(image.width) / CGFloat(max(1, image.height))
+                let fitted: CGRect
+                if photoAspect > photoRect.width / photoRect.height {
+                    let h = photoRect.width / photoAspect
+                    fitted = CGRect(x: photoRect.minX, y: photoRect.midY - h / 2, width: photoRect.width, height: h)
+                } else {
+                    let w = photoRect.height * photoAspect
+                    fitted = CGRect(x: photoRect.midX - w / 2, y: photoRect.minY, width: w, height: photoRect.height)
+                }
+                if slot?.mask == .rounded {
+                    ctx.addPath(CGPath(roundedRect: photoRect, cornerWidth: short * 0.012,
+                                       cornerHeight: short * 0.012, transform: nil)); ctx.clip()
+                }
+                ctx.draw(image, in: fitted)
                 ctx.restoreGState()
             case .tape:
                 StyleLayer.tape(ctx, rect: rect, rotationDegrees: e.rotationDegrees, opacity: e.opacity, rng: &rng)
@@ -122,10 +162,55 @@ public struct CarouselRenderer: Sendable {
             }
         }
 
+        // Recipe treatments use the same bundled procedural kit as Studio previews. They stay
+        // in clear page margins so faces and the photograph's focal point remain unobstructed.
+        if let page = recipePage, let title = recipeText, page.role == .cover,
+           let textSlot = page.textSlots.first, !title.isEmpty {
+            let textFrame = Self.cgRect(UnitRect(x: 0.08, y: 0.86, width: 0.84, height: 0.055),
+                                        W: Double(W), H: Double(H))
+            let overlapsPhoto = elements.contains { element in
+                guard element.kind == .photo else { return false }
+                return Self.cgRect(element.frame, W: Double(W), H: Double(H)).intersects(textFrame)
+            }
+            if !overlapsPhoto {
+                try RecipeTypography.draw(ctx, text: title, fontID: textSlot.fontID, rect: textFrame,
+                                          size: min(short * 0.047, 58), color: recipe?.family == .scrapbook
+                                          ? CGColor(srgbRed: 0.25, green: 0.22, blue: 0.18, alpha: 1)
+                                          : CGColor(srgbRed: 0.20, green: 0.25, blue: 0.22, alpha: 1))
+            }
+        }
+
+        if recipe?.family == .journal {
+            let ruleY = canvas.height * 0.055
+            ctx.setStrokeColor(CGColor(srgbRed: 0.42, green: 0.48, blue: 0.43, alpha: 0.38))
+            ctx.setLineWidth(max(1, short * 0.0012))
+            ctx.move(to: CGPoint(x: canvas.width * 0.08, y: ruleY))
+            ctx.addLine(to: CGPoint(x: canvas.width * 0.92, y: ruleY)); ctx.strokePath()
+        } else if recipe?.family == .scrapbook {
+            let safeRect = CGRect(x: canvas.width * 0.06, y: canvas.height * 0.025,
+                                  width: canvas.width * 0.19, height: canvas.height * 0.045)
+            let overlapsPhoto = slide.elements.contains { element in
+                guard element.kind == .photo else { return false }
+                return Self.cgRect(element.frame, W: Double(W), H: Double(H)).intersects(safeRect)
+            }
+            let tapeBudget = recipePage?.stickerBudget.first(where: { $0.category == .tape })?.count ?? 0
+            if tapeBudget > 0, !overlapsPhoto, let tape = KitAssetRegistry.asset(id: "tape-clear") {
+                tape.draw(in: ctx, rect: safeRect, seed: seed ^ 0xA14C)
+            }
+        }
+
         if slide.filmEdge { StyleLayer.filmEdge(ctx, size: canvas.size) }
         if slide.grain > 0 { StyleLayer.grain(ctx, size: canvas.size, strength: slide.grain, rng: &rng) }
         guard let out = ctx.makeImage() else { throw RenderError.encodeFailed("image") }
         return out
+    }
+
+    private static func recipePage(_ recipe: Recipe?, slideIndex: Int, slideCount: Int, photoCount: Int) -> Recipe.Page? {
+        guard let recipe else { return nil }
+        let role: Recipe.SlideRole = slideIndex == 0 ? .cover : slideIndex == slideCount - 1 ? .closer : .body
+        return recipe.pages.first(where: { $0.role == role && $0.photoSlots.count == photoCount })
+            ?? recipe.pages.first(where: { $0.photoSlots.count == photoCount })
+            ?? recipe.pages.first(where: { $0.role == role })
     }
 
     /// Canvas-normalized top-left rect → Core Graphics (bottom-left) pixel rect.

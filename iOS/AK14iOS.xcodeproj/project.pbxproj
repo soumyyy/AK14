@@ -14,10 +14,12 @@
 		579BAE047956EED0CEE6CA62 /* ImportReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */; };
 		583302F3134D3729045A2895 /* Render in Frameworks */ = {isa = PBXBuildFile; productRef = E794C60A937CB1CCD704CC92 /* Render */; };
 		61D925B2DF1ADDAA87DC6AC6 /* Analysis in Frameworks */ = {isa = PBXBuildFile; productRef = 1791887F85D969DC8B69E1B1 /* Analysis */; };
+		74BB695B214A23218FC5C019 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C201505BBB60E67089736C /* ShareViewController.swift */; };
 		8AC7768D40E1085EC316D63D /* StoryPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */; };
 		93592874EFD9F99ACB5AB0D9 /* StoryEditingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */; };
 		B8CE1FAB8FEEDD376CA77153 /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = 23FD3CC0E971D9E87CE105C5 /* Core */; };
 		CA7A818FF5528B245AD1A26E /* ImportGenerateReviewUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */; };
+		DFAC4C01BE2777C74A8253E5 /* AK14ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,18 +30,41 @@
 			remoteGlobalIDString = 29308B24E954B86D3C8BBA94;
 			remoteInfo = AK14iOS;
 		};
+		53FB6A79D9F8A9708C1EF262 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 56427888FC23B535C294E0E4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1ADD84F8D74C1311870896E6;
+			remoteInfo = AK14ShareExtension;
+		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		E7D870D62A63D8ECD8D9D2D4 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				DFAC4C01BE2777C74A8253E5 /* AK14ShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		E8C35761776638637869EAB0 /* InteractionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionRecorder.swift; sourceTree = "<group>"; };
 		0BD0F04FE50503C9E97AC215 /* AK14 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AK14; path = ..; sourceTree = SOURCE_ROOT; };
 		24B34E152DDAFF3B6E1CD2EC /* ImportGenerateReviewUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportGenerateReviewUITests.swift; sourceTree = "<group>"; };
 		82AB0C092D2732E47B51FDAE /* StoryEditingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryEditingService.swift; sourceTree = "<group>"; };
+		83C201505BBB60E67089736C /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		8C0D8F4C64D0898113537C17 /* AK14iOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AK14iOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		B44B3ED10EC74F653144D436 /* AK14.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AK14.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = AK14ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B44B3ED10EC74F653144D436 /* AK14iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AK14iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B5608193B2E84AEFCAF76B48 /* StoryPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryPipeline.swift; sourceTree = "<group>"; };
 		C8B09DBA55BEA458913BD9B8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D48DBA3A0E153D73F92B3590 /* ImportReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportReviewView.swift; sourceTree = "<group>"; };
+		E8C35761776638637869EAB0 /* InteractionRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionRecorder.swift; sourceTree = "<group>"; };
 		F4E8F4E42040AAE7DD421C8F /* AK14App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AK14App.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -86,6 +111,7 @@
 				02FE35261B6018D395955AE5 /* iOSApp */,
 				C10D2E0F622762DDB6F44E8B /* iOSAppUITests */,
 				071EEDA1A4FF2C299771D90E /* Packages */,
+				D3CED2B535002CDE298B5EBB /* ShareExtension */,
 				9D7EBF061E82F18B1C3261DD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -93,8 +119,9 @@
 		9D7EBF061E82F18B1C3261DD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B44B3ED10EC74F653144D436 /* AK14.app */,
+				B44B3ED10EC74F653144D436 /* AK14iOS.app */,
 				8C0D8F4C64D0898113537C17 /* AK14iOSUITests.xctest */,
+				A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,9 +135,35 @@
 			path = ../Tests/iOSAppUITests;
 			sourceTree = "<group>";
 		};
+		D3CED2B535002CDE298B5EBB /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				83C201505BBB60E67089736C /* ShareViewController.swift */,
+			);
+			name = ShareExtension;
+			path = ../Sources/ShareExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1ADD84F8D74C1311870896E6 /* AK14ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C1479CA3077E850E2A36FF6F /* Build configuration list for PBXNativeTarget "AK14ShareExtension" */;
+			buildPhases = (
+				A9278CACBFFB185193F20129 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AK14ShareExtension;
+			packageProductDependencies = (
+			);
+			productName = AK14ShareExtension;
+			productReference = A7F3D5FCB15009CD121746FC /* AK14ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		288DFDE4C1A01179FA2949E4 /* AK14iOSUITests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6BA6416464B3FEE25DE11708 /* Build configuration list for PBXNativeTarget "AK14iOSUITests" */;
@@ -136,10 +189,12 @@
 				F4A08E055E385A1D6CBDC25C /* Sources */,
 				2A6CE2997451070B9E2B9AD2 /* Resources */,
 				C5AC5A72CF2B4C06A1159C03 /* Frameworks */,
+				E7D870D62A63D8ECD8D9D2D4 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				07C110EC8CF45154B6F40C88 /* PBXTargetDependency */,
 			);
 			name = AK14iOS;
 			packageProductDependencies = (
@@ -149,7 +204,7 @@
 				E794C60A937CB1CCD704CC92 /* Render */,
 			);
 			productName = AK14iOS;
-			productReference = B44B3ED10EC74F653144D436 /* AK14.app */;
+			productReference = B44B3ED10EC74F653144D436 /* AK14iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -161,8 +216,15 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					1ADD84F8D74C1311870896E6 = {
+						DevelopmentTeam = 4W769MPDJ6;
+					};
 					288DFDE4C1A01179FA2949E4 = {
+						DevelopmentTeam = 4W769MPDJ6;
 						TestTargetID = 29308B24E954B86D3C8BBA94;
+					};
+					29308B24E954B86D3C8BBA94 = {
+						DevelopmentTeam = 4W769MPDJ6;
 					};
 				};
 			};
@@ -183,6 +245,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				1ADD84F8D74C1311870896E6 /* AK14ShareExtension */,
 				29308B24E954B86D3C8BBA94 /* AK14iOS */,
 				288DFDE4C1A01179FA2949E4 /* AK14iOSUITests */,
 			);
@@ -209,14 +272,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A9278CACBFFB185193F20129 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				74BB695B214A23218FC5C019 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F4A08E055E385A1D6CBDC25C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				09BB41C9C5227D168712FDEE /* AK14App.swift in Sources */,
 				579BAE047956EED0CEE6CA62 /* ImportReviewView.swift in Sources */,
-				93592874EFD9F99ACB5AB0D9 /* StoryEditingService.swift in Sources */,
 				02BD467FD87C0A2CC66FCE2B /* InteractionRecorder.swift in Sources */,
+				93592874EFD9F99ACB5AB0D9 /* StoryEditingService.swift in Sources */,
 				8AC7768D40E1085EC316D63D /* StoryPipeline.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -224,6 +295,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		07C110EC8CF45154B6F40C88 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1ADD84F8D74C1311870896E6 /* AK14ShareExtension */;
+			targetProxy = 53FB6A79D9F8A9708C1EF262 /* PBXContainerItemProxy */;
+		};
 		A877384ABF82AB080489568E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 29308B24E954B86D3C8BBA94 /* AK14iOS */;
@@ -236,6 +312,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AK14iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 4W769MPDJ6;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -258,6 +335,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 4W769MPDJ6;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -276,6 +354,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 4W769MPDJ6;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -287,6 +366,26 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = AK14iOS;
+			};
+			name = Debug;
+		};
+		7924EFFA6FAEA370C7793E00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AK14ShareExtension.entitlements;
+				DEVELOPMENT_TEAM = 4W769MPDJ6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "ShareExtension-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ak14.app.share;
+				PRODUCT_NAME = "AK14 Share";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -409,10 +508,31 @@
 			};
 			name = Debug;
 		};
+		D3D4D6F32899D5E2A423B4A7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AK14ShareExtension.entitlements;
+				DEVELOPMENT_TEAM = 4W769MPDJ6;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "ShareExtension-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ak14.app.share;
+				PRODUCT_NAME = "AK14 Share";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E014FF0580EE1C279F69573B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AK14iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 4W769MPDJ6;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -457,6 +577,15 @@
 			buildConfigurations = (
 				E014FF0580EE1C279F69573B /* Debug */,
 				2C16AC296AB0B40E2760E521 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C1479CA3077E850E2A36FF6F /* Build configuration list for PBXNativeTarget "AK14ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7924EFFA6FAEA370C7793E00 /* Debug */,
+				D3D4D6F32899D5E2A423B4A7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

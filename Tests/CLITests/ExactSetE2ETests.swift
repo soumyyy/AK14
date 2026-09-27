@@ -45,6 +45,14 @@ private func exactRun(_ tmp: TempDirectory, model: FakeModel, slides: Int? = nil
     #expect(report.warnings.contains { $0.contains("grouped exact photos") })
 }
 
+@Test func exactSetRaisesGroupCapacityWhenNeededToHonorTightSlideLimit() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let store = try await exactRun(tmp, model: FakeModel(), slides: 2)
+    let report = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect(report.plans.allSatisfy { $0.slides.count <= 2 && $0.photoAssetIDs.count == 9 }, "\(report.warnings)")
+    #expect(report.plans.contains { $0.slides.contains { $0.photos.count > 4 } })
+}
+
 @Test func exactKeepOrderUsesSourceFileNameOrderForEveryOption() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let store = try await exactRun(tmp, model: FakeModel(), keepOrder: true)
