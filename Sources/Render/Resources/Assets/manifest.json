@@ -163,6 +163,378 @@
       "modificationAllowed": true,
       "redistributionAllowed": true,
       "acquiredAt": "2026-09-27"
+    },
+    {
+      "assetID": "tape-washi-cream",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-washi-sage",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-washi-rose",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-masking",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-grid",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-dot",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-kraft",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-lined",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-ledger",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-newsprint",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-cotton",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "torn-edge-soft",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "torn-edge-rough",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "torn-edge-paper",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "torn-edge-double",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "film-frame-35mm",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "film-frame-contact",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "film-frame-negative",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "instant-frame-classic",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "instant-frame-wide",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "instant-frame-mini",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "doodle-star",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "doodle-heart",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "doodle-arrow",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "doodle-underline",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "doodle-circle-scribble",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "doodle-sparkle",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "label-blank",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "label-rounded",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "label-ticket",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "label-date",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "label-caption",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "light-leak-amber",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "light-leak-coral",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "light-leak-violet",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "light-leak-edge",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "grain-medium",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "grain-heavy",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "grain-35mm",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "grain-soft",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "dust-sparse",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "dust-film",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "dust-scratches",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "dust-flecks",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "shape-star",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "shape-heart",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "shape-circle",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "shape-pill",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "shape-sun",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-washi-blue",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-washi-lilac",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "tape-crosshatch",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-blue",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "paper-blush",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "torn-edge-deckle",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "film-frame-portrait",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "instant-frame-square",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "label-postmark",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "light-leak-gold",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "grain-chunky",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "dust-hairline",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
+    },
+    {
+      "assetID": "shape-diamond",
+      "assetType": "procedural",
+      "license": "first-party",
+      "author": "AK14"
     }
   ]
 }
