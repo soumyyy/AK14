@@ -59,3 +59,21 @@ Native iOS 26, dark and photo-first:
   - identifiers: "photosPermissionCTA", "photo-N", "storyHintField", "exactSetCount", "newSlideText" (for the text-entry field), "selectedTextField", "adjustPhotoButton", "elementControls", "emptyElementControls", "interactionLogPath"
   - labels: "Create options", "Undo edit", "Redo edit", "Add text", "Save to Photos", "Share slides", "Choose an option"
 - All UI tests pass: Editor ×2, ImportGenerateReview ×2, ScreenTour.
+
+## Speed and reliability (owner, 2026-09-27: "it takes time to shift between images, the editing is flaky")
+Measured causes in the current code:
+1. `EditorModel.init` calls `requestPreview()`, which re-renders every slide at export resolution from the full-size originals, one after another. The run's rendered slides (`option.slides`) already show exactly the same document.
+2. `OptionsReviewStage` rebuilds `EditorModel` on every option switch (`editorModel = nil`, then a new one), so going back to an option renders everything again.
+3. Every edit re-renders all slides, not just the slides whose layers changed.
+4. `PagerStrip.setURLs` tears down and rebuilds every tile whenever any URL changes, which causes a flash and a loss of scroll state.
+
+Requirements:
+- **Open instantly.** When no saved `documents/<id>.json` exists, the preview is `option.slides`, and nothing is rendered on open. When a saved document exists, show `option.slides` immediately and re-render in the background only the slides that differ.
+- **Switch instantly.** Keep one `EditorModel` per option for the session, in a dictionary keyed by option ID. Switching back reuses it; nothing is re-rendered.
+- **Edit fast.** An edit re-renders only the slides touched by the change:
+  - the slides the edited layer was on, before and after the change
+  - all slides for seamless documents, or when slides are added, removed or reordered
+  Other slides keep their current URLs. The edited slide renders first.
+- **Paging:** `PagerStrip` updates only the tiles whose URL changed, keeps the current page, and loads images off the main thread (already the case). There is no flash.
+- **Gestures:** a drag that starts on empty canvas pages the carousel; a drag that starts on the selected layer moves it. Tap-to-select must work on the first tap. A pinch on an unselected area does nothing.
+- **Target:** switching options feels instant (under 100 ms to show slides), and a single edit's preview updates in under 1 s on an iPhone 17.
