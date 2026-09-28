@@ -278,6 +278,10 @@ final class ImportReviewModel {
             progressMessage = "Options are ready."
             isGenerating = false
             return true
+        } catch is CancellationError {
+            isGenerating = false
+            progressMessage = "Preparing…"
+            return false
         } catch {
             failureMessage = "Option generation failed. Retry to start a clean run. (\(error.localizedDescription))"
             state = .failed("Could not build options: \(error.localizedDescription)")
@@ -355,7 +359,8 @@ final class ImportReviewModel {
             let slides = try await editor.apply(edit, to: option.id)
             options[index] = StoryOption(id: option.id, title: option.title, slides: slides,
                                          stylePackPin: option.stylePackPin, generationMode: option.generationMode,
-                                         runDirectory: option.runDirectory, sourceFolder: option.sourceFolder)
+                                         runDirectory: option.runDirectory, sourceFolder: option.sourceFolder,
+                                         modelAssistRequested: option.modelAssistRequested)
             return slides
         } catch {
             state = .failed("Could not update this option: \(error.localizedDescription)")
@@ -464,6 +469,7 @@ struct ImportReviewView: View {
     @State private var model: ImportReviewModel
     @State private var path: [ImportRoute] = []
     @State private var importTask: Task<Void, Never>?
+    @State private var generateTask: Task<Void, Never>?
     @State private var isImportingIncomingBatch = false
     @State private var didSeedIncomingBatch = false
     @State private var showAllPhotos = false
@@ -487,6 +493,22 @@ struct ImportReviewView: View {
                     }
                 }
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Button("Select all") {
+                                model.selectedIDs = Set(model.assets.map(\.localIdentifier))
+                                model.selectionOrder = model.assets.map(\.localIdentifier)
+                            }
+                            Button("Select none") {
+                                model.selectedIDs = []
+                                model.selectionOrder = []
+                            }
+                        } label: {
+                            Image(systemName: "checklist")
+                        }
+                        .accessibilityLabel("Selection options")
+                        .disabled(model.exactSet || model.assets.isEmpty)
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { model.showWorkerSettings = true } label: {
                             Image(systemName: "gearshape")
@@ -583,25 +605,18 @@ struct ImportReviewView: View {
     }
 
     private var modeChoices: some View {
-        HStack(spacing: 10) {
-            modeChoice("Choose the best", selected: !model.exactSet) { model.exactSet = false }
-            modeChoice("Use exactly these", selected: model.exactSet) { model.exactSet = true }
+        Picker("Photo selection mode", selection: Binding(
+            get: { model.exactSet },
+            set: { newValue in
+                model.exactSet = newValue
+                if !newValue, model.assets.isEmpty { Task { await model.loadAssets() } }
+            }
+        )) {
+            Text("Best of a period").tag(false)
+            Text("Pick exact photos").tag(true)
         }
-        .accessibilityElement(children: .contain)
+        .pickerStyle(.segmented)
         .accessibilityLabel("Photo selection mode")
-    }
-
-    private func modeChoice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .foregroundStyle(selected ? Color.black : Color.white)
-                .background(selected ? AK14Palette.field : Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var exactPickerSection: some View {
@@ -686,33 +701,32 @@ struct ImportReviewView: View {
     private var dateControls: some View {
         VStack(alignment: .leading, spacing: 12) {
             datePickers
-            Button {
-                Task { await model.loadAssets() }
-            } label: {
-                if model.state == .loading { ProgressView().controlSize(.small).frame(maxWidth: .infinity) }
-                else { Label("Find photos", systemImage: "magnifyingglass").frame(maxWidth: .infinity) }
+            if model.state == .loading {
+                ProgressView().controlSize(.small).frame(maxWidth: .infinity)
+            } else if model.assets.isEmpty {
+                // The range loaded (or failed) with nothing to show; offer a manual retry
+                // instead of a "Find photos" button that would otherwise sit on every load.
+                Button {
+                    Task { await model.loadAssets() }
+                } label: {
+                    Label("Retry", systemImage: "arrow.clockwise").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .disabled(model.state == .importing)
             }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
-            .disabled(model.state == .loading || model.state == .importing)
         }
         .padding(14)
         .ak14Card()
+        .onChange(of: model.startDate) { _, _ in Task { await model.loadAssets() } }
+        .onChange(of: model.endDate) { _, _ in Task { await model.loadAssets() } }
     }
 
     private var selectionHeader: some View {
-        HStack(alignment: .center) {
-            designerPill("Choose", label: "\(model.selectedIDs.count) photos selected")
-            Spacer()
-            if !model.assets.isEmpty, model.selectedIDs.count != model.assets.count {
-                Button("Select all") {
-                    model.selectedIDs = Set(model.assets.map(\.localIdentifier))
-                    model.selectionOrder = model.assets.map(\.localIdentifier)
-                }
-                .buttonStyle(.glassProminent)
-                .controlSize(.small)
-            }
-        }
+        Text("\(model.selectedIDs.count) photos selected")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("selectionCount")
     }
 
     private var photoFooter: some View {
@@ -767,7 +781,7 @@ struct ImportReviewView: View {
                         if await model.importSelection() { path.append(.review) }
                     }
                 } label: {
-                    Text("Review \(model.selectedIDs.count) selected photos")
+                    Text("Continue with \(model.selectedIDs.count) photos")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glassProminent)
@@ -798,6 +812,83 @@ struct ImportReviewView: View {
     }
 
     private var reviewStage: some View {
+        Group {
+            if model.isGenerating {
+                generatingView
+            } else {
+                reviewContent
+            }
+        }
+        .background(AppBackdrop())
+        .containerBackground(Color.black, for: .navigation)
+        .navigationTitle("Review")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.black, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) { if !model.isGenerating { reviewFooter } }
+    }
+
+    /// A full-screen state so a long generation never leaves the owner staring at the Review
+    /// screen with only a small pill for feedback. Shows a blurred collage of the chosen photos,
+    /// the current stage, a determinate bar when the stage message reports "N of M", and Cancel.
+    private var generatingView: some View {
+        ZStack {
+            generatingBackdrop
+            VStack(spacing: 18) {
+                Spacer()
+                Text(model.progressMessage)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                    .accessibilityIdentifier("generatingStageLabel")
+                if let fraction = Self.progressFraction(from: model.progressMessage) {
+                    ProgressView(value: fraction)
+                        .tint(AK14Palette.accent)
+                        .frame(width: 220)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.white)
+                }
+                Spacer()
+                Button("Cancel", role: .cancel) { generateTask?.cancel() }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+                    .padding(.bottom, 24)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("generatingStage")
+    }
+
+    private var generatingBackdrop: some View {
+        ZStack {
+            Color.black
+            if let folder = model.importedFolder, let first = model.records.first {
+                ImportedThumbnail(record: first, folder: folder, side: 900, cornerRadius: 0)
+                    .blur(radius: 44)
+                    .overlay(Color.black.opacity(0.6))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+
+    /// Parses a progress message such as "Rendering option 2 of 3" into a 0...1 fraction; nil
+    /// when the message carries no such count, so the caller falls back to an indeterminate spinner.
+    private static func progressFraction(from message: String) -> Double? {
+        guard let regex = try? NSRegularExpression(pattern: #"(\d+) of (\d+)"#),
+              let match = regex.firstMatch(in: message, range: NSRange(message.startIndex..., in: message)),
+              let xRange = Range(match.range(at: 1), in: message),
+              let yRange = Range(match.range(at: 2), in: message),
+              let x = Double(message[xRange]), let y = Double(message[yRange]), y > 0
+        else { return nil }
+        return min(1, max(0, x / y))
+    }
+
+    private var reviewContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -867,41 +958,11 @@ struct ImportReviewView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .ak14Card()
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("Your originals stay on this device.", systemImage: "lock.shield")
-                        .font(.subheadline.weight(.semibold))
-                    if model.hasWorkerConfig {
-                        Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
-                            .accessibilityHint("When on, selected thumbnails and short descriptions are sent to the configured Worker. Full-resolution originals stay on this device.")
-                        if model.modelAssist {
-                            Text("AI planning sends selected small thumbnails and short descriptions to the AK14 Worker and OpenAI. Full-resolution originals stay on this device.")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        } else {
-                            localModeExplanation
-                        }
-                    } else {
-                        Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
-                        Text("AI planning is on by default. Add your scoped invite token before creating options. Planning sends selected small thumbnails and short descriptions; full-resolution originals stay on this device.")
-                            .font(.footnote).foregroundStyle(.secondary)
-                        if !model.modelAssist { localModeExplanation }
-                        Button("Set up AI-assisted planning") { model.showWorkerSettings = true }
-                            .buttonStyle(.glassProminent)
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .ak14Card()
+                aiStoryPlanningRow
             }
             .padding(18)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(AppBackdrop())
-        .containerBackground(Color.black, for: .navigation)
-        .navigationTitle("Review")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.black, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) { reviewFooter }
     }
 
     private var selectedPhotosSection: some View {
@@ -949,6 +1010,37 @@ struct ImportReviewView: View {
     private var localModeExplanation: some View {
         Text("Create a photos-only story using on-device photo analysis and layout. No thumbnails or descriptions are sent to a model.")
             .font(.footnote).foregroundStyle(.secondary)
+    }
+
+    /// A single compact row that states the real state ("On", "Off", "Needs setup") and opens a
+    /// sheet with the privacy explanation, the toggle and the invite setup. Nothing else on the
+    /// Review screen competes with "Create options".
+    private var aiStoryPlanningRow: some View {
+        Button { model.showWorkerSettings = true } label: {
+            HStack {
+                Label("AI story planning", systemImage: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(aiStatusLabel)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ak14Card()
+        .accessibilityLabel("AI story planning, \(aiStatusLabel)")
+        .accessibilityHint("Opens privacy details and setup")
+    }
+
+    private var aiStatusLabel: String {
+        guard model.modelAssist else { return "Off" }
+        return model.hasWorkerConfig ? "On" : "Needs setup"
     }
 
     @MainActor private func importIncomingBatch() async {
@@ -1032,40 +1124,38 @@ struct ImportReviewView: View {
 
     private var reviewFooter: some View {
         VStack(spacing: 0) {
-            if model.isPreparingOccasions || model.isGenerating {
+            if model.isPreparingOccasions {
                 designerPill("Keep processing images")
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity)
                     .background(Color.black)
                     .accessibilityLabel("Generation progress: Keep processing images")
             }
-            if !model.isGenerating {
-                if let failure = model.failureMessage {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label(failure, systemImage: "exclamationmark.triangle")
-                            .font(.footnote).foregroundStyle(.red)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button("Retry generation") {
-                            Task { if await model.retry() { path.append(.options) } }
-                        }
-                        .buttonStyle(.glassProminent)
+            if let failure = model.failureMessage {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(failure, systemImage: "exclamationmark.triangle")
+                        .font(.footnote).foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Retry generation") {
+                        generateTask = Task { if await model.retry() { path.append(.options) } }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18).padding(.vertical, 12)
-                } else {
-                    Button {
-                        storyHintFocused = false
-                        Task {
-                            if await model.generateOptions() { path.append(.options) }
-                        }
-                    } label: {
-                        Text("Create options").frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glassProminent).controlSize(.large)
-                    .padding(.horizontal, 18).padding(.vertical, 10)
-                    .background(Color.black)
-                    .disabled(model.isPreparingOccasions)
+                    .buttonStyle(.glassProminent)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18).padding(.vertical, 12)
+            } else {
+                Button {
+                    storyHintFocused = false
+                    generateTask = Task {
+                        if await model.generateOptions() { path.append(.options) }
+                    }
+                } label: {
+                    Text("Create options").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent).controlSize(.large)
+                .padding(.horizontal, 18).padding(.vertical, 10)
+                .background(Color.black)
+                .disabled(model.isPreparingOccasions)
             }
         }
     }
@@ -1085,6 +1175,18 @@ struct ImportReviewView: View {
     private var workerSettings: some View {
         NavigationStack {
             Form {
+                Section {
+                    Label("Your originals stay on this device.", systemImage: "lock.shield")
+                        .font(.subheadline.weight(.semibold))
+                    Toggle("Use AI-assisted story planning", isOn: $model.modelAssist)
+                        .accessibilityHint("When on, selected thumbnails and short descriptions are sent to the configured Worker. Full-resolution originals stay on this device.")
+                    if model.modelAssist {
+                        Text("AI planning sends selected small thumbnails and short descriptions to the AK14 Worker and OpenAI. Full-resolution originals stay on this device.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    } else {
+                        localModeExplanation
+                    }
+                }
                 Section("AI-assisted planning") {
                     TextField("Worker URL", text: $model.workerBaseURL)
                         .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
@@ -1292,14 +1394,28 @@ private struct ImportedThumbnail: View {
 
 private struct OptionsReviewStage: View {
     @Bindable var model: ImportReviewModel
-    @State private var editorModel: EditorModel?
+    /// One EditorModel per option, kept alive for the whole session on this screen so switching
+    /// back to a previously-opened option reuses it instead of re-rendering from scratch.
+    @State private var editorModels: [String: EditorModel] = [:]
     @State private var exportBusy = false
     @State private var shareURLs: [URL] = []
     @State private var sharePresented = false
-    @State private var shareExport: (document: CanvasDocument, revision: Int)?
+    @State private var shareExport: (editor: EditorModel, document: CanvasDocument, revision: Int)?
+    @State private var retryingGeneration = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var option: StoryOption? { model.selectedOption }
+    private var editorKey: String? {
+        option.map { $0.runDirectory.path + "/" + $0.id }
+    }
+    private var currentEditorModel: EditorModel? {
+        guard let editorKey else { return nil }
+        return editorModels[editorKey]
+    }
+    private var showFallbackBanner: Bool {
+        guard let option else { return false }
+        return option.modelAssistRequested && option.generationMode == .photosOnly
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -1309,9 +1425,10 @@ private struct OptionsReviewStage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
             optionPicker
+            if showFallbackBanner { fallbackBanner }
             if let option {
-                if let editorModel, editorModel.option.id == option.id {
-                    CanvasEditorView(model: editorModel).id(option.id)
+                if let editorModel = currentEditorModel {
+                    CanvasEditorView(model: editorModel).id(editorKey)
                 } else {
                     ProgressView("Opening…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1338,43 +1455,79 @@ private struct OptionsReviewStage: View {
         .safeAreaInset(edge: .bottom, spacing: 8) { actionFooter }
         .sheet(isPresented: $sharePresented) { ActivityShareSheet(items: shareURLs, onCompletion: shareFinished) }
         .sensoryFeedback(.success, trigger: model.successfulSaves)
-        .onChange(of: model.selectedOptionID) { _, _ in
-            editorModel?.flushSave()
-            editorModel = nil
+        .onChange(of: editorKey) { old, _ in
+            if let old, let previous = editorModels[old] { previous.flushSave() }
         }
-        .task(id: option?.id) {
-            guard let option else { editorModel = nil; return }
+        .task(id: editorKey) {
+            guard let option, let editorKey else { return }
             model.presentOptions(for: option)
-            do { editorModel = try EditorModel(option: option, records: model.records) }
+            guard editorModels[editorKey] == nil else { return }
+            do { editorModels[editorKey] = try EditorModel(option: option, records: model.records) }
             catch { model.alert = .init(title: "Could not open design", message: error.localizedDescription) }
         }
         .onDisappear {
+            for editorModel in editorModels.values { editorModel.flushSave() }
             if let option { model.leaveOptions(for: option) }
+        }
+    }
+
+    private var fallbackBanner: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("AI planning unavailable — this is a photos-only draft.")
+                .font(.footnote)
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            if retryingGeneration {
+                ProgressView().controlSize(.small)
+            } else {
+                Button("Try again") { Task { await retryGeneration() } }
+                    .font(.footnote.weight(.semibold))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(0.22), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 20)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func retryGeneration() async {
+        retryingGeneration = true
+        defer { retryingGeneration = false }
+        if await model.retry() {
+            // New runs reuse IDs such as c1. Retain only the current run, and let the
+            // run-qualified task above open its editor even when the option ID is unchanged.
+            let root = model.selectedOption?.runDirectory
+            editorModels = editorModels.filter { $0.value.option.runDirectory == root }
         }
     }
 
     private var optionPicker: some View {
         ScrollView(.horizontal) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    ForEach(Array(model.options.enumerated()), id: \.element.id) { index, candidate in
-                        let selected = candidate.id == model.selectedOptionID
-                        let title = candidate.title.isEmpty ? "Option \(index + 1)" : candidate.title
-                        Button {
-                            if reduceMotion { model.selectOption(candidate) }
-                            else { withAnimation(.snappy(duration: 0.28)) { model.selectOption(candidate) } }
-                        } label: {
+            HStack(spacing: 10) {
+                ForEach(Array(model.options.enumerated()), id: \.element.id) { index, candidate in
+                    let selected = candidate.id == model.selectedOptionID
+                    let title = candidate.title.isEmpty ? "Option \(index + 1)" : candidate.title
+                    Button {
+                        if reduceMotion { model.selectOption(candidate) }
+                        else { withAnimation(.snappy(duration: 0.28)) { model.selectOption(candidate) } }
+                    } label: {
+                        VStack(spacing: 4) {
+                            OptionCoverThumbnail(url: candidate.slides.first)
+                                .frame(width: 64, height: 80)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(selected ? AK14Palette.accent : Color.white.opacity(0.15), lineWidth: selected ? 2.5 : 1))
                             Text(title)
-                                .font(.subheadline.weight(selected ? .semibold : .regular))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
+                                .font(.caption.weight(selected ? .semibold : .regular))
+                                .foregroundStyle(selected ? Color.white : Color.white.opacity(0.7))
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(selected ? Color.black : Color.white)
-                        .background(selected ? AK14Palette.field : Color.white.opacity(0.08), in: Capsule())
-                        .accessibilityLabel("\(title), \(candidate.slides.count) slides")
-                        .accessibilityAddTraits(selected ? .isSelected : [])
                     }
+                    .buttonStyle(.plain)
+                    .disabled(exportBusy || retryingGeneration)
+                    .accessibilityLabel("\(title), \(candidate.slides.count) slides")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 20)
@@ -1383,12 +1536,12 @@ private struct OptionsReviewStage: View {
     }
 
     private func share() async {
-        guard let editorModel else { return }
+        guard let editorModel = currentEditorModel else { return }
         exportBusy = true
         defer { exportBusy = false }
         do {
             let export = try await editorModel.exportRevision()
-            shareExport = (export.document, export.revision)
+            shareExport = (editorModel, export.document, export.revision)
             shareURLs = export.urls
             sharePresented = true
         } catch { model.alert = .init(title: "Could not share design", message: error.localizedDescription) }
@@ -1396,13 +1549,14 @@ private struct OptionsReviewStage: View {
 
     /// Completion is recorded only when the system reports the share succeeded, against the revision shared.
     private func shareFinished(_ activity: UIActivity.ActivityType?, _ completed: Bool) {
-        guard completed, let option, let editorModel, let shared = shareExport else { return }
-        let snapshot = try? editorModel.handoffSnapshot(shared.document, revision: shared.revision)
-        Task { await model.shareCompleted(for: option, activityType: activity, snapshot: snapshot) }
+        defer { shareExport = nil }
+        guard completed, let shared = shareExport else { return }
+        let snapshot = try? shared.editor.handoffSnapshot(shared.document, revision: shared.revision)
+        Task { await model.shareCompleted(for: shared.editor.option, activityType: activity, snapshot: snapshot) }
     }
 
     private func save() async {
-        guard let editorModel, let option else { return }
+        guard let editorModel = currentEditorModel, let option else { return }
         exportBusy = true
         defer { exportBusy = false }
         do {
@@ -1415,25 +1569,49 @@ private struct OptionsReviewStage: View {
     private var actionFooter: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
-                Button { Task { await share() } } label: {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                        .symbolEffect(.bounce, value: sharePresented)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glass)
-                .disabled(editorModel == nil || exportBusy)
-                .accessibilityLabel("Share slides")
                 Button { Task { await save() } } label: {
                     if exportBusy { ProgressView().frame(maxWidth: .infinity) }
                     else { Label("Save", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }
                 }
                 .buttonStyle(.glassProminent)
-                .disabled(editorModel == nil || exportBusy)
+                .disabled(currentEditorModel == nil || exportBusy)
                 .accessibilityLabel("Save to Photos")
+                Button { Task { await share() } } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .symbolEffect(.bounce, value: sharePresented)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.glass)
+                .disabled(currentEditorModel == nil || exportBusy)
+                .accessibilityLabel("Share slides")
             }
             .controlSize(.large)
             .padding(.horizontal, 20)
             .padding(.bottom, 4)
+        }
+    }
+}
+
+/// A small cover thumbnail for an option card. Loads the option's already-rendered first slide
+/// (never the editor's live preview), so switching options never triggers a render.
+private struct OptionCoverThumbnail: View {
+    let url: URL?
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Rectangle().fill(Color.white.opacity(0.08))
+            }
+        }
+        .task(id: url) {
+            guard let url else { image = nil; return }
+            let path = url.path
+            image = await Task.detached(priority: .utility) {
+                EditorThumbnailLoader.load(path: path, maxPixel: 200).map(UIImage.init(cgImage:))
+            }.value
         }
     }
 }

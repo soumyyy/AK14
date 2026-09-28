@@ -17,7 +17,7 @@ final class ScreenTourUITests: XCTestCase {
         XCTAssertTrue(app.buttons["photo-1"].waitForExistence(timeout: 20))
         snap(app, "02-choose-photos")
         app.swipeUp(); snap(app, "03-choose-photos-scrolled"); app.swipeDown()
-        let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Review '")).firstMatch
+        let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Continue with '")).firstMatch
         XCTAssertTrue(review.waitForExistence(timeout: 15)); review.tap()
         XCTAssertTrue(app.staticTexts["Review your selection"].waitForExistence(timeout: 60))
         snap(app, "04-review")

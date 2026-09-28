@@ -12,6 +12,10 @@ struct StoryOption: Identifiable, Sendable {
     let generationMode: GenerationMode
     let runDirectory: URL
     let sourceFolder: URL
+    /// True when the run attempted model-assisted planning (the caller asked for it and a client was
+    /// configured). Combined with `generationMode == .photosOnly`, this means the AI produced nothing
+    /// usable — the fallback banner shows only in that case, not when the owner simply left AI off.
+    var modelAssistRequested: Bool = false
 
     enum GenerationMode: String, Codable, Sendable { case photosOnly, modelDirected }
 }
@@ -252,13 +256,16 @@ struct StoryPipeline: Sendable {
             document.recipeID = plan.recipeID
             document.stylePackPin = stylePackPin.id
             try store.write(document, to: "documents/\(plan.id).json")
+            try store.write(document, to: "documents/originals/\(plan.id).json")
             progress("Rendered option \(optionIndex + 1) of \(plans.count)")
         }
+        let attemptedModelAssist = modelAssist && responsesClient != nil
         let options = presentationOrder.compactMap { id -> StoryOption? in
             guard let slides = byID[id], !slides.isEmpty else { return nil }
             return StoryOption(id: id, title: "Option \((presentationOrder.firstIndex(of: id) ?? 0) + 1)",
                                slides: slides, stylePackPin: stylePackPin,
-                               generationMode: generationMode, runDirectory: runRoot, sourceFolder: folder)
+                               generationMode: generationMode, runDirectory: runRoot, sourceFolder: folder,
+                               modelAssistRequested: attemptedModelAssist)
         }
         guard !options.isEmpty else { throw PipelineFailure.renderFailed(warnings.joined(separator: "; ")) }
         try Task.checkCancellation()
@@ -280,7 +287,7 @@ struct StoryPipeline: Sendable {
         let finalRoot = runsRoot.appending(path: runID, directoryHint: .isDirectory)
         try FileManager.default.moveItem(at: stagingRoot, to: finalRoot)
         let promotedOptions = options.map { option in
-            StoryOption(id: option.id, title: option.title, slides: option.slides.map { finalRoot.appending(path: $0.path.replacingOccurrences(of: stagingRoot.path + "/", with: "")) }, stylePackPin: option.stylePackPin, generationMode: option.generationMode, runDirectory: finalRoot, sourceFolder: option.sourceFolder)
+            StoryOption(id: option.id, title: option.title, slides: option.slides.map { finalRoot.appending(path: $0.path.replacingOccurrences(of: stagingRoot.path + "/", with: "")) }, stylePackPin: option.stylePackPin, generationMode: option.generationMode, runDirectory: finalRoot, sourceFolder: option.sourceFolder, modelAssistRequested: option.modelAssistRequested)
         }
         completedRun = true
         return promotedOptions

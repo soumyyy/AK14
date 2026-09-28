@@ -31,14 +31,14 @@ final class ImportGenerateReviewUITests: XCTestCase {
         let firstPhoto = app.buttons["photo-1"]
         XCTAssertTrue(firstPhoto.waitForExistence(timeout: 10), "Expected the date-range photos, selected by default")
 
-        let exactMode = app.buttons["Use exactly these"]
+        let exactMode = app.buttons["Pick exact photos"]
         XCTAssertTrue(exactMode.waitForExistence(timeout: 2))
         exactMode.tap()
         let keepOrder = app.switches["Keep my order"]
         XCTAssertTrue(keepOrder.waitForExistence(timeout: 2))
         if (keepOrder.value as? String) != "1" { keepOrder.tap() }
 
-        let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Review '")).firstMatch
+        let review = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Continue with '")).firstMatch
         XCTAssertTrue(review.waitForExistence(timeout: 10))
         XCTAssertTrue(review.isEnabled, "At least one simulator photo should be selected")
         review.tap()
@@ -69,8 +69,7 @@ final class ImportGenerateReviewUITests: XCTestCase {
         (multi ?? optionButtons.firstMatch).tap()
         // Editing happens on the options screen itself; there is no separate edit route.
         XCTAssertFalse(app.buttons["Edit slides"].exists, "Editing must not sit behind a separate Edit control")
-        let addTextField = app.textFields["newSlideText"]
-        XCTAssertTrue(addTextField.waitForExistence(timeout: 30), "The selected option should be directly editable")
+        XCTAssertTrue(app.buttons["Add text"].waitForExistence(timeout: 30), "The selected option should expose its editing toolbar")
         XCTAssertTrue(app.buttons["Share slides"].exists)
         let save = app.buttons["Save to Photos"]
         XCTAssertTrue(save.exists)

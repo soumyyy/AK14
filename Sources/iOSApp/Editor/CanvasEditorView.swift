@@ -8,7 +8,6 @@ import UIKit
 /// every edit writes the document and replaces the preview only after a complete render succeeds.
 struct CanvasEditorView: View {
     @State private var model: EditorModel
-    @State private var page = 0
     @State private var newText = ""
     @State private var textDrafts: [String: String] = [:]
     @State private var transformPreview: TransformPreview?
@@ -18,6 +17,10 @@ struct CanvasEditorView: View {
     @State private var adjustDraft: AdjustDraft?
     @State private var adjustDragging = false
     @State private var adjustCommitTask: Task<Void, Never>?
+    @State private var showReplaceSheet = false
+    @State private var showAdjustSheet = false
+    @State private var showTextSheet = false
+    @State private var textSheetLayerID: String?
 
     init(option: StoryOption, records: [PhotoRecord]) throws {
         _model = State(initialValue: try EditorModel(option: option, records: records))
@@ -25,20 +28,42 @@ struct CanvasEditorView: View {
 
     init(model: EditorModel) { _model = State(initialValue: model) }
 
+    private var pageBinding: Binding<Int> {
+        Binding(
+            get: { model.visibleSlide },
+            set: { newPage in
+                guard newPage != model.visibleSlide else { return }
+                model.visibleSlide = newPage
+                model.selectedLayerID = nil
+                transformPreview = nil
+                cropSession = nil
+                adjustDraft = nil
+                adjustDragging = false
+                showAdjustSheet = false
+            }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             GeometryReader { geo in
                 let aspect = CGFloat(model.document.aspect.exportWidth) / CGFloat(max(1, model.document.aspect.exportHeight))
-                let pageWidth = geo.size.width
-                let pageHeight = min(geo.size.height, pageWidth / aspect)
+                let fitsWidth = geo.size.width / max(1, geo.size.height) > aspect
+                let pageWidth = fitsWidth ? geo.size.height * aspect : geo.size.width
+                let pageHeight = fitsWidth ? geo.size.height : geo.size.width / aspect
+                let slide = model.visibleSlide
                 ZStack(alignment: .bottom) {
-                    SlidePager(urls: model.previewURLs, page: $page)
+                    SlidePager(urls: model.previewURLs, page: pageBinding)
                         .frame(width: pageWidth, height: pageHeight)
                         .simultaneousGesture(SpatialTapGesture().onEnded { value in
                             guard cropSession == nil else { return }
                             let x = Double(value.location.x / max(1, pageWidth))
                             let y = Double(value.location.y / max(1, pageHeight))
-                            model.selectedLayerID = model.selectLayer(at: x, y: y, on: page)
+                            if let id = model.selectLayer(at: x, y: y, on: slide) {
+                                model.selectedLayerID = id
+                            } else {
+                                model.selectedLayerID = nil
+                            }
                         })
                         .overlay {
                             editorOverlay(size: CGSize(width: pageWidth, height: pageHeight))
@@ -46,43 +71,30 @@ struct CanvasEditorView: View {
                     if model.document.slideCount > 1 {
                         HStack(spacing: 5) {
                             ForEach(0..<model.document.slideCount, id: \.self) { index in
-                                Capsule().fill(index == page ? AK14Palette.field : Color.white.opacity(0.4))
-                                    .frame(width: index == page ? 18 : 6, height: 6)
+                                Capsule().fill(index == slide ? AK14Palette.field : Color.white.opacity(0.4))
+                                    .frame(width: index == slide ? 18 : 6, height: 6)
                             }
                         }
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(Color.black.opacity(0.35), in: Capsule())
                         .padding(.bottom, 14).allowsHitTesting(false)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Slide \(page + 1) of \(model.document.slideCount)")
+                        .accessibilityLabel("Slide \(slide + 1) of \(model.document.slideCount)")
                     }
-                    adjustmentPanel
                 }
                 .frame(width: pageWidth, height: pageHeight)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            HStack(spacing: 10) {
-                if model.isRendering { ProgressView().controlSize(.small).accessibilityLabel("Updating preview") }
-                Spacer()
-                Text("Slide \(page + 1) of \(model.document.slideCount)")
-                    .font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
+            if model.isRendering {
+                ProgressView().controlSize(.small).accessibilityLabel("Updating preview")
             }
-            .padding(.horizontal, 20)
 
-            elementControls
-                .padding(.horizontal, 18)
+            contextualToolbar
+                .padding(.horizontal, 12)
                 .padding(.bottom, 4)
         }
         .background(Color.black)
-        .onChange(of: page) { _, index in
-            model.visibleSlide = index
-            model.selectedLayerID = nil
-            transformPreview = nil
-            cropSession = nil
-            adjustDraft = nil
-            adjustDragging = false
-        }
         .onChange(of: model.selectedLayerID) { _, id in
             if adjustDraft?.layerID != id {
                 adjustDraft = nil
@@ -93,7 +105,11 @@ struct CanvasEditorView: View {
             guard !adjustDragging else { return }
             scheduleAdjustCommit()
         }
-        .sensoryFeedback(.selection, trigger: page)
+        .sensoryFeedback(.selection, trigger: model.visibleSlide)
+        .toolbar { editorToolbar }
+        .sheet(isPresented: $showReplaceSheet) { replaceSheet }
+        .sheet(isPresented: $showAdjustSheet) { adjustSheet }
+        .sheet(isPresented: $showTextSheet) { textEntrySheet }
         .alert("Design", isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })) {
             Button("OK", role: .cancel) { model.alert = nil }
         } message: { Text(model.alert ?? "") }
@@ -126,12 +142,13 @@ struct CanvasEditorView: View {
                 guard let start = transformPreview else { return }
                 let translation = value.first?.first?.translation ?? .zero
                 let magnification = value.first?.second?.magnification ?? 1
-                let rotation = value.second?.radians ?? 0
+                let rotation = value.second?.degrees ?? 0
                 transformPreview = TransformPreview(
                     layerID: start.layerID,
                     baseFrame: start.baseFrame,
                     frame: transformedFrame(start, translation: translation, magnification: magnification, size: size),
-                    rotation: start.baseRotation + rotation
+                    rotation: start.baseRotation + rotation,
+                    baseRotation: start.baseRotation
                 )
             }
             .onEnded { _ in commitTransform() }
@@ -169,21 +186,24 @@ struct CanvasEditorView: View {
         let width = base.width * scale, height = base.height * scale
         var centerX = base.x + base.width / 2 + Double(translation.width / max(1, size.width)) / count
         var centerY = base.y + base.height / 2 + Double(translation.height / max(1, size.height))
-        let low = model.document.seamless ? 0 : Double(page) / count
-        let high = model.document.seamless ? 1 : Double(page + 1) / count
+        let slide = model.visibleSlide
+        let low = model.document.seamless ? 0 : Double(slide) / count
+        let high = model.document.seamless ? 1 : Double(slide + 1) / count
         centerX = min(high, max(low, centerX))
         centerY = min(1, max(0, centerY))
         return UnitRect(x: centerX - width / 2, y: centerY - height / 2, width: width, height: height)
     }
 
     private func transformedCrop(_ start: UnitRect, translation: CGSize, magnification: CGFloat, frame: CGRect) -> UnitRect {
-        let scale = min(20, max(0.05, Double(magnification)))
-        let width = min(1, max(0.05, start.width / scale))
-        let height = min(1, max(0.05, start.height / scale))
+        let minimumScale = max(start.width, start.height)
+        let maximumScale = max(minimumScale, min(start.width, start.height) / 0.05)
+        let scale = min(maximumScale, max(minimumScale, Double(magnification)))
+        let width = start.width / scale
+        let height = start.height / scale
         let x = min(1 - width, max(0, start.x + (start.width - width) / 2
-            + Double(translation.width / max(1, frame.width))))
+            - Double(translation.width / max(1, frame.width)) * start.width))
         let y = min(1 - height, max(0, start.y + (start.height - height) / 2
-            + Double(translation.height / max(1, frame.height))))
+            - Double(translation.height / max(1, frame.height)) * start.height))
         return UnitRect(x: x, y: y, width: width, height: height)
     }
 
@@ -234,9 +254,9 @@ struct CanvasEditorView: View {
     @ViewBuilder
     private func editorOverlay(size: CGSize) -> some View {
         if let layer = model.selectedLayer,
-           let baseFrame = unitFrame(layer, page: page) {
+           let baseFrame = unitFrame(layer, page: model.visibleSlide) {
             let documentFrame = transformPreview?.layerID == layer.id ? transformPreview!.frame : layer.frame
-            let localFrame = localFrame(documentFrame, page: page)
+            let localFrame = localFrame(documentFrame, page: model.visibleSlide)
             if let cropSession, cropSession.layerID == layer.id {
                 cropOverlay(layer: layer, crop: cropSession.crop, frame: baseFrame, size: size)
             } else {
@@ -296,143 +316,224 @@ struct CanvasEditorView: View {
             .accessibilityHint("Drag to pan the crop and pinch to zoom. Activate Done when finished.")
     }
 
-    @ViewBuilder
-    private var elementControls: some View {
-        if let layer = model.selectedLayer,
-           layer.slideHint == nil || layer.slideHint == page || model.document.seamless {
-            if cropSession?.layerID == layer.id {
-                cropControls
-            } else {
-                selectedControls(for: layer)
-            }
-        } else {
-            emptyControls
-        }
-    }
-
-    private func selectedControls(for layer: DocumentLayer) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label(layer.kind == .photo ? "Photo" : "Text", systemImage: layer.kind == .photo ? "photo" : "textformat")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                if layer.kind == .photo {
-                    Button {
-                        toggleAdjust(for: layer)
-                    } label: {
-                        Label("Adjust", systemImage: "slider.horizontal.3")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .accessibilityIdentifier("adjustPhotoButton")
-                }
-            }
-            if layer.kind == .text {
-                HStack {
-                    TextField("Edit text", text: Binding(get: { textDrafts[layer.id] ?? layer.string ?? "" }, set: { textDrafts[layer.id] = $0 }), axis: .vertical)
-                        .lineLimit(1...3).textFieldStyle(.roundedBorder).accessibilityIdentifier("selectedTextField")
-                    Button("Apply") {
-                        model.replaceText(layerID: layer.id, with: textDrafts[layer.id] ?? layer.string ?? "")
-                        textDrafts[layer.id] = nil
-                    }.buttonStyle(.borderedProminent)
-                }
-            } else if layer.kind == .photo {
-                photoStrip(for: layer)
-            }
-            secondaryControls(selectedLayerID: layer.id)
-        }
-        .padding(12).background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .accessibilityElement(children: .contain).accessibilityIdentifier("elementControls")
-    }
-
-    private var cropControls: some View {
-        HStack {
-            Label("Crop photo", systemImage: "crop")
-                .font(.subheadline.weight(.semibold))
-            Spacer()
-            Button("Done") { finishCrop() }
-                .buttonStyle(.borderedProminent)
-        }
-        .padding(12)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .accessibilityElement(children: .contain).accessibilityIdentifier("elementControls")
-    }
-
-    private var emptyControls: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                TextField("Add text to this slide", text: $newText)
-                    .textFieldStyle(.roundedBorder).accessibilityIdentifier("newSlideText")
-                Button("Add text", systemImage: "plus") {
-                    let value = newText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !value.isEmpty else { return }
-                    model.addText(value)
+    @ToolbarContentBuilder
+    private var editorToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward") }
+                .disabled(!model.canUndo || model.isExporting)
+                .accessibilityLabel("Undo edit")
+            Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }
+                .disabled(!model.canRedo || model.isExporting)
+                .accessibilityLabel("Redo edit")
+            Menu {
+                Button {
+                    model.moveSlide(from: model.visibleSlide, to: model.visibleSlide - 1)
+                } label: { Label("Move slide left", systemImage: "chevron.left") }
+                .disabled(!model.canEditSlidesSafely || model.visibleSlide <= 0)
+                Button {
+                    model.moveSlide(from: model.visibleSlide, to: model.visibleSlide + 1)
+                } label: { Label("Move slide right", systemImage: "chevron.right") }
+                .disabled(!model.canEditSlidesSafely || model.visibleSlide >= model.document.slideCount - 1)
+                Button(role: .destructive) {
+                    model.removeSlide(at: model.visibleSlide)
+                } label: { Label("Remove slide", systemImage: "xmark.square") }
+                .disabled(!model.canEditSlidesSafely || model.document.slideCount <= 1)
+                Button {
+                    textSheetLayerID = nil
                     newText = ""
-                }
-                .buttonStyle(.borderedProminent).disabled(newText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityLabel("Add text")
+                    showTextSheet = true
+                } label: { Label("Add slide text", systemImage: "textformat") }
+            } label: {
+                Image(systemName: "ellipsis.circle")
             }
-            secondaryControls()
-        }
-        .padding(.horizontal, 2)
-        .accessibilityElement(children: .contain).accessibilityIdentifier("emptyElementControls")
-    }
-
-    private func secondaryControls(selectedLayerID: String? = nil) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                if let selectedLayerID {
-                    Button("Remove", systemImage: "trash", role: .destructive) {
-                        model.deleteLayer(selectedLayerID)
-                    }
-                    .accessibilityLabel("Remove selected element")
-                }
-                Button("Undo", systemImage: "arrow.uturn.backward") { model.undo() }
-                    .disabled(!model.canUndo || model.isExporting).accessibilityLabel("Undo edit")
-                Button("Redo", systemImage: "arrow.uturn.forward") { model.redo() }
-                    .disabled(!model.canRedo || model.isExporting).accessibilityLabel("Redo edit")
-            }
-            .buttonStyle(.bordered).controlSize(.small)
-            if model.canEditSlidesSafely {
-                HStack(spacing: 8) {
-                    Button("Move slide left", systemImage: "chevron.left") {
-                        let destination = max(0, page - 1)
-                        model.moveSlide(from: page, to: destination)
-                        page = destination
-                    }
-                    .disabled(page == 0)
-                    Button("Move slide right", systemImage: "chevron.right") {
-                        let destination = min(model.document.slideCount - 1, page + 1)
-                        model.moveSlide(from: page, to: destination)
-                        page = destination
-                    }
-                    .disabled(page == model.document.slideCount - 1)
-                    Button("Remove slide", systemImage: "xmark", role: .destructive) {
-                        model.removeSlide(at: page)
-                        page = model.visibleSlide
-                    }
-                    .disabled(model.document.slideCount <= 1)
-                }
-                .font(.caption).buttonStyle(.bordered).controlSize(.small)
-            }
+            .accessibilityLabel("More slide actions")
         }
     }
 
     @ViewBuilder
-    private var adjustmentPanel: some View {
-        if let draft = adjustDraft, cropSession == nil, model.selectedLayer?.id == draft.layerID {
-            PhotoAdjustPanel(
-                exposure: adjustBinding(\.exposure),
-                contrast: adjustBinding(\.contrast),
-                warmth: adjustBinding(\.warmth),
-                saturation: adjustBinding(\.saturation),
-                onEditingChanged: sliderEditing(_:),
-                onReset: resetAdjustments,
-                onApplyAll: applyLookFromDraft
-            )
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+    private var contextualToolbar: some View {
+        if let layer = model.selectedLayer,
+           layer.slideHint == nil || layer.slideHint == model.visibleSlide || model.document.seamless,
+           cropSession?.layerID == layer.id {
+            HStack {
+                Label("Crop", systemImage: "crop")
+                Spacer()
+                Button("Done") { finishCrop() }.buttonStyle(.borderedProminent)
+            }
+            .padding(.vertical, 8)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("elementControls")
+        } else if let layer = model.selectedLayer,
+                  layer.slideHint == nil || layer.slideHint == model.visibleSlide || model.document.seamless {
+            EditorToolRow {
+                if layer.kind == .photo {
+                    toolButton("Replace", systemImage: "photo.on.rectangle.angled") { showReplaceSheet = true }
+                    toolButton("Crop", systemImage: "crop") { beginCrop(for: layer) }
+                    toolButton("Adjust", systemImage: "slider.horizontal.3", id: "adjustPhotoButton") {
+                        toggleAdjust(for: layer)
+                        showAdjustSheet = true
+                    }
+                    toolButton("Delete", systemImage: "trash", role: .destructive) { model.deleteLayer(layer.id) }
+                } else {
+                    toolButton("Edit", systemImage: "pencil") {
+                        textSheetLayerID = layer.id
+                        textDrafts[layer.id] = layer.string ?? ""
+                        showTextSheet = true
+                    }
+                    toolButton("Font", systemImage: "textformat") {
+                        textSheetLayerID = layer.id
+                        textDrafts[layer.id] = layer.string ?? ""
+                        showTextSheet = true
+                    }
+                    toolButton("Colour", systemImage: "paintpalette") {
+                        textSheetLayerID = layer.id
+                        textDrafts[layer.id] = layer.string ?? ""
+                        showTextSheet = true
+                    }
+                    toolButton("Delete", systemImage: "trash", role: .destructive) { model.deleteLayer(layer.id) }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("elementControls")
+        } else {
+            EditorToolRow {
+                toolButton("Text", systemImage: "textformat") {
+                    textSheetLayerID = nil
+                    newText = ""
+                    showTextSheet = true
+                }
+                toolButton("Adjust all", systemImage: "slider.horizontal.3") {
+                    if let photo = model.document.layers.first(where: { $0.kind == .photo }) {
+                        toggleAdjust(for: photo)
+                        model.selectedLayerID = photo.id
+                        showAdjustSheet = true
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("emptyElementControls")
         }
+    }
+
+    private func toolButton(_ title: String, systemImage: String, id: String? = nil, role: ButtonRole? = nil, action: @escaping () -> Void) -> some View {
+        Button(role: role, action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.caption)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title == "Text" ? "Add text" : title)
+        .accessibilityIdentifier(id ?? "")
+    }
+
+    @ViewBuilder
+    private var replaceSheet: some View {
+        if let layer = model.selectedLayer, layer.kind == .photo {
+            NavigationStack {
+                ScrollView(.horizontal) {
+                    HStack(spacing: 10) {
+                        ForEach(photoRecords, id: \.assetID) { photo in
+                            let selected = photo.assetID == layer.assetID
+                            Button {
+                                model.replacePhoto(layerID: layer.id, with: photo)
+                                showReplaceSheet = false
+                            } label: {
+                                PhotoThumbnail(
+                                    sourceURL: model.option.sourceFolder.appending(path: photo.sourceRelativePaths[0]),
+                                    selected: selected
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding()
+                }
+                .navigationTitle("Replace photo")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { showReplaceSheet = false } } }
+            }
+            .presentationDetents([.medium])
+            .preferredColorScheme(.dark)
+        }
+    }
+
+    @ViewBuilder
+    private var adjustSheet: some View {
+        if let draft = adjustDraft, let layer = model.selectedLayer, layer.id == draft.layerID {
+            NavigationStack {
+                ScrollView {
+                    PhotoAdjustPanel(
+                        exposure: adjustBinding(\.exposure),
+                        contrast: adjustBinding(\.contrast),
+                        warmth: adjustBinding(\.warmth),
+                        saturation: adjustBinding(\.saturation),
+                        onEditingChanged: sliderEditing(_:),
+                        onReset: resetAdjustments,
+                        onApplyAll: applyLookFromDraft
+                    )
+                    .padding()
+                }
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { showAdjustSheet = false }
+                    }
+                }
+            }
+            .presentationDetents([.height(240)])
+            .presentationDragIndicator(.visible)
+            .preferredColorScheme(.dark)
+            .accessibilityIdentifier("adjustPhotoButton")
+        }
+    }
+
+    @ViewBuilder
+    private var textEntrySheet: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                if let layerID = textSheetLayerID, let layer = model.document.layers.first(where: { $0.id == layerID }) {
+                    TextField("Edit text", text: Binding(
+                        get: { textDrafts[layerID] ?? layer.string ?? "" },
+                        set: { textDrafts[layerID] = $0 }
+                    ), axis: .vertical)
+                    .lineLimit(2...6)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("selectedTextField")
+                } else {
+                    TextField("Add text to this slide", text: $newText, axis: .vertical)
+                        .lineLimit(2...4)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("newSlideText")
+                }
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(textSheetLayerID == nil ? "Add text" : "Edit text")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showTextSheet = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(textSheetLayerID == nil ? "Add text" : "Apply") {
+                        if let layerID = textSheetLayerID {
+                            let currentText = model.document.layers.first(where: { $0.id == layerID })?.string ?? ""
+                            model.replaceText(layerID: layerID, with: textDrafts[layerID] ?? currentText)
+                            textDrafts[layerID] = nil
+                        } else {
+                            let value = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !value.isEmpty else { return }
+                            model.addText(value)
+                            newText = ""
+                        }
+                        showTextSheet = false
+                    }
+                    .accessibilityLabel(textSheetLayerID == nil ? "Add text" : "Apply text")
+                    .accessibilityIdentifier("confirmSlideText")
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .preferredColorScheme(.dark)
     }
 
     private var adjustmentSignature: String {
@@ -578,6 +679,18 @@ struct CanvasEditorView: View {
 
 }
 
+/// The bottom contextual toolbar: ONE row of icon+label buttons, per the spec ("nothing selected",
+/// "photo selected", "text selected" each show exactly one row, never stacked rows of small chips).
+private struct EditorToolRow<Content: View>: View {
+    @ViewBuilder var content: Content
+    var body: some View {
+        HStack(spacing: 4) {
+            content
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 private struct AdjustDraft {
     var layerID: String
     var exposure: Double
@@ -678,12 +791,12 @@ private struct TransformPreview {
     var rotation: Double
     var baseRotation: Double
 
-    init(layerID: String, baseFrame: UnitRect, frame: UnitRect, rotation: Double) {
+    init(layerID: String, baseFrame: UnitRect, frame: UnitRect, rotation: Double, baseRotation: Double? = nil) {
         self.layerID = layerID
         self.baseFrame = baseFrame
         self.frame = frame
         self.rotation = rotation
-        baseRotation = rotation
+        self.baseRotation = baseRotation ?? rotation
     }
 }
 
@@ -777,7 +890,7 @@ private struct PhotoThumbnail: View {
     }
 }
 
-private enum EditorThumbnailLoader {
+enum EditorThumbnailLoader {
     nonisolated static func load(path: String, maxPixel: Int) -> CGImage? {
         let url = URL(fileURLWithPath: path)
         if let source = CGImageSourceCreateWithURL(url as CFURL, nil) {
@@ -826,27 +939,52 @@ private final class PagerStrip: UIScrollView, UIScrollViewDelegate {
     }
     required init?(coder: NSCoder) { nil }
     func setURLs(_ urls: [URL]) {
-        guard urls != self.urls else { return }
-        self.urls = urls
-        tiles.forEach { $0.removeFromSuperview() }
-        tiles = urls.map { _ in
-            let view = UIImageView(); view.contentMode = .scaleAspectFill; view.clipsToBounds = true
-            view.backgroundColor = .black; view.isAccessibilityElement = true; addSubview(view); return view
+        if urls.count != tiles.count {
+            if urls.count > tiles.count {
+                for _ in tiles.count..<urls.count {
+                    let view = UIImageView()
+                    view.contentMode = .scaleAspectFill
+                    view.clipsToBounds = true
+                    view.backgroundColor = .black
+                    view.isAccessibilityElement = true
+                    addSubview(view)
+                    tiles.append(view)
+                }
+            } else {
+                for index in (urls.count..<tiles.count).reversed() {
+                    tiles[index].removeFromSuperview()
+                    tiles.remove(at: index)
+                }
+            }
+            laidOutWidth = 0
         }
-        currentPage = min(currentPage, max(0, urls.count - 1)); laidOutWidth = 0
-        let paths = urls.map(\.path)
+        currentPage = min(currentPage, max(0, urls.count - 1))
+        for index in urls.indices {
+            let path = urls[index].path
+            if index < self.urls.count, self.urls[index].path == path { continue }
+            loadImage(path: path, index: index)
+        }
+        self.urls = urls
+        setNeedsLayout()
+    }
+
+    private func loadImage(path: String, index: Int) {
+        guard tiles.indices.contains(index) else { return }
         Task.detached(priority: .userInitiated) {
-            let images = paths.map { UIImage(contentsOfFile: $0) }
+            let image = UIImage(contentsOfFile: path)
             await MainActor.run { [weak self] in
-                guard let self, self.urls.map(\.path) == paths else { return }
-                for (tile, image) in zip(self.tiles, images) { tile.image = image }
+                guard let self, self.urls.indices.contains(index), self.urls[index].path == path else { return }
+                self.tiles[index].image = image
             }
         }
-        setNeedsLayout()
     }
     func showPage(_ page: Int) {
         currentPage = min(max(page, 0), max(0, tiles.count - 1))
-        if bounds.width > 1 { contentOffset = CGPoint(x: CGFloat(currentPage) * bounds.width, y: 0) }
+        guard bounds.width > 1, !isDragging, !isDecelerating else { return }
+        let targetOffset = CGFloat(currentPage) * bounds.width
+        if abs(contentOffset.x - targetOffset) > 0.5 {
+            contentOffset = CGPoint(x: targetOffset, y: 0)
+        }
     }
     override func layoutSubviews() {
         super.layoutSubviews(); let width = bounds.width; let height = bounds.height

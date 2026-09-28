@@ -25,25 +25,44 @@ final class EditorModel {
     private let renderSessionID = UUID().uuidString
     private let recorder: InteractionRecorder
     private let renderQueue = DocumentRenderQueue()
+    private let openedFromSavedDocument: Bool
+    private let baselineDocument: CanvasDocument
+    private var pendingPreviewSlides: Set<Int> = []
 
     init(option: StoryOption, records: [PhotoRecord]) throws {
         self.option = option
         photos = Dictionary(uniqueKeysWithValues: records.map { ($0.assetID, $0) })
         recorder = InteractionRecorder(runDirectory: option.runDirectory)
         let store = RunStore.open(option.runDirectory)
-        if let saved = try? store.read(CanvasDocument.self, from: "documents/\(option.id).json") { document = saved }
-        else {
-            let layouts = (try? store.read([ResolvedSlide].self, from: "layouts/\(option.id)/slides.json"))
-                ?? (0..<option.slides.count).compactMap { index in
-                    try? store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", option.id, index + 1))
-                }
-            let aspect = (try? store.read(CarouselAspect.self, from: "aspect.json")) ?? .portrait4x5
-            let carousel = ResolvedCarousel(id: option.id, aspect: aspect, seed: "0", resolverVersion: ResolvedCarousel.resolverVersion, slides: layouts)
-            document = CanvasDocument(from: carousel, photos: photos)
-            if layouts.isEmpty { document.slideCount = max(1, option.slides.count) }
+        let savedPath = "documents/\(option.id).json"
+        let saved = try? store.read(CanvasDocument.self, from: savedPath)
+        openedFromSavedDocument = saved != nil
+        let layouts = (try? store.read([ResolvedSlide].self, from: "layouts/\(option.id)/slides.json"))
+            ?? (0..<option.slides.count).compactMap { index in
+                try? store.read(ResolvedSlide.self, from: String(format: "layouts/%@/slide-%02d.json", option.id, index + 1))
+            }
+        guard saved != nil || (!layouts.isEmpty && layouts.count == option.slides.count) else {
+            throw EditorFailure.missingDocument
         }
-        previewURLs = option.slides
-        requestPreview()
+        let manifest = try? store.read(RunManifest.self, from: "manifest.json")
+        let aspect = manifest?.aspectRatio ?? .infer(from: records)
+        let runID = manifest?.runID ?? option.runDirectory.lastPathComponent
+        let seed = ComposerEngine.layoutSeed(runID: runID, id: option.id)
+        let carousel = ResolvedCarousel(id: option.id, aspect: aspect, seed: String(seed, radix: 16), resolverVersion: ResolvedCarousel.resolverVersion, slides: layouts)
+        let reconstructedBaseline = CanvasDocument(from: carousel, photos: photos)
+        baselineDocument = (try? store.read(CanvasDocument.self, from: "documents/originals/\(option.id).json")) ?? reconstructedBaseline
+        if let saved {
+            document = saved
+        } else {
+            document = baselineDocument
+        }
+        previewURLs = alignedPipelineSlides(for: document.slideCount)
+        if openedFromSavedDocument {
+            let differing = slidesNeedingRender(comparedTo: baselineDocument)
+            if !differing.isEmpty {
+                requestPreview(slides: differing, prioritySlide: visibleSlide)
+            }
+        }
     }
 
     var canUndo: Bool { !undoStack.isEmpty }
@@ -67,7 +86,7 @@ final class EditorModel {
         }?.id
     }
 
-    func change(_ event: String, layerID: String? = nil, _ edit: (inout CanvasDocument) -> Void) {
+    func change(_ event: String, layerID: String? = nil, structural: Bool = false, _ edit: (inout CanvasDocument) -> Void) {
         guard !isExporting else { return }
         let old = document
         undoStack.append(old)
@@ -79,7 +98,8 @@ final class EditorModel {
                         assetIDs: layer?.assetID.map { [$0] }, before: [String(describing: old.layers.count)], after: [String(describing: document.layers.count)])
         revision += 1
         scheduleSave()
-        requestPreview()
+        let affected = affectedSlides(old: old, new: document, layerID: layerID, structural: structural)
+        requestPreview(slides: affected, prioritySlide: visibleSlide)
     }
 
     func textLayer(on slide: Int) -> DocumentLayer? {
@@ -178,7 +198,7 @@ final class EditorModel {
     func applyLookToAll(from id: String) {
         guard let source = document.layers.first(where: { $0.id == id && $0.kind == .photo }) else { return }
         let look = source.adjustments ?? PhotoAdjustments()
-        change("look_applied_all", layerID: id) { doc in
+        change("look_applied_all", layerID: id, structural: true) { doc in
             for index in doc.layers.indices where doc.layers[index].kind == .photo {
                 var next = doc.layers[index].adjustments ?? PhotoAdjustments()
                 next.exposure = look.exposure
@@ -204,7 +224,7 @@ final class EditorModel {
     func moveSlide(from source: Int, to destination: Int) {
         guard canEditSlidesSafely, source != destination,
               (0..<document.slideCount).contains(source), (0..<document.slideCount).contains(destination) else { return }
-        change("slide_reordered") { doc in
+        change("slide_reordered", structural: true) { doc in
             let count = Double(max(1, doc.slideCount))
             for index in doc.layers.indices {
                 let old = doc.layers[index].slideHint ?? min(doc.slideCount - 1, max(0, Int(doc.layers[index].frame.x * count)))
@@ -229,7 +249,7 @@ final class EditorModel {
 
     func removeSlide(at index: Int) {
         guard canEditSlidesSafely, document.slideCount > 1, (0..<document.slideCount).contains(index) else { return }
-        change("slide_removed") { doc in
+        change("slide_removed", structural: true) { doc in
             let count = Double(doc.slideCount)
             var kept: [DocumentLayer] = []
             for original in doc.layers {
@@ -252,15 +272,26 @@ final class EditorModel {
         }
         visibleSlide = min(index, document.slideCount - 1)
         selectedLayerID = nil
+        previewURLs = alignedPipelineSlides(for: document.slideCount)
     }
 
     func undo() {
         guard !isExporting, let previous = undoStack.popLast() else { return }
-        redoStack.append(document); document = previous; revision += 1; scheduleSave(); requestPreview()
+        redoStack.append(document)
+        let current = document
+        document = previous
+        revision += 1
+        scheduleSave()
+        requestPreview(slides: affectedSlides(old: current, new: document, layerID: nil, structural: true), prioritySlide: visibleSlide)
     }
     func redo() {
         guard !isExporting, let next = redoStack.popLast() else { return }
-        undoStack.append(document); document = next; revision += 1; scheduleSave(); requestPreview()
+        undoStack.append(document)
+        let current = document
+        document = next
+        revision += 1
+        scheduleSave()
+        requestPreview(slides: affectedSlides(old: current, new: document, layerID: nil, structural: true), prioritySlide: visibleSlide)
     }
 
     private func scheduleSave() {
@@ -274,28 +305,111 @@ final class EditorModel {
         try? RunStore.open(option.runDirectory).write(document, to: "documents/\(option.id).json")
     }
 
-    private func requestPreview() {
+    private func alignedPipelineSlides(for slideCount: Int) -> [URL] {
+        guard slideCount > 0, !option.slides.isEmpty else { return [] }
+        if option.slides.count >= slideCount { return Array(option.slides.prefix(slideCount)) }
+        var urls = option.slides
+        while urls.count < slideCount {
+            urls.append(option.slides.last ?? option.slides[0])
+        }
+        return urls
+    }
+
+    private func slidesNeedingRender(comparedTo baseline: CanvasDocument) -> Set<Int> {
+        let count = max(document.slideCount, baseline.slideCount)
+        var differing: Set<Int> = []
+        for slide in 0..<count {
+            if slideFingerprint(document, slide: slide) != slideFingerprint(baseline, slide: slide) {
+                differing.insert(slide)
+            }
+        }
+        return differing
+    }
+
+    private func slideFingerprint(_ doc: CanvasDocument, slide: Int) -> String {
+        guard slide >= 0, slide < doc.slideCount else { return "" }
+        let layers = doc.layers(onSlide: slide)
+        let bg = doc.slideBackgrounds.indices.contains(slide) ? doc.slideBackgrounds[slide] : ""
+        let grain = doc.slideGrain.indices.contains(slide) ? doc.slideGrain[slide] : 0
+        let edge = doc.slideFilmEdges.indices.contains(slide) ? doc.slideFilmEdges[slide] : false
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let layersData = (try? encoder.encode(layers)) ?? Data()
+        let variant = doc.slideVariants.flatMap { values in
+            values.indices.contains(slide) ? (values[slide] ?? "") : ""
+        } ?? ""
+        let context = [doc.aspect.rawValue, String(doc.slideCount), doc.seamless.description,
+                       String(describing: doc.background), doc.recipeID ?? "", doc.templateID ?? "",
+                       doc.sourcePlanID ?? "", doc.version, doc.seed,
+                       variant, bg, String(grain), edge.description]
+        return context.joined(separator: ";") + ";" + layersData.base64EncodedString()
+    }
+
+    private func slideIndex(for layer: DocumentLayer, in doc: CanvasDocument) -> Int {
+        if let hint = layer.slideHint { return min(max(0, hint), max(0, doc.slideCount - 1)) }
+        let count = Double(max(1, doc.slideCount))
+        return min(doc.slideCount - 1, max(0, Int(layer.frame.x * count)))
+    }
+
+    private func affectedSlides(old: CanvasDocument, new: CanvasDocument, layerID: String?, structural: Bool) -> Set<Int> {
+        if structural || new.seamless || old.seamless || old.slideCount != new.slideCount {
+            return Set(0..<new.slideCount)
+        }
+        var slides = Set<Int>()
+        if let layerID {
+            if let layer = old.layers.first(where: { $0.id == layerID }) { slides.insert(slideIndex(for: layer, in: old)) }
+            if let layer = new.layers.first(where: { $0.id == layerID }) { slides.insert(slideIndex(for: layer, in: new)) }
+        }
+        if slides.isEmpty { return Set(0..<new.slideCount) }
+        return slides
+    }
+
+    private func requestPreview(slides: Set<Int>, prioritySlide: Int) {
+        pendingPreviewSlides.formUnion(slides)
         previewTask?.cancel()
         let snapshot = document
         let token = revision
+        pendingPreviewSlides = pendingPreviewSlides.filter { $0 >= 0 && $0 < snapshot.slideCount }
+        let indices = orderedSlideIndices(pendingPreviewSlides, priority: prioritySlide, slideCount: snapshot.slideCount)
+        guard !indices.isEmpty else { return }
         isRendering = true
         previewTask = Task { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(for: .milliseconds(120))
+            try? await Task.sleep(for: .milliseconds(80))
             guard !Task.isCancelled else { return }
+            // Give each document revision a distinct URL so the pager knows to replace the cached image.
+            let folder = option.runDirectory.appending(path: "documents/previews/\(option.id)-\(renderSessionID)-r\(token)", directoryHint: .isDirectory)
             do {
-                let urls = try await renderQueue.previews(snapshot, photos: photos, sourceFolder: option.sourceFolder,
-                                                          runDirectory: option.runDirectory, optionID: option.id, revision: token, sessionID: renderSessionID)
+                for slide in indices {
+                    guard !Task.isCancelled, revision == token else { return }
+                    let url = try await renderQueue.previewSlide(snapshot, slide: slide, photos: photos,
+                                                                 sourceFolder: option.sourceFolder, folder: folder)
+                    guard revision == token else { return }
+                    if previewURLs.indices.contains(slide) {
+                        previewURLs[slide] = url
+                    } else {
+                        previewURLs = alignedPipelineSlides(for: snapshot.slideCount)
+                        if previewURLs.indices.contains(slide) { previewURLs[slide] = url }
+                    }
+                    pendingPreviewSlides.remove(slide)
+                }
                 guard revision == token else { return }
-                previewURLs = urls
                 isRendering = false
             } catch {
                 guard revision == token else { return }
                 isRendering = false
-                // Keep the previous fully rendered revision visible.
                 alert = "Preview could not update: \(error.localizedDescription)"
             }
         }
+    }
+
+    private func orderedSlideIndices(_ slides: Set<Int>, priority: Int, slideCount: Int) -> [Int] {
+        let valid = slides.filter { $0 >= 0 && $0 < slideCount }.sorted()
+        guard let priorityIndex = valid.firstIndex(of: priority) else { return valid }
+        var ordered = [valid[priorityIndex]]
+        ordered.append(contentsOf: valid[..<priorityIndex])
+        ordered.append(contentsOf: valid[(priorityIndex + 1)...])
+        return ordered
     }
 
     func export() async throws -> [URL] { try await exportRevision().urls }
@@ -323,11 +437,12 @@ final class EditorModel {
 }
 
 private enum EditorFailure: LocalizedError {
-    case exportInProgress, revisionChanged, renderFailed(String)
+    case exportInProgress, revisionChanged, missingDocument, renderFailed(String)
     var errorDescription: String? {
         switch self {
         case .exportInProgress: "An export is already in progress."
         case .revisionChanged: "The design changed while it was being exported. Please share again."
+        case .missingDocument: "The original slide layout is missing, so this option cannot be edited safely."
         case .renderFailed(let message): message
         }
     }
@@ -338,18 +453,12 @@ private enum EditorFailure: LocalizedError {
 private actor DocumentRenderQueue {
     private let renderer = DocumentRenderer()
 
-    func previews(_ document: CanvasDocument, photos: [AssetID: PhotoRecord], sourceFolder: URL,
-                  runDirectory: URL, optionID: String, revision: Int, sessionID: String) throws -> [URL] {
-        let folder = runDirectory.appending(path: "documents/previews/\(optionID)-\(sessionID)-r\(revision)", directoryHint: .isDirectory)
+    func previewSlide(_ document: CanvasDocument, slide: Int, photos: [AssetID: PhotoRecord],
+                      sourceFolder: URL, folder: URL) throws -> URL {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        var urls: [URL] = []
-        for slide in 0..<document.slideCount {
-            let url = folder.appending(path: String(format: "slide-%02d.png", slide + 1))
-            try write(renderer.renderSlide(document, slide: slide, photos: photos, sourceFolder: sourceFolder), to: url)
-            urls.append(url)
-        }
-        guard !urls.isEmpty else { throw EditorFailure.renderFailed("The design has no slides to preview.") }
-        return urls
+        let url = folder.appending(path: String(format: "slide-%02d.png", slide + 1))
+        try write(renderer.renderSlide(document, slide: slide, photos: photos, sourceFolder: sourceFolder), to: url)
+        return url
     }
 
     func export(_ document: CanvasDocument, photos: [AssetID: PhotoRecord], sourceFolder: URL,
@@ -362,7 +471,7 @@ private actor DocumentRenderQueue {
             try write(renderer.renderSlide(document, slide: slide, photos: photos, sourceFolder: sourceFolder), to: url)
             urls.append(url)
         }
-        guard !urls.isEmpty else { throw EditorFailure.renderFailed("The design has no slides to export.") }
+        guard !urls.isEmpty else { throw EditorFailure.renderFailed("The design has no slides to preview.") }
         return urls
     }
 
