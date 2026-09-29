@@ -10,12 +10,35 @@ public enum PageSearch {
         public var warnings: [String]
     }
 
-    private struct Step: Sendable {
-        var pageID: String?
+    /// Immutable steps are shared by beam paths instead of copying their photo/placement arrays.
+    private final class Step: Sendable {
+        let pageID: String?
+        let photos: [AssetID]
+        let placed: [SlotAssignment.Placed]
+        let geometry: String
+        let role: String
+
+        init(pageID: String?, photos: [AssetID], placed: [SlotAssignment.Placed], geometry: String, role: String) {
+            self.pageID = pageID; self.photos = photos; self.placed = placed
+            self.geometry = geometry; self.role = role
+        }
+    }
+
+    private struct CandidateKey: Hashable {
+        var pageID: String
+        var moment: Int
+        var used: [AssetID]
+        var cover: AssetID?
+        var hero: AssetID?
+    }
+
+    private struct Candidate {
         var photos: [AssetID]
-        var placed: [SlotAssignment.Placed]
-        var geometry: String
-        var role: String
+        var fit: SlotAssignment.Result
+        var key: String
+        var step: Step
+        var storyRank: Double
+        var movedCost: Double
     }
 
     private struct State: Sendable {
@@ -25,10 +48,13 @@ public enum PageSearch {
         var cover: AssetID?
         var score = 0.0
         var whiteCards = 0
-        var key: String {
-            "\(moment)|" + steps.map {
-                ($0.pageID ?? "white") + ":" + $0.photos.map(\.rawValue).joined(separator: ",")
-            }.joined(separator: "|")
+        var pathKey = ""
+        var key: String { "\(moment)|" + pathKey }
+
+        mutating func append(_ step: Step, key: String? = nil) {
+            if !steps.isEmpty { pathKey += "|" }
+            pathKey += key ?? ((step.pageID ?? "white") + ":" + step.photos.map(\.rawValue).joined(separator: ","))
+            steps.append(step)
         }
     }
 
@@ -48,21 +74,25 @@ public enum PageSearch {
         return moments
     }
 
+    /// Ranks fitting families with a cover-capable single page first; returns at most four.
     public static func candidateFamilies(_ pages: [DesignedSet], photos: [AssetID], context: CompositionContext,
                                          limit: Int = 4) -> [String] {
         let shapes = Set(photos.compactMap { context.photos[$0].map {
             ShapeClass.of(aspect: Double($0.pixelWidth) / Double(max($0.pixelHeight, 1)))
         } })
         let families = Dictionary(grouping: pages.filter { $0.aspect == context.aspect }, by: \.familyID)
-        let ranked: [(family: String, count: Int)] = families.map { family, pages in
+        let ranked: [(family: String, count: Int, cover: Bool)] = families.map { family, pages in
             let count = pages.filter { page in
                 let slots = page.expandedSlots
                 return !slots.isEmpty && slots.allSatisfy { shapes.contains(ShapeClass.of(aspect: $0.aspect)) }
             }.count
-            return (family, count)
+            return (family, count, pages.contains { $0.slideCount == 1 && $0.coverCapable == true })
         }
         let fitting = ranked.filter { $0.family != "layouts" && $0.count > 0 }
-        let sorted = fitting.sorted { $0.count != $1.count ? $0.count > $1.count : $0.family < $1.family }
+        let sorted = fitting.sorted {
+            if $0.cover != $1.cover { return $0.cover }
+            return $0.count != $1.count ? $0.count > $1.count : $0.family < $1.family
+        }
         return sorted.prefix(max(0, min(limit, 4))).map(\.family)
     }
 
@@ -100,6 +130,7 @@ public enum PageSearch {
         var cache: [String: SlotAssignment.Result] = [:]
         var failedAssignments: Set<String> = []
         var titleCache: [String: Bool] = [:]
+        var candidateCache: [CandidateKey: [Candidate]] = [:]
 
         func assignmentKey(_ ids: [AssetID], _ page: DesignedSet, hero: AssetID?) -> String {
             page.id + "|" + ids.map(\.rawValue).joined(separator: ",") + "|" + (hero?.rawValue ?? "") + "|\(context.keepOrder)"
@@ -187,30 +218,58 @@ public enum PageSearch {
                 return (page, matches - repeated)
             }.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id < $1.0.id }
                 .prefix(PageScore.pagesPerStep).map(\.0)
+            // Paths with the same local selection have identical tuple feasibility. Earlier
+            // moments and page history affect scoring/ranking, but never assignment constraints.
+            let localPhotos = moments[state.moment].photos
+                + (state.moment + 1 < moments.count ? moments[state.moment + 1].photos : [])
+            let localUsed = localPhotos.filter(state.used.contains)
             var results: [State] = []
             for page in ranked {
-                for ids in tuples(page, state: state, hero: hero) {
-                    let currentIDs = ids.filter { moments[state.moment].photos.contains($0) }
-                    let mustLeft = remaining.filter { mandatory.contains($0) && !ids.contains($0) }.count
-                    guard used + currentIDs.count + mustLeft <= limit,
-                          !currentIDs.isEmpty || (first && hero != nil) else { continue }
-                    let nextIndex = state.moment + 1
-                    if nextIndex < moments.count {
-                        let consumedNext = ids.filter { moments[nextIndex].photos.contains($0) }.count
-                        let requiredNext = moments[nextIndex].photos.filter {
-                            mandatory.contains($0) && !state.used.contains($0) && !ids.contains($0)
-                        }.count
-                        guard usedCount(nextIndex, state) + consumedNext + requiredNext <= bounds(nextIndex, state).upper else { continue }
+                let key = CandidateKey(pageID: page.id, moment: state.moment, used: localUsed, cover: state.cover, hero: hero)
+                let candidates: [Candidate]
+                if let cached = candidateCache[key] {
+                    candidates = cached
+                } else {
+                    var computed: [Candidate] = []
+                    for ids in tuples(page, state: state, hero: hero) {
+                        let currentIDs = ids.filter { moments[state.moment].photos.contains($0) }
+                        let mustLeft = remaining.filter { mandatory.contains($0) && !ids.contains($0) }.count
+                        guard used + currentIDs.count + mustLeft <= limit,
+                              !currentIDs.isEmpty || (first && hero != nil) else { continue }
+                        let nextIndex = state.moment + 1
+                        if nextIndex < moments.count {
+                            let consumedNext = ids.filter { moments[nextIndex].photos.contains($0) }.count
+                            let requiredNext = moments[nextIndex].photos.filter {
+                                mandatory.contains($0) && !state.used.contains($0) && !ids.contains($0)
+                            }.count
+                            guard usedCount(nextIndex, state) + consumedNext + requiredNext <= bounds(nextIndex, state).upper else { continue }
+                        }
+                        if context.keepOrder {
+                            // Borrow only after consuming all preceding input photos.
+                            guard ids.filter({ moments[state.moment].photos.contains($0) }) == Array(remaining.prefix(currentIDs.count)) else { continue }
+                            if ids.contains(where: { !moments[state.moment].photos.contains($0) }), currentIDs.count != remaining.count { continue }
+                        }
+                        guard let fit = assign(ids, page, hero: hero) else { continue }
+                        computed.append(Candidate(photos: ids, fit: fit,
+                                                  key: page.id + ":" + ids.map(\.rawValue).joined(separator: ","),
+                                                  step: Step(pageID: page.id, photos: ids, placed: fit.placed,
+                                                             geometry: geometry[page.id]!, role: page.pageRole ?? "grid"),
+                                                  storyRank: ids.reduce(0) { $0 + PageScore.storyRank * (rank[$1] ?? 0) },
+                                                  movedCost: PageScore.movedPhoto * Double(ids.filter {
+                                                      $0 != hero && !moments[state.moment].photos.contains($0)
+                                                  }.count)))
                     }
-                    if context.keepOrder {
-                        // Borrow only after consuming all preceding input photos.
-                        guard ids.filter({ moments[state.moment].photos.contains($0) }) == Array(remaining.prefix(currentIDs.count)) else { continue }
-                        if ids.contains(where: { !moments[state.moment].photos.contains($0) }), currentIDs.count != remaining.count { continue }
-                    }
-                    guard let fit = assign(ids, page, hero: hero) else { continue }
+                    candidateCache[key] = computed
+                    candidates = computed
+                }
+                let repeated = state.steps.contains { $0.geometry == geometry[page.id] }
+                let previous = state.steps.suffix(2)
+                let monotonous = previous.count == 2 && (previous.allSatisfy { $0.role == (page.pageRole ?? "grid") }
+                    || previous.allSatisfy { $0.geometry == geometry[page.id] })
+                for candidate in candidates {
+                    let ids = candidate.photos, fit = candidate.fit
                     var result = state
-                    result.steps.append(Step(pageID: page.id, photos: ids, placed: fit.placed,
-                                             geometry: geometry[page.id]!, role: page.pageRole ?? "grid"))
+                    result.append(candidate.step, key: candidate.key)
                     result.used.formUnion(ids)
                     result.score += page.familyID == "layouts" ? PageScore.gridPage : PageScore.authoredPage
                     if let previous = state.steps.last?.pageID.flatMap({ byID[$0] }),
@@ -219,17 +278,11 @@ public enum PageSearch {
                         result.score += PageScore.authoredNeighbour
                     }
                     if first, titleRenders(ids, page, fit: fit, hero: hero) { result.score += PageScore.titledCover }
-                    result.score += ids.reduce(0) { $0 + PageScore.storyRank * (rank[$1] ?? 0) }
+                    result.score += candidate.storyRank
                     result.score -= PageScore.cropCost * fit.cost
-                    if state.steps.contains(where: { $0.geometry == geometry[page.id] }) { result.score -= PageScore.repeatedPage }
-                    let previous = state.steps.suffix(2)
-                    if previous.count == 2,
-                       previous.allSatisfy({ $0.role == (page.pageRole ?? "grid") })
-                        || previous.allSatisfy({ $0.geometry == geometry[page.id] }) {
-                        result.score -= PageScore.monotony
-                    }
-                    let moved = ids.filter { $0 != hero && !moments[state.moment].photos.contains($0) }.count
-                    result.score -= PageScore.movedPhoto * Double(moved)
+                    if repeated { result.score -= PageScore.repeatedPage }
+                    if monotonous { result.score -= PageScore.monotony }
+                    result.score -= candidate.movedCost
                     results.append(result)
                 }
             }
@@ -237,7 +290,7 @@ public enum PageSearch {
         }
         func whiteCard(_ state: State, photo: AssetID) -> State {
             var result = state
-            result.steps.append(Step(pageID: nil, photos: [photo], placed: [], geometry: "white", role: "statement"))
+            result.append(Step(pageID: nil, photos: [photo], placed: [], geometry: "white", role: "statement"))
             result.used.insert(photo)
             result.whiteCards += 1
             result.score -= PageScore.whiteCard
@@ -261,26 +314,35 @@ public enum PageSearch {
             }
             if beam.isEmpty {
                 let firstMoment = moments[initial.moment].photos
-                let cover: AssetID
-                if let allowed = firstMoment.first(where: { !excludedCovers.contains($0) }) {
-                    cover = allowed
-                    warnings.append("\(id): cover candidates excluded or unusable; using \(cover.rawValue)")
-                } else {
-                    cover = firstPhoto
-                    warnings.append("\(id): no non-excluded opening photo; ignoring cover exclusions for \(cover.rawValue)")
+                let allowed = firstMoment.filter { !excludedCovers.contains($0) }
+                let fallbacks = allowed.isEmpty ? firstMoment : allowed
+                var cover = fallbacks.first ?? firstPhoto
+                for candidate in fallbacks {
+                    initial.cover = candidate
+                    let opening = expand(initial, hero: candidate)
+                    if !opening.isEmpty { cover = candidate; beam = opening; break }
                 }
                 initial.cover = cover
-                beam = expand(initial, hero: cover)
+                warnings.append(allowed.isEmpty
+                    ? "\(id): no non-excluded opening photo; ignoring cover exclusions for \(cover.rawValue)"
+                    : "\(id): cover candidates excluded or unusable; using \(cover.rawValue)")
                 if beam.isEmpty { beam = [whiteCard(initial, photo: cover)] }
             }
         }
         func prune(_ states: [State]) -> [State] {
-            var seen: Set<String> = []
-            let keyed = states.map { (state: $0, key: $0.key) }
-            let sorted = keyed.sorted {
-                $0.state.score != $1.state.score ? $0.state.score > $1.state.score : $0.key < $1.key
+            // Scores order the beam before tie-break keys. Only build/sort keys for score
+            // groups that can reach the beam, preserving the same global ordering and dedup.
+            var groups: [Double: [State]] = [:]
+            for state in states { groups[state.score, default: []].append(state) }
+            var seen: Set<String> = [], result: [State] = []
+            for score in groups.keys.sorted(by: >) {
+                let keyed = (groups[score] ?? []).map { (state: $0, key: $0.key) }.sorted { $0.key < $1.key }
+                for entry in keyed where seen.insert(entry.key).inserted {
+                    result.append(entry.state)
+                    if result.count == PageScore.beamWidth { return result }
+                }
             }
-            return sorted.filter { seen.insert($0.key).inserted }.prefix(PageScore.beamWidth).map(\.state)
+            return result
         }
         beam = prune(beam)
         var finished: [State] = []
@@ -315,7 +377,18 @@ public enum PageSearch {
         }
         // Every transition consumes a photo or advances a moment, so the dynamic guard is above
         // the longest path. White cards ensure even an empty catalogue has a complete result.
-        let best = finished.max { finalScore($0) != finalScore($1) ? finalScore($0) < finalScore($1) : $0.key > $1.key }!
+        guard let best = finished.max(by: {
+            finalScore($0) != finalScore($1) ? finalScore($0) < finalScore($1) : $0.key > $1.key
+        }) else {
+            var fallback = beam.first ?? initial
+            for photo in photos where !fallback.used.contains(photo) { fallback = whiteCard(fallback, photo: photo) }
+            let fallbackWarnings = fallback.steps.filter { $0.pageID == nil }.map {
+                "\(id): \($0.photos[0].rawValue) fits no available page; white card"
+            }
+            return Result(plan: materialize(fallback, plan: emptyPlan, pages: byID, context: layout),
+                          score: finalScore(fallback), family: family, whiteCards: fallback.whiteCards,
+                          warnings: warnings + fallbackWarnings)
+        }
         warnings += best.steps.filter { $0.pageID == nil }.map {
             "\(id): \($0.photos[0].rawValue) fits no available page; white card"
         }
@@ -337,8 +410,17 @@ public enum PageSearch {
         var titlePlaced = false, captions = 0
         for step in state.steps {
             guard let pageID = step.pageID, let page = pages[pageID] else {
-                plan.slides.append(SlidePlan(primitive: .hero, mood: "", density: "quiet",
-                                             photos: [.plain(step.photos[0])], decorations: [], stamps: []))
+                var card = SlidePlan(primitive: .hero, mood: "", density: "quiet",
+                                     photos: [.plain(step.photos[0])], decorations: [], stamps: [])
+                var history: [String] = [], rng = SeededRandom(seed: context.seed)
+                var rendered = [LayoutResolver.resolveSlide(card, index: plan.slides.count, plan: plan, context: context,
+                                                            history: &history, rng: &rng)]
+                if plan.slides.isEmpty {
+                    TemplateVocabulary.addCoverTitleIfNeeded(to: &rendered, plan: plan, context: context)
+                }
+                card.placement = SlidePlacement(catalogueVersion: DesignedSet.schemaVersion, pageID: "white-card",
+                                                runOffset: 0, runLength: 1, placed: [], slide: rendered[0])
+                plan.slides.append(card)
                 titlePlaced = true
                 continue
             }

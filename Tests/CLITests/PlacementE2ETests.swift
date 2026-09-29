@@ -29,6 +29,49 @@ import Testing
         #expect(resolved.slides[0].variant != "template.wide-only")
     }
 
+    @Test func whiteCardPlacementReplaysEvenWhenALegacyTemplateFits() throws {
+        let a = photo("a", aspect: 1.5)
+        let legacy = set("legacy", slides: 1, slots: [slot(x: 0, y: 0.2, w: 1, h: 0.5, aspect: 1.5, z: 0)])
+        let ctx = try context(photos: [a], vocabulary: [legacy])
+        let direction = Direction(brief: "", style: .baseline, coverAssetID: a.assetID, orderedAssetIDs: [a.assetID], titleIdeas: ["Cloud days"])
+        let composition = CompositionContext(aspect: ctx.aspect, photos: ctx.photos, features: [:], triage: [:], flagged: [],
+                                             sequenceIntent: [:], stylePack: ctx.stylePack, maxSlides: nil, exactSet: true, pages: [])
+        let result = try #require(PageSearch.search(direction, id: "c1", family: "A", pages: [], context: composition, seed: 1))
+        var unplaced = result.plan
+        unplaced.slides[0].placement = nil
+        #expect(LayoutResolver.resolve(unplaced, context: ctx).slides[0].variant == "template.legacy")
+        let placement = try #require(result.plan.slides[0].placement)
+        #expect(placement.pageID == "white-card")
+        #expect(placement.runOffset == 0 && placement.runLength == 1 && placement.placed.isEmpty)
+        let stored = try #require(placement.slide)
+        #expect(stored.variant == "hero.clean")
+        #expect(stored.elements.contains { $0.textRole == "title" && $0.text?.lowercased() == "cloud days" })
+        let decoded = try JSONDecoder().decode(CarouselPlan.self, from: JSONEncoder().encode(result.plan))
+        #expect(LayoutResolver.resolve(decoded, context: ctx).slides == [stored])
+    }
+
+    @Test func legacyWindowCannotConsumeAFollowingStoredWhiteCard() throws {
+        let a = photo("a", aspect: 1.5), b = photo("b", aspect: 1.5)
+        let legacy = set("legacy-pair", slides: 2, slots: [
+            slot(x: 0, y: 0.2, w: 1, h: 0.5, aspect: 1.5, z: 0),
+            slot(x: 1, y: 0.2, w: 1, h: 0.5, aspect: 1.5, z: 0)])
+        let ctx = try context(photos: [a, b], vocabulary: [legacy])
+        let direction = Direction(brief: "", style: .baseline, coverAssetID: a.assetID, orderedAssetIDs: [a.assetID])
+        let composition = CompositionContext(aspect: ctx.aspect, photos: ctx.photos, features: [:], triage: [:], flagged: [],
+                                             sequenceIntent: [:], stylePack: ctx.stylePack, maxSlides: nil, exactSet: true, pages: [])
+        var plan = try #require(PageSearch.search(direction, id: "c1", family: "A", pages: [], context: composition, seed: 1)).plan
+        plan.slides.insert(SlidePlan(primitive: .hero, mood: "", density: "balanced", photos: [.plain(b.assetID)],
+                                    decorations: [], stamps: []), at: 0)
+        var unplaced = plan
+        unplaced.slides[1].placement = nil
+        #expect(LayoutResolver.resolve(unplaced, context: ctx).slides[1].variant == "template.legacy-pair")
+        let resolved = LayoutResolver.resolve(plan, context: ctx)
+        var stored = try #require(plan.slides[1].placement?.slide)
+        stored.index = 1
+        #expect(resolved.slides.count == 2)
+        #expect(resolved.slides[1] == stored)
+    }
+
     @Test func plansWithoutPlacementRenderTheSameAsBefore() throws {
         let a = photo("a", aspect: 0.8)
         let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [

@@ -64,7 +64,8 @@ import Testing
         let clock = ContinuousClock()
         var result: PageSearch.Result?
         let elapsed = clock.measure { result = PageSearch.search(d, id: "c1", family: "A", pages: familyA + familyB, context: ctx, seed: 1) }
-        #expect(elapsed < .seconds(2), "search took \(elapsed)")
+        print("60-photo PageSearch elapsed: \(elapsed)")
+        #expect(elapsed < .seconds(0.8), "search took \(elapsed)")
         let plan = try #require(result).plan
         #expect(!LayoutResolver.resolve(plan, context: layoutContext(ctx)).slides.isEmpty)
     }
@@ -131,7 +132,7 @@ import Testing
         #expect(!LayoutResolver.resolve(blocked.plan, context: layoutContext(ctx)).slides[0].elements.contains { $0.textRole == "title" })
     }
 
-    @Test func runMemberReferenceRemovalKeepsTheRunLength() throws {
+    @Test func removingFromEitherRunMemberRemovesThePhotoFromResolvedSlides() throws {
         let run = DesignedSet(id: "run", sourceRef: "test", aspect: .portrait4x5, slideCount: 2, background: "#FFFFFF",
                               slots: [slot(0.8, 0.1, 0.4, 0.8, 0.4)], family: "A", sourceTemplate: "run", pageIndex: 1, pageRole: "strip")
         let pages = [familyA[0], run]
@@ -143,11 +144,38 @@ import Testing
         let layout = LayoutResolver.resolve(plan, context: layoutContext(ctx))
         #expect(layout.slides[1].elements.contains { $0.assetID?.rawValue == "p1" })
         #expect(layout.slides[2].elements.contains { $0.assetID?.rawValue == "p1" })
-        let edited = try PlanEditor.apply(.remove(slide: 1, photo: AssetID(rawValue: "p1")), to: plan)
-        #expect(edited.slides.count == 3)
-        #expect(edited.slides[1].placement == nil)
-        #expect(edited.slides[1].photos == plan.slides[1].photos)
-        #expect(LayoutResolver.resolve(edited, context: layoutContext(ctx)).slides.count == 3)
+        for member in [1, 2] {
+            let edited = try PlanEditor.apply(.remove(slide: member, photo: AssetID(rawValue: "p1")), to: plan)
+            let resolved = LayoutResolver.resolve(edited, context: layoutContext(ctx))
+            #expect(edited.slides.count == 1)
+            #expect(resolved.slides.count == edited.slides.count)
+            let photos = resolved.slides.flatMap(\.elements).filter { $0.kind == .photo }
+            #expect(!photos.contains { $0.assetID?.rawValue == "p1" })
+            #expect(photos.compactMap(\.assetID?.rawValue) == ["p0"])
+            #expect(Set(photos.compactMap(\.assetID)).count == photos.count)
+        }
+    }
+
+    @Test func runRemovalInvalidatesSurvivingMembersBeforeResolving() throws {
+        let run = DesignedSet(id: "run", sourceRef: "test", aspect: .portrait4x5, slideCount: 2, background: "#FFFFFF",
+                              slots: [slot(0.8, 0.1, 0.4, 0.8, 0.4), slot(1.45, 0.1, 0.4, 0.5, 0.64)],
+                              family: "A", sourceTemplate: "run", pageIndex: 1, pageRole: "strip")
+        let pages = [familyA[0], run]
+        let ctx = try context(pool: [photo("p0", aspect: 0.75), photo("p1", aspect: 0.4), photo("p2", aspect: 0.75)],
+                              pages: pages, exactSet: true)
+        let d = direction(momentsOf: [["p0"], ["p1", "p2"]], cover: ["p0"], title: nil)
+        let plan = try #require(PageSearch.search(d, id: "c1", family: "A", pages: pages, context: ctx, seed: 1)).plan
+        #expect(plan.slides.count == 3)
+        for member in [1, 2] {
+            let edited = try PlanEditor.apply(.remove(slide: member, photo: AssetID(rawValue: "p1")), to: plan)
+            #expect(edited.slides.count == 2)
+            #expect(edited.slides[1].placement == nil)
+            let resolved = LayoutResolver.resolve(edited, context: layoutContext(ctx))
+            #expect(resolved.slides.count == edited.slides.count)
+            let photos = resolved.slides.flatMap(\.elements).filter { $0.kind == .photo }
+            #expect(photos.compactMap(\.assetID?.rawValue) == ["p0", "p2"])
+            #expect(Set(photos.compactMap(\.assetID)).count == photos.count)
+        }
     }
 
     @Test func nonAdjacentCoverIsConsumedFromItsOwnMomentWithoutAMovePenalty() throws {
@@ -183,6 +211,32 @@ import Testing
             #expect(Set(layout.slides.flatMap(\.elements).compactMap(\.assetID)) == Set(pool.map(\.assetID)))
             #expect(!result.warnings.isEmpty)
         }
+    }
+
+    @Test func fallbackCoverTriesTheNextRankedNonExcludedPhotoBeforeAWhiteCard() throws {
+        let pool = [photo("pano", aspect: 2.844)] + portraits(2)
+        let ctx = try context(pool: pool, pages: familyA, exactSet: true)
+        let d = direction(momentsOf: [["pano", "p0", "p1"]], cover: ["pano"], title: nil)
+        let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: familyA, context: ctx, seed: 1,
+                                                  excludedCovers: [AssetID(rawValue: "p0")]))
+        let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+        #expect(resolved.slides[0].elements.first { $0.kind == .photo }?.assetID?.rawValue == "p1")
+        #expect(resolved.slides[0].variant != "hero.clean")
+        #expect(result.whiteCards == 1)
+        #expect(Set(resolved.slides.flatMap(\.elements).compactMap(\.assetID)) == Set(pool.map(\.assetID)))
+        #expect(result.warnings.contains { $0.contains("using p1") })
+    }
+
+    @Test func familiesWithSinglePageCoversRankFirstAndStayCappedAtFour() throws {
+        let pages = familyA.map { page -> DesignedSet in
+            var copy = page; copy.coverCapable = false; return copy
+        } + familyB + ["C", "D", "E"].flatMap(family)
+        let ctx = try context(pool: portraits(1), pages: pages)
+        let ranked = PageSearch.candidateFamilies(pages, photos: [AssetID(rawValue: "p0")], context: ctx, limit: 10)
+        #expect(ranked == ["B", "C", "D", "E"])
+        let d = direction(momentsOf: [["p0"]], cover: ["p0"], title: nil)
+        let result = try #require(PageSearch.search(d, id: "c1", family: ranked[0], pages: pages, context: ctx, seed: 1))
+        #expect(LayoutResolver.resolve(result.plan, context: layoutContext(ctx)).slides[0].variant == "template.B-cover")
     }
 
     @Test func emptyCatalogueStillKeepsALongExactSetOnWhiteCards() throws {

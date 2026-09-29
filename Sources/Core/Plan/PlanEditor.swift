@@ -38,31 +38,28 @@ public enum PlanEditor {
 
         case .remove(let s, let id):
             guard p.slides.indices.contains(s) else { throw PlanEditError.slideOutOfRange(s) }
-            guard let i = p.slides[s].photos.firstIndex(where: { $0.assetID == id }) else { throw PlanEditError.photoNotOnSlide(id) }
-            // A run member without a centred photo carries a support reference only.
-            // Removing that reference must not shorten the authored run.
-            if p.slides[s].placement?.runLength ?? 1 > 1,
-               p.slides[s].photos.count == 1, p.slides[s].photos[i].role == "support" {
-                p.slides[s].placement = nil
-                return p
-            }
-            guard p.photoAssetIDs.count > 1 else { throw PlanEditError.lastPhoto }
-            invalidateRun(in: &p.slides, at: s)
-            p.slides[s].photos.remove(at: i)
-            if p.slides[s].photos.isEmpty {
-                p.slides.remove(at: s)                     // removal never pads the carousel
-            } else if !p.slides[s].primitive.photoRange.contains(p.slides[s].photos.count) {
-                p.slides[s].primitive = p.slides[s].photos.count == 1 ? .hero : .asymmetricPair
+            guard p.slides[s].photos.contains(where: { $0.assetID == id }) else { throw PlanEditError.photoNotOnSlide(id) }
+            guard p.photoAssetIDs.contains(where: { $0 != id }) else { throw PlanEditError.lastPhoto }
+            let members = invalidateRun(in: &p.slides, at: s)
+            for member in members.reversed() {
+                p.slides[member].photos.removeAll { $0.assetID == id }
+                if p.slides[member].photos.isEmpty {
+                    p.slides.remove(at: member) // removal never pads the carousel
+                } else if !p.slides[member].primitive.photoRange.contains(p.slides[member].photos.count) {
+                    p.slides[member].primitive = p.slides[member].photos.count == 1 ? .hero : .asymmetricPair
+                }
             }
         }
         return p
     }
 
-    private static func invalidateRun(in slides: inout [SlidePlan], at index: Int) {
-        guard slides.indices.contains(index), let placement = slides[index].placement else { return }
+    @discardableResult
+    private static func invalidateRun(in slides: inout [SlidePlan], at index: Int) -> Range<Int> {
+        guard slides.indices.contains(index) else { return index..<index }
+        guard let placement = slides[index].placement else { return index..<(index + 1) }
         guard placement.runLength > 1 else {
             slides[index].placement?.slide = nil
-            return
+            return index..<(index + 1)
         }
         let pageID = placement.pageID
         var lower = index
@@ -79,5 +76,6 @@ public enum PlanEditor {
               let next = slides[upper + 1].placement, next.pageID == pageID,
               next.runLength == placement.runLength, next.runOffset == current.runOffset + 1 { upper += 1 }
         for member in lower...upper { slides[member].placement = nil }
+        return lower..<(upper + 1)
     }
 }

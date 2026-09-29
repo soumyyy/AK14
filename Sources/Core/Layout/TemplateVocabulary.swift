@@ -28,7 +28,8 @@ public enum TemplateVocabulary {
             guard !photos.isEmpty, Set(photos.map(\.assetID)).count == photos.count else { continue }
             // Templates cannot safely express planned adornments or their grain/film treatments.
             // Keep the ordinary resolver path for those slides so nothing silently disappears.
-            guard window.allSatisfy({ $0.decorations.isEmpty && $0.stamps.isEmpty }) else { continue }
+            // A legacy window must not consume a later slide with an authored placement.
+            guard window.allSatisfy({ $0.placement == nil && $0.decorations.isEmpty && $0.stamps.isEmpty }) else { continue }
             let asked = readings(photos, plan: plan, context: context)
             let allFits = context.vocabulary.filter {
                 $0.aspect == context.aspect && $0.slideCount == length
