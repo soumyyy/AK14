@@ -27,4 +27,27 @@ import Testing
         #expect(ShapeClass.of(aspect: 1.5) == .wide)
         #expect(ShapeClass.of(aspect: 2.4) == .band)
     }
+
+    @Test func catalogueHasEnoughUsablePagesAndNoSampleText() throws {
+        let pages = try StylePackLoader.loadDesignedPages().sets
+        let portrait = pages.filter { $0.aspect == .portrait4x5 }
+        #expect(portrait.count >= 150, "only \(portrait.count) usable 4:5 pages")
+        #expect(pages.filter { $0.aspect == .portrait3x4 }.count >= 100)
+        for aspect in [CarouselAspect.portrait4x5, .portrait3x4] {
+            #expect(pages.contains { $0.aspect == aspect && $0.coverCapable == true }, "no cover page for \(aspect)")
+        }
+        #expect(pages.allSatisfy { ($0.decorCoverage ?? 0) <= 0.12 })
+        #expect(pages.allSatisfy { ($0.texts ?? []).allSatisfy { ["title", "caption", "accent"].contains($0.role) } })
+    }
+
+    @Test func linkedRunsStayWhole() throws {
+        let pages = try StylePackLoader.loadDesignedPages().sets
+        for page in pages where page.slideCount == 1 {
+            #expect(!page.crossesSeam, "\(page.id) is a single page with a slot crossing its edge")
+        }
+        for run in pages where run.slideCount > 1 {
+            #expect(run.crossesSeam || (run.frames ?? []).contains { $0.frame.x.rounded(.down) != ($0.frame.x + $0.frame.width).rounded(.down) },
+                    "\(run.id) is a run but nothing links its pages")
+        }
+    }
 }

@@ -129,7 +129,12 @@ public struct DesignedSet: Codable, Sendable, Equatable {
 
     public var isPage: Bool { pageIndex != nil }
 
-    public var crossesSeam: Bool { slots.contains { $0.crossesSeam || ($0.components?.contains(where: \.crossesSeam) ?? false) } }
+    public var crossesSeam: Bool {
+        (isPage && slideCount > 1) ||
+        slots.contains { $0.crossesSeam || ($0.components?.contains(where: \.crossesSeam) ?? false) } ||
+        (texts ?? []).contains { ($0.frame.x + 0.001).rounded(.down) != ($0.frame.x + $0.frame.width - 0.001).rounded(.down) } ||
+        (frames ?? []).contains { ($0.frame.x + 0.001).rounded(.down) != ($0.frame.x + $0.frame.width - 0.001).rounded(.down) }
+    }
 
     /// Packed grid cells become individual slots. A slot with no components stays one slot.
     public var expandedSlots: [Slot] {

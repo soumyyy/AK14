@@ -158,4 +158,4 @@ A new `PageSearch` replaces group-then-fit for non-baseline options.
 - Compatibility groups across families beyond "same family". The owner curates them from the contact sheets later.
 
 ## Results
-To be filled in during implementation: usable page count, latency, and evaluation numbers.
+Task 2 importer run (2026-09-29): emitted 172 usable records: 63 4:5, 97 3:4, and 12 square. The 4:5 count is below the 150-record target and 3:4 is below the e2e threshold of 100. Page-group rejection reasons for 4:5 were decoration intersecting a photo slot (60) and no photo slots (3); no 4:5 groups were rejected by decoration coverage alone. This is reported as a concern without lowering either threshold. Latency and evaluation results are pending later build steps.

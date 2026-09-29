@@ -82,6 +82,12 @@ struct SetRecord: Codable {
     let background: String; let slots: [Slot]; let version: Int
     let texts: [TextLayer]?; let frames: [FrameLayer]?; let family: String?; let decorCoverage: Double?
 }
+struct PageRecord: Codable {
+    let id: String; let sourceRef: String; let aspect: String; let slideCount: Int
+    let background: String; let slots: [Slot]; let version: Int
+    let texts: [TextLayer]?; let frames: [FrameLayer]?; let family: String?; let decorCoverage: Double?
+    let sourceTemplate: String; let pageIndex: Int; let pageRole: String; let coverCapable: Bool
+}
 struct TextLayer: Codable {
     let frame: Rect; let fontID: String; let size: Double; let colour: String; let alignment: String
     let lineSpacing: Double; let letterSpacing: Double; let numberOfLines: Int; let rotation: Double; let role: String
@@ -93,6 +99,7 @@ struct FrameLayer: Codable {
 struct Library: Codable {
     let version: Int; let frameInference: String; let sets: [SetRecord]
 }
+struct PageLibrary: Codable { let version: Int; let frameInference: String; let sets: [PageRecord] }
 struct Box { let x: Double; let y: Double; let width: Double; let height: Double }
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -135,7 +142,9 @@ func normalized(_ boxes: [Box], canvasWidth: Double, canvasHeight: Double, slide
     let order = prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }
     let roles = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element.0, $0.offset == 0 ? "hero" : "support") })
     return prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }.map { index, frame, ratio, _ in
-        let seams = (1..<slideCount).contains { Double($0) > frame.x + 0.000001 && Double($0) < frame.x + frame.width - 0.000001 }
+        let seams = slideCount > 1 && (1..<slideCount).contains {
+            Double($0) > frame.x + 0.000001 && Double($0) < frame.x + frame.width - 0.000001
+        }
         return Slot(frame: frame, aspect: ratio, z: index, rotation: 0, crossesSeam: seams,
                     roleHint: roles[index]!, components: nil, cornerRadius: nil)
     }
@@ -263,6 +272,91 @@ func unionArea(_ boxes: [Box]) -> Double {
     return area
 }
 
+func pageRole(slots: [Slot], texts: [TextLayer], length: Double) -> String {
+    let areas = slots.map { $0.frame.width * $0.frame.height / length }
+    if slots.count == 1, areas[0] >= 0.8 { return texts.contains { $0.role == "title" } ? "cover" : "statement" }
+    if texts.contains(where: { $0.role == "title" }) { return "cover" }
+    if slots.count <= 1, (areas.first ?? 0) < 0.35 { return "quiet" }
+    let xs = Set(slots.map { ($0.frame.x * 20).rounded() })
+    let ys = Set(slots.map { ($0.frame.y * 20).rounded() })
+    if (2...4).contains(slots.count), xs.count == 1 || ys.count == 1 { return "strip" }
+    let maxArea = areas.max() ?? 0, minArea = areas.min() ?? 0
+    if slots.count >= 3, minArea / max(maxArea, 0.0001) >= 0.7 { return "grid" }
+    return areas.count == 1 ? "statement" : "grid"
+}
+
+func pages(templateID: Int, aspect: String, pageCount: Int, background: String, family: String,
+           slots: [Slot], texts: [TextLayer], frames: [FrameLayer], decor: [Box],
+           rejectionCounts: inout [String: Int]) -> [PageRecord] {
+    guard pageCount > 0 else { return [] }
+    func spans(_ x: Double, _ width: Double) -> ClosedRange<Int> {
+        let lo = min(pageCount - 1, max(0, Int(floor(x + 0.001))))
+        let hi = min(pageCount - 1, max(lo, Int(floor(x + width - 0.001))))
+        return lo...hi
+    }
+    var parent = Array(0..<pageCount)
+    func find(_ index: Int) -> Int {
+        if parent[index] != index { parent[index] = find(parent[index]) }
+        return parent[index]
+    }
+    let ranges = slots.map { spans($0.frame.x, $0.frame.width) }
+        + texts.map { spans($0.frame.x, $0.frame.width) }
+        + frames.map { spans($0.frame.x, $0.frame.width) }
+        + decor.map { spans($0.x, $0.width) }
+    for range in ranges where range.count > 1 {
+        let root = find(range.lowerBound)
+        for index in range.dropFirst() { parent[find(index)] = root }
+    }
+    let groups = Dictionary(grouping: 0..<pageCount, by: find).values.map { $0.sorted() }.sorted { $0[0] < $1[0] }
+    return groups.compactMap { group in
+        let first = group[0], length = Double(group.count), start = Double(first)
+        func local(_ rect: Rect) -> Rect { Rect(x: rect.x - start, y: rect.y, width: rect.width, height: rect.height) }
+        func inside(_ x: Double, _ width: Double) -> Bool {
+            x + 0.001 >= start && x + width - 0.001 <= start + length
+        }
+        let selectedSlots = slots.filter { inside($0.frame.x, $0.frame.width) }.map { slot in
+            let rect = local(slot.frame)
+            let seam = group.count > 1 && (1..<group.count).contains {
+                Double($0) > rect.x + 0.000001 && Double($0) < rect.x + rect.width - 0.000001
+            }
+            return Slot(frame: rect, aspect: slot.aspect, z: slot.z, rotation: slot.rotation, crossesSeam: seam,
+                        roleHint: slot.roleHint, components: slot.components, cornerRadius: slot.cornerRadius)
+        }
+        guard !selectedSlots.isEmpty else { rejectionCounts["\(aspect) no photo slots", default: 0] += 1; return nil }
+        let selectedTexts = texts.filter { inside($0.frame.x, $0.frame.width) }.map {
+            TextLayer(frame: local($0.frame), fontID: $0.fontID, size: $0.size, colour: $0.colour,
+                      alignment: $0.alignment, lineSpacing: $0.lineSpacing, letterSpacing: $0.letterSpacing,
+                      numberOfLines: $0.numberOfLines, rotation: $0.rotation, role: $0.role)
+        }
+        let selectedFrames = frames.filter { inside($0.frame.x, $0.frame.width) }.map {
+            FrameLayer(frame: local($0.frame), frameAssetID: $0.frameAssetID, slotFrame: $0.slotFrame.map(local),
+                       photoWindowAspect: $0.photoWindowAspect, z: $0.z, rotation: $0.rotation)
+        }
+        let selectedDecor = decor.filter { inside($0.x, $0.width) }
+        let coverage = min(1, unionArea(selectedDecor.map { Box(x: $0.x - start, y: $0.y, width: $0.width, height: $0.height) }) / length)
+        let overlapsPhoto = selectedDecor.contains { decoration in
+            selectedSlots.contains { slot in
+                max(decoration.x - start, slot.frame.x) < min(decoration.x - start + decoration.width, slot.frame.x + slot.frame.width) &&
+                max(decoration.y, slot.frame.y) < min(decoration.y + decoration.height, slot.frame.y + slot.frame.height)
+            }
+        }
+        guard coverage <= 0.12, !overlapsPhoto else {
+            let reason = overlapsPhoto ? "decoration intersects photo slot" : "decoration coverage over 12%"
+            rejectionCounts["\(aspect) \(reason)", default: 0] += 1
+            return nil
+        }
+        let role = pageRole(slots: selectedSlots, texts: selectedTexts, length: length)
+        let dominant = selectedSlots.map { $0.frame.width * $0.frame.height }.max()! / length
+        let cover = group.count == 1 && (selectedTexts.contains { $0.role == "title" } || dominant >= 0.6)
+        let id = group.count == 1 ? "17v28-t\(templateID)-p\(first)" : "17v28-t\(templateID)-p\(first)-\(group.last!)"
+        return PageRecord(id: id, sourceRef: "17v28:template-\(templateID)", aspect: aspect, slideCount: group.count,
+                          background: background, slots: selectedSlots, version: libraryVersion,
+                          texts: selectedTexts.isEmpty ? nil : selectedTexts, frames: selectedFrames.isEmpty ? nil : selectedFrames,
+                          family: family, decorCoverage: coverage, sourceTemplate: "template-\(templateID)",
+                          pageIndex: first, pageRole: role, coverCapable: cover)
+    }
+}
+
 func closestFrameAsset(windowAspect: Double, candidates: [ImportedFrame]) -> String? {
     guard !candidates.isEmpty, windowAspect.isFinite, windowAspect > 0 else { return nil }
     return candidates.min {
@@ -306,6 +400,8 @@ func main() throws {
     let files = try templateFiles()
     let frameCandidates = try frameAssetCandidates()
     var records: [SetRecord] = []
+    var pageRecords: [PageRecord] = []
+    var pageRejectionCounts: [String: Int] = [:]
     var rejected: [(String, String)] = []
     for file in files {
         let t = try lenientDecode(RawTemplate.self, from: Data(contentsOf: file))
@@ -358,18 +454,6 @@ func main() throws {
             guard layer.image != nil, layer.placeholderCenter == nil else { return nil }
             return directBox(layer.center, layer.size)
         }
-        let pageArea = width * height * Double(max(1, t.numberOfFrames))
-        let decorCoverage = min(1, unionArea(decorBoxes) / max(pageArea, 1))
-        let decorOverPhoto = decorBoxes.contains { decor in
-            boxes.contains {
-                max(decor.x, $0.x) < min(decor.x + decor.width, $0.x + $0.width) &&
-                max(decor.y, $0.y) < min(decor.y + decor.height, $0.y + $0.height)
-            }
-        }
-        if decorCoverage > 0.12 || decorOverPhoto {
-            rejected.append(("template-\(t.id)", decorOverPhoto ? "decor intersects photo slot" : "decor coverage \(decorCoverage)"))
-            continue
-        }
         let frames: [FrameLayer] = t.layers.enumerated().compactMap { index, layer in
             guard let center = layer.frameCenter, let size = layer.frameSize, layer.frameImage != nil else { return nil }
             let frameBox = directBox(center, size)!
@@ -386,8 +470,29 @@ func main() throws {
                               photoWindowAspect: photoWindowAspect,
                               z: 100 + index, rotation: layer.rotation ?? 0)
         }
+        let templateBackground = "#" + (t.backgroundColor ?? "FFFFFF").trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        if ["4:5", "3:4", "1:1"].contains(aspect) {
+            pageRecords += pages(templateID: Int(t.id) ?? 0, aspect: aspect, pageCount: t.numberOfFrames,
+                                 background: templateBackground, family: t.categoryId ?? "uncategorized",
+                                 slots: enrichedSlots, texts: texts, frames: frames,
+                                 decor: decorBoxes.map { normalizedRect($0, canvasWidth: width, canvasHeight: height) }.map {
+                                     Box(x: $0.x, y: $0.y, width: $0.width, height: $0.height)
+                                 }, rejectionCounts: &pageRejectionCounts)
+        }
+        let pageArea = width * height * Double(max(1, t.numberOfFrames))
+        let decorCoverage = min(1, unionArea(decorBoxes) / max(pageArea, 1))
+        let decorOverPhoto = decorBoxes.contains { decor in
+            boxes.contains {
+                max(decor.x, $0.x) < min(decor.x + decor.width, $0.x + $0.width) &&
+                max(decor.y, $0.y) < min(decor.y + decor.height, $0.y + $0.height)
+            }
+        }
+        if decorCoverage > 0.12 || decorOverPhoto {
+            rejected.append(("template-\(t.id)", decorOverPhoto ? "decor intersects photo slot" : "decor coverage \(decorCoverage)"))
+            continue
+        }
         records.append(SetRecord(id: "17v28-template-\(t.id)", sourceRef: "17v28:template-\(t.id)", aspect: aspect,
-                                 slideCount: t.numberOfFrames, background: "#" + (t.backgroundColor ?? "FFFFFF").trimmingCharacters(in: CharacterSet(charactersIn: "#")),
+                                 slideCount: t.numberOfFrames, background: templateBackground,
                                  slots: enrichedSlots, version: libraryVersion, texts: texts.isEmpty ? nil : texts,
                                  frames: frames.isEmpty ? nil : frames, family: t.categoryId ?? "uncategorized",
                                  decorCoverage: decorCoverage))
@@ -405,18 +510,29 @@ func main() throws {
                                  version: libraryVersion, texts: nil, frames: nil, family: "layouts", decorCoverage: 0))
     }
     records.sort { $0.id < $1.id }
-    let library = Library(version: libraryVersion,
-        frameInference: "Canvas width is 216pt. Single-frame portrait templates with full-bleed placeholders consistently measure 216×270pt (4:5); square measures 216×216pt. portrait2 is mapped to 216×288pt (3:4), supported by full-height placeholders measuring 216×288pt in multi-frame template-196; its sole single-frame example (template-201) has an inset 216×162.7pt placeholder and does not reveal canvas bounds. Multi-frame coordinates are treated as one continuous canvas whose width is frame width × numberOfFrames. Layouts use their supplied unit square. Source files are decoded after removing trailing commas; no raw source data is included.",
+    let frameInference = "Canvas width is 216pt. Single-frame portrait templates with full-bleed placeholders consistently measure 216×270pt (4:5); square measures 216×216pt. portrait2 is mapped to 216×288pt (3:4), supported by full-height placeholders measuring 216×288pt in multi-frame template-196; its sole single-frame example (template-201) has an inset 216×162.7pt placeholder and does not reveal canvas bounds. Multi-frame coordinates are treated as one continuous canvas whose width is frame width × numberOfFrames. Layouts use their supplied unit square. Source files are decoded after removing trailing commas; no raw source data is included."
+    let library = Library(version: libraryVersion, frameInference: frameInference,
         sets: records)
     let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
     try encoder.encode(library).write(to: output)
-    try renderContactSheets(records)
+    let pagesURL = output.deletingLastPathComponent().appendingPathComponent("designed-pages.json")
+    let pageLibrary = PageLibrary(version: libraryVersion, frameInference: frameInference, sets: pageRecords.sorted { $0.id < $1.id })
+    try encoder.encode(pageLibrary).write(to: pagesURL)
+    try renderContactSheets(records, prefix: "sets")
+    try renderContactSheets(pageRecords.map {
+        SetRecord(id: $0.id, sourceRef: $0.sourceRef, aspect: $0.aspect, slideCount: $0.slideCount,
+                  background: $0.background, slots: $0.slots, version: $0.version, texts: $0.texts,
+                  frames: $0.frames, family: $0.family, decorCoverage: $0.decorCoverage)
+    }, prefix: "pages")
+    let pageCounts = Dictionary(grouping: pageRecords, by: \.aspect).mapValues(\.count)
+    print("Imported \(pageRecords.count) pages (\(pageCounts["4:5", default: 0]) 4:5, \(pageCounts["3:4", default: 0]) 3:4, \(pageCounts["1:1", default: 0]) 1:1)")
+    print("Rejected page groups by reason: \(pageRejectionCounts)")
     print("Imported \(records.count) sets (\(records.filter { $0.sourceRef.contains(":template-") }.count) templates, \(layouts.count) layouts); rejected \(rejected.count): \(rejected)")
     print("Wrote \(output.path)")
 }
 
-func renderContactSheets(_ records: [SetRecord]) throws {
+func renderContactSheets(_ records: [SetRecord], prefix: String) throws {
     for aspect in ["3:4", "4:5", "1:1"] {
         let subset = records.filter { $0.aspect == aspect }
         guard !subset.isEmpty else { continue }
@@ -457,7 +573,7 @@ func renderContactSheets(_ records: [SetRecord]) throws {
             (record.id as NSString).draw(at: NSPoint(x: cx, y: cy + 8 + Int(totalPreviewWidth / ratio) + 12), withAttributes: [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.black])
         }
         NSGraphicsContext.restoreGraphicsState()
-        let dest = URL(fileURLWithPath: "/tmp/ak14-designed-sets-\(aspect.replacingOccurrences(of: ":", with: "x")).png")
+        let dest = URL(fileURLWithPath: "/tmp/ak14-designed-\(prefix)-\(aspect.replacingOccurrences(of: ":", with: "x")).png")
         try image.representation(using: .png, properties: [:])!.write(to: dest)
         print("Preview: \(dest.path)")
     }
