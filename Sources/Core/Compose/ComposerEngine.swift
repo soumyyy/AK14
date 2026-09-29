@@ -17,17 +17,19 @@ public struct CompositionContext: Sendable {
     public var storyHint: String?
     /// Imported page arrangements shared by composition, scoring, and judging.
     public var vocabulary: [DesignedSet]
+    public var pages: [DesignedSet]
 
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
                 triage: [AssetID: TriageScore], flagged: Set<AssetID>, sequenceIntent: [AssetID: SequenceIntent],
                 stylePack: StylePack, maxSlides: Int?, exactSet: Bool = false, keepOrder: Bool = false,
-                storyHint: String? = nil, vocabulary: [DesignedSet] = []) {
+                storyHint: String? = nil, vocabulary: [DesignedSet] = [], pages: [DesignedSet] = []) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.triage = triage; self.flagged = flagged
         self.sequenceIntent = sequenceIntent; self.stylePack = stylePack; self.maxSlides = maxSlides
         self.exactSet = exactSet
         self.keepOrder = keepOrder
         self.storyHint = storyHint
         self.vocabulary = vocabulary
+        self.pages = pages
     }
 }
 

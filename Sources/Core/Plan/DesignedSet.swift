@@ -86,13 +86,20 @@ public struct DesignedSet: Codable, Sendable, Equatable {
     public var frames: [FrameLayer]?
     public var family: String?
     public var decorCoverage: Double?
+    public var sourceTemplate: String?
+    public var pageIndex: Int?
+    public var pageRole: String?
+    public var coverCapable: Bool?
 
     public init(id: String, sourceRef: String, aspect: CarouselAspect, slideCount: Int, background: String,
                 slots: [Slot], version: Int = Self.schemaVersion, texts: [TextLayer]? = nil,
-                frames: [FrameLayer]? = nil, family: String? = nil, decorCoverage: Double? = nil) {
+                frames: [FrameLayer]? = nil, family: String? = nil, decorCoverage: Double? = nil,
+                sourceTemplate: String? = nil, pageIndex: Int? = nil, pageRole: String? = nil, coverCapable: Bool? = nil) {
         self.id = id; self.sourceRef = sourceRef; self.aspect = aspect; self.slideCount = slideCount
         self.background = background; self.slots = slots; self.version = version
         self.texts = texts; self.frames = frames; self.family = family; self.decorCoverage = decorCoverage
+        self.sourceTemplate = sourceTemplate; self.pageIndex = pageIndex; self.pageRole = pageRole
+        self.coverCapable = coverCapable
     }
 
     public func validationError() -> String? {
@@ -100,6 +107,8 @@ public struct DesignedSet: Codable, Sendable, Equatable {
         guard id.range(of: "^[a-z0-9][a-z0-9-]{0,127}$", options: .regularExpression) != nil else { return "invalid id" }
         guard !sourceRef.isEmpty, slideCount > 0, !slots.isEmpty else { return "invalid metadata" }
         guard background.range(of: "^#?[A-Fa-f0-9]{6}$", options: .regularExpression) != nil else { return "invalid background colour" }
+        if let role = pageRole, !["cover", "statement", "grid", "strip", "quiet"].contains(role) { return "invalid page role" }
+        if let index = pageIndex, index < 0 { return "invalid page index" }
         for slot in slots {
             let parts = slot.components?.map { ($0.frame, $0.aspect, $0.rotation) } ?? [(slot.frame, slot.aspect, slot.rotation)]
             for (f, aspect, rotation) in parts {
@@ -117,6 +126,8 @@ public struct DesignedSet: Codable, Sendable, Equatable {
         if let coverage = decorCoverage, !coverage.isFinite || coverage < 0 || coverage > 1 { return "invalid decorative coverage" }
         return nil
     }
+
+    public var isPage: Bool { pageIndex != nil }
 
     public var crossesSeam: Bool { slots.contains { $0.crossesSeam || ($0.components?.contains(where: \.crossesSeam) ?? false) } }
 

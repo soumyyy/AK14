@@ -9,10 +9,11 @@ public struct LayoutContext: Sendable {
     public var storyHint: String?
     /// Imported page arrangements the resolver may fill. Empty keeps the six primitives.
     public var vocabulary: [DesignedSet]
+    public var pages: [DesignedSet]
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
-                stylePack: StylePack, seed: UInt64, storyHint: String? = nil, vocabulary: [DesignedSet] = []) {
+                stylePack: StylePack, seed: UInt64, storyHint: String? = nil, vocabulary: [DesignedSet] = [], pages: [DesignedSet] = []) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.stylePack = stylePack
-        self.seed = seed; self.storyHint = storyHint; self.vocabulary = vocabulary
+        self.seed = seed; self.storyHint = storyHint; self.vocabulary = vocabulary; self.pages = pages
     }
 }
 
