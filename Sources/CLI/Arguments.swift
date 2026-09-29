@@ -33,6 +33,8 @@ enum Command: Equatable {
     case delete(runDirectory: URL, cache: URL?)
     case deleteStudyCode(code: String, runsDirectory: URL, cache: URL?)
     case evalPairs(runDirectories: [URL], out: URL, seed: UInt64)
+    case evalCompare(runDirectories: [URL], source: URL, out: URL, seed: UInt64)
+    case evalRate(directory: URL, rater: String)
     case evalLabel(directory: URL, rater: String)
     case evalImport(directory: URL, labels: URL)
     case evalScore(directory: URL, stage: EvalPair.Stage?)
@@ -51,7 +53,7 @@ enum ArgumentError: Error, Equatable, CustomStringConvertible {
         case .unknownCommand(let c): "unknown command '\(c)'"
         case .missingFolder: "run needs a photo folder"
         case .missingRunDirectory: "report/rerender needs a run directory"
-        case .missingSource: "rerender needs --source <folder>"
+        case .missingSource: "rerender/eval compare needs --source <folder>"
         case .invalidSlides(let s): "invalid --slides '\(s)' (use 5...20)"
         case .invalidSeed(let s): "invalid --seed '\(s)' (hex)"
         case .invalidValue(let f, let v): "invalid value '\(v)' for \(f)"
@@ -77,9 +79,11 @@ enum Arguments {
       ak14 delete --study-code CODE [--runs DIR] [--purge-cache] [--cache DIR]
       ak14 versions
       ak14 eval pairs <runDir>… --out <evalDir> [--seed HEX]
+      ak14 eval compare <runDir>… --source <folder> --out <evalDir> [--seed HEX]
+      ak14 eval rate <evalDir> --rater <name>
       ak14 eval label <evalDir> --rater <name>
       ak14 eval import <evalDir> <labels.json>
-      ak14 eval score <evalDir> [--stage split|selection|cover|layout]
+      ak14 eval score <evalDir> [--stage split|selection|cover|layout|engine]
     """
 
     static func parse(_ args: [String], cwd: URL) throws -> Command {
@@ -111,25 +115,31 @@ enum Arguments {
             guard let action = rest.first else { throw ArgumentError.unknownCommand("eval") }
             rest.removeFirst()
             switch action {
-            case "pairs":
-                var dirs: [URL] = [], out: URL?, seed: UInt64 = 14
+            case "pairs", "compare":
+                var dirs: [URL] = [], out: URL?, source: URL?, seed: UInt64 = 14
                 while !rest.isEmpty {
                     let value = rest.removeFirst()
-                    if value == "--out" || value == "--seed" {
+                    if value == "--out" || value == "--seed" || (action == "compare" && value == "--source") {
                         guard !rest.isEmpty else { throw ArgumentError.missingValue(value) }
                         let v = rest.removeFirst()
                         if value == "--out" { out = path(v) }
+                        else if value == "--source" { source = path(v) }
                         else { guard let n = UInt64(v, radix: 16) else { throw ArgumentError.invalidSeed(v) }; seed = n }
                     } else if value.hasPrefix("--") { throw ArgumentError.unknownOption(value) }
                     else { dirs.append(path(value)) }
                 }
                 guard !dirs.isEmpty else { throw ArgumentError.missingRunDirectory }
                 guard let out else { throw ArgumentError.missingValue("--out") }
+                if action == "compare" {
+                    guard let source else { throw ArgumentError.missingSource }
+                    return .evalCompare(runDirectories: dirs, source: source, out: out, seed: seed)
+                }
                 return .evalPairs(runDirectories: dirs, out: out, seed: seed)
-            case "label":
+            case "label", "rate":
                 guard let dir = rest.first, !dir.hasPrefix("--") else { throw ArgumentError.missingRunDirectory }
                 rest.removeFirst(); let f = try flags(["--rater"])
                 guard let rater = f["--rater"], !rater.isEmpty else { throw ArgumentError.missingValue("--rater") }
+                if action == "rate" { return .evalRate(directory: path(dir), rater: rater) }
                 return .evalLabel(directory: path(dir), rater: rater)
             case "import":
                 guard rest.count == 2 else { throw ArgumentError.missingRunDirectory }

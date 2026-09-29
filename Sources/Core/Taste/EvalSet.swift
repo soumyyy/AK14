@@ -4,13 +4,25 @@ public struct CandidateRef: Codable, Sendable, Equatable {
     public var carouselID: String
     public var compositionSeed: String
     public var runID: String
-    public init(carouselID: String, compositionSeed: String, runID: String) {
+    public var engine: String?
+    public var assetIDs: [AssetID]
+    public init(carouselID: String, compositionSeed: String, runID: String, engine: String? = nil, assetIDs: [AssetID] = []) {
         self.carouselID = carouselID; self.compositionSeed = compositionSeed; self.runID = runID
+        self.engine = engine; self.assetIDs = assetIDs
+    }
+    enum CodingKeys: String, CodingKey { case carouselID, compositionSeed, runID, engine, assetIDs }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(carouselID: try c.decode(String.self, forKey: .carouselID),
+                  compositionSeed: try c.decode(String.self, forKey: .compositionSeed),
+                  runID: try c.decode(String.self, forKey: .runID),
+                  engine: try c.decodeIfPresent(String.self, forKey: .engine),
+                  assetIDs: try c.decodeIfPresent([AssetID].self, forKey: .assetIDs) ?? [])
     }
 }
 
 public struct EvalPair: Codable, Sendable, Equatable {
-    public enum Stage: String, Codable, Sendable, CaseIterable { case split, selection, cover, layout }
+    public enum Stage: String, Codable, Sendable, CaseIterable { case split, selection, cover, layout, engine }
     public var pairID: String
     public var runID: String
     public var stage: Stage
@@ -81,5 +93,16 @@ public struct EvalReport: Codable, Sendable {
     public var stages: [StageSummary]
     public init(agreement: Double, confidenceInterval: [Double], labelledPairs: Int, ties: Int, events: [Event], stages: [StageSummary] = []) {
         self.agreement = agreement; self.confidenceInterval = confidenceInterval; self.labelledPairs = labelledPairs; self.ties = ties; self.events = events; self.stages = stages
+    }
+}
+
+public struct EvalRating: Codable, Sendable, Equatable {
+    public var runID: String
+    public var optionID: String
+    public var engine: String
+    public var rating: String
+    public var rater: String
+    public init(runID: String, optionID: String, engine: String, rating: String, rater: String) {
+        self.runID = runID; self.optionID = optionID; self.engine = engine; self.rating = rating; self.rater = rater
     }
 }

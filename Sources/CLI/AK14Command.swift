@@ -43,6 +43,12 @@ struct AK14Command {
             case .evalPairs(let dirs, let out, let seed):
                 try EvalCommand.pairs(runDirectories: dirs, out: out, seed: seed)
                 print(out.appending(path: "evalset.json").path)
+            case .evalCompare(let dirs, let source, let out, let seed):
+                try EvalCommand.compare(runDirectories: dirs, source: source, out: out, seed: seed)
+                print(out.appending(path: "evalset.json").path)
+            case .evalRate(let dir, let rater):
+                try EvalCommand.rate(evalDirectory: dir, rater: rater)
+                print(dir.appending(path: "index.html").path)
             case .evalLabel(let dir, let rater):
                 try EvalCommand.label(evalDirectory: dir, rater: rater)
                 print(dir.appending(path: "index.html").path)

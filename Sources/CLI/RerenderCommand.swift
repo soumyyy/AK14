@@ -60,13 +60,7 @@ enum RerenderCommand {
             for p in concepts.plans { try store.write(p, to: "plans/\(p.id).json") }
         }
         let photos = Dictionary(uniqueKeysWithValues: ingest.photos.map { ($0.assetID, $0) })
-        let folder = source.resolvingSymlinksInPath()
-        // Unknown IDs (e.g. a hand-edited plan) are dropped by the resolver with a warning; verify only known photos.
-        for id in Set(concepts.plans.flatMap(\.photoAssetIDs)) {
-            guard let p = photos[id] else { continue }
-            let sha = try FileHasher.sha256Hex(of: folder.appending(path: p.sourceRelativePaths[0]))
-            if sha != p.contentSHA256 { throw Failure.changed(p.sourceRelativePaths[0]) }
-        }
+        let folder = try verifiedSource(source, photos: photos, assetIDs: concepts.plans.flatMap(\.photoAssetIDs))
         let fm = FileManager.default
         let staging = store.url(".rerender")
         try? fm.removeItem(at: staging)
@@ -107,5 +101,17 @@ enum RerenderCommand {
         try? fm.removeItem(at: staging); try? fm.removeItem(at: backup)
         concepts.renderedSlides = result.slides
         try store.write(concepts, to: "plans/director.json")
+    }
+
+    /// Shared original-photo resolution and integrity check for rerender and engine evaluation.
+    static func verifiedSource(_ source: URL, photos: [AssetID: PhotoRecord], assetIDs: [AssetID]) throws -> URL {
+        let folder = source.resolvingSymlinksInPath()
+        // Unknown IDs (e.g. a hand-edited plan) are dropped by the resolver with a warning.
+        for id in Set(assetIDs).sorted(by: { $0.rawValue < $1.rawValue }) {
+            guard let p = photos[id] else { continue }
+            let sha = try FileHasher.sha256Hex(of: folder.appending(path: p.sourceRelativePaths[0]))
+            if sha != p.contentSHA256 { throw Failure.changed(p.sourceRelativePaths[0]) }
+        }
+        return folder
     }
 }
