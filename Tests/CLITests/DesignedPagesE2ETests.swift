@@ -44,12 +44,23 @@ import Testing
 
     @Test func linkedRunsStayWhole() throws {
         let pages = try StylePackLoader.loadDesignedPages().sets
+        func crosses(_ frame: UnitRect, _ boundary: Double) -> Bool {
+            frame.x < boundary - 0.001 && frame.x + frame.width > boundary + 0.001
+        }
+        func hasCrossingLayer(_ page: DesignedSet, at boundary: Double) -> Bool {
+            page.slots.contains { crosses($0.frame, boundary) } ||
+                (page.frames ?? []).contains { crosses($0.frame, boundary) } ||
+                (page.texts ?? []).contains { crosses($0.frame, boundary) }
+        }
         for page in pages where page.slideCount == 1 {
-            #expect(!page.crossesSeam, "\(page.id) is a single page with a slot crossing its edge")
+            #expect(!hasCrossingLayer(page, at: 0), "\(page.id) has a layer crossing its left edge")
+            #expect(!hasCrossingLayer(page, at: 1), "\(page.id) has a layer crossing its right edge")
         }
         for run in pages where run.slideCount > 1 {
-            #expect(run.crossesSeam || (run.frames ?? []).contains { $0.frame.x.rounded(.down) != ($0.frame.x + $0.frame.width).rounded(.down) },
-                    "\(run.id) is a run but nothing links its pages")
+            for boundary in 1..<run.slideCount {
+                #expect(hasCrossingLayer(run, at: Double(boundary)),
+                        "\(run.id) has no slot, frame, or text crossing boundary \(boundary)")
+            }
         }
     }
 }

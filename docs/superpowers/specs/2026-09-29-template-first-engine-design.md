@@ -158,5 +158,4 @@ A new `PageSearch` replaces group-then-fit for non-baseline options.
 - Compatibility groups across families beyond "same family". The owner curates them from the contact sheets later.
 
 ## Results
-Task 2 importer run (2026-09-29): emitted 172 usable records: 63 4:5, 97 3:4, and 12 square. The 4:5 count is below the 150-record target and 3:4 is below the e2e threshold of 100. Page-group rejection reasons for 4:5 were decoration intersecting a photo slot (60) and no photo slots (3); no 4:5 groups were rejected by decoration coverage alone. This is reported as a concern without lowering either threshold. Latency and evaluation results are pending later build steps.
-- Page catalogue (Task 2): 86 usable 4:5 records (70 pages, 16 linked runs, covering 124 source pages), 122 3:4, 13 1:1. The 150 4:5 target is not met: the other 65 4:5 page groups have more than 12% decorative coverage and wait for phase B.
+Task 2 page catalogue (2026-09-29): 212 usable records (80 4:5: 67 single pages and 13 linked runs; 119 3:4: 106 single pages and 13 linked runs; 13 square: 12 single pages and 1 linked run). The 4:5 catalogue remains below its 150-record target; 3:4 exceeds its 100-record e2e threshold. Latency and evaluation results are pending later build steps.

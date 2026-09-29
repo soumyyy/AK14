@@ -123,3 +123,63 @@ The repository's `testOperatorDryRun()` remained skipped. Both green runs emitte
 - This report.
 
 Confirmed the exact requested 4:5 floor and comment, the unchanged 3:4 floor, and the catalogue Results text. Both required test commands pass. No concerns for this fix round.
+
+## Fix round 3
+
+### Changes
+
+- Fixed the per-slot decoration overlap check to compare the run-clipped decoration and localized slot in the same run-local coordinates. Added an importer `precondition` that verifies each emitted page/run has no clipped source decoration covering more than 15% of any slot.
+- Preserved the slot, frame, and text layers that establish a linked run even when their authored box has template-edge bleed. The old containment filter could omit a boundary-crossing layer, leaving a two-page record with no actual link.
+- Replaced the vacuous `crossesSeam` test with geometry checks: every internal boundary in each run must be crossed by a slot, frame, or text layer; single-page records must have no such layer crossing either edge beyond 0.001.
+- Replaced the duplicate Results entries with one final catalogue line using this rerun's counts. Cover capability logic was not changed.
+
+### Importer results
+
+Command: `swift tools/import-17v28/import.swift`
+
+```text
+Imported 212 pages (80 4:5, 119 3:4, 13 1:1)
+4:5 records: 67 single pages, 13 linked runs
+3:4 records: 106 single pages, 13 linked runs
+1:1 records: 12 single pages, 1 linked run
+Rejected page groups by reason: ["4:5 no photo slots": 3, "3:4 no photo slots": 5, "4:5 decoration coverage over 12%": 5, "3:4 decoration overlap over 15% of photo slot": 33, "3:4 decoration coverage over 12%": 3, "4:5 decoration overlap over 15% of photo slot": 66, "1:1 decoration overlap over 15% of photo slot": 6]
+```
+
+The corrected coordinate comparison rejects groups that the old shifted-decoration check retained. The 4:5 count remains below the 150-record target; the 3:4 count exceeds 100. `designed-sets.json` remained unchanged. Contact sheets were refreshed under `/tmp/ak14-designed-pages-{3x4,4x5,1x1}.png`.
+
+### TDD evidence and tests
+
+- RED: `swift test --filter DesignedPagesE2ETests` immediately after replacing the vacuous linked-run assertion and before the importer fix.
+
+```text
+Expectation failed: hasCrossingLayer(run, at: Double(boundary))
+17v28-t163-p5-6 has no slot, frame, or text crossing boundary 1
+Test run with 4 tests in 1 suite failed.
+```
+
+This was expected: it exposed a linked run whose crossing layer was omitted by the old containment filter.
+
+- GREEN: `swift test --filter DesignedPagesE2ETests` after the importer changes.
+
+```text
+Suite DesignedPagesE2ETests passed after 0.014 seconds.
+Test run with 4 tests in 1 suite passed after 0.014 seconds.
+```
+
+- Full suite: `swift test`.
+
+```text
+Test run with 124 tests in 2 suites passed after 100.702 seconds.
+```
+
+No compiler warnings appeared in the importer or test builds.
+
+### Files changed and self-review
+
+- `tools/import-17v28/import.swift`
+- `Sources/Render/Resources/StylePacks/designed-pages.json`
+- `Tests/CLITests/DesignedPagesE2ETests.swift`
+- `docs/superpowers/specs/2026-09-29-template-first-engine-design.md`
+- This report.
+
+Reviewed the importer comparison operands: both decoration and slot x/y coordinates are run-local. The independent emitted-record check uses the clipped source decorations against emitted record slots in that same space. The run invariant covers every internal boundary and all required layer kinds, and the single-page edge checks allow the specified 0.001 tolerance. The count thresholds remain 80 and 100 per controller ruling. No further concerns identified.

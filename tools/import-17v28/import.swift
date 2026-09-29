@@ -315,7 +315,13 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
         func inside(_ x: Double, _ width: Double) -> Bool {
             x + 0.001 >= start && x + width - 0.001 <= start + length
         }
-        let selectedSlots = slots.filter { inside($0.frame.x, $0.frame.width) }.map { slot in
+        func belongsToGroup(_ x: Double, _ width: Double) -> Bool {
+            let occupied = spans(x, width)
+            return occupied.lowerBound >= group[0] && occupied.upperBound <= group[group.count - 1]
+        }
+        let selectedSlots = slots.filter {
+            group.count > 1 ? belongsToGroup($0.frame.x, $0.frame.width) : inside($0.frame.x, $0.frame.width)
+        }.map { slot in
             let rect = local(slot.frame)
             let seam = group.count > 1 && (1..<group.count).contains {
                 Double($0) > rect.x + 0.000001 && Double($0) < rect.x + rect.width - 0.000001
@@ -324,12 +330,16 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
                         roleHint: slot.roleHint, components: slot.components, cornerRadius: slot.cornerRadius)
         }
         guard !selectedSlots.isEmpty else { rejectionCounts["\(aspect) no photo slots", default: 0] += 1; return nil }
-        let selectedTexts = texts.filter { inside($0.frame.x, $0.frame.width) }.map {
+        let selectedTexts = texts.filter {
+            group.count > 1 ? belongsToGroup($0.frame.x, $0.frame.width) : inside($0.frame.x, $0.frame.width)
+        }.map {
             TextLayer(frame: local($0.frame), fontID: $0.fontID, size: $0.size, colour: $0.colour,
                       alignment: $0.alignment, lineSpacing: $0.lineSpacing, letterSpacing: $0.letterSpacing,
                       numberOfLines: $0.numberOfLines, rotation: $0.rotation, role: $0.role)
         }
-        let selectedFrames = frames.filter { inside($0.frame.x, $0.frame.width) }.map {
+        let selectedFrames = frames.filter {
+            group.count > 1 ? belongsToGroup($0.frame.x, $0.frame.width) : inside($0.frame.x, $0.frame.width)
+        }.map {
             FrameLayer(frame: local($0.frame), frameAssetID: $0.frameAssetID, slotFrame: $0.slotFrame.map(local),
                        photoWindowAspect: $0.photoWindowAspect, z: $0.z, rotation: $0.rotation)
         }
@@ -346,7 +356,7 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
         // more than 15% of an individual photo slot's area; decorations are never rendered.
         let overlapsPhotoOverLimit = clippedDecor.contains { decoration in
             selectedSlots.contains { slot in
-                let intersectionWidth = max(0, min(decoration.x + start, slot.frame.x + slot.frame.width) - max(decoration.x + start, slot.frame.x))
+                let intersectionWidth = max(0, min(decoration.x + decoration.width, slot.frame.x + slot.frame.width) - max(decoration.x, slot.frame.x))
                 let intersectionHeight = max(0, min(decoration.y + decoration.height, slot.frame.y + slot.frame.height) - max(decoration.y, slot.frame.y))
                 let slotArea = slot.frame.width * slot.frame.height
                 return slotArea > 0 && intersectionWidth * intersectionHeight > 0.15 * slotArea
@@ -361,11 +371,21 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
         let dominant = selectedSlots.map { $0.frame.width * $0.frame.height }.max()! / length
         let cover = group.count == 1 && (selectedTexts.contains { $0.role == "title" } || dominant >= 0.6)
         let id = group.count == 1 ? "17v28-t\(templateID)-p\(first)" : "17v28-t\(templateID)-p\(first)-\(group.last!)"
-        return PageRecord(id: id, sourceRef: "17v28:template-\(templateID)", aspect: aspect, slideCount: group.count,
-                          background: background, slots: selectedSlots, version: libraryVersion,
-                          texts: selectedTexts.isEmpty ? nil : selectedTexts, frames: selectedFrames.isEmpty ? nil : selectedFrames,
-                          family: family, decorCoverage: coverage, sourceTemplate: "template-\(templateID)",
-                          pageIndex: first, pageRole: role, coverCapable: cover)
+        let record = PageRecord(id: id, sourceRef: "17v28:template-\(templateID)", aspect: aspect, slideCount: group.count,
+                                background: background, slots: selectedSlots, version: libraryVersion,
+                                texts: selectedTexts.isEmpty ? nil : selectedTexts, frames: selectedFrames.isEmpty ? nil : selectedFrames,
+                                family: family, decorCoverage: coverage, sourceTemplate: "template-\(templateID)",
+                                pageIndex: first, pageRole: role, coverCapable: cover)
+        let emittedOverlapViolation = clippedDecor.contains { decoration in
+            record.slots.contains { slot in
+                let width = max(0, min(decoration.x + decoration.width, slot.frame.x + slot.frame.width) - max(decoration.x, slot.frame.x))
+                let height = max(0, min(decoration.y + decoration.height, slot.frame.y + slot.frame.height) - max(decoration.y, slot.frame.y))
+                let slotArea = slot.frame.width * slot.frame.height
+                return slotArea > 0 && width * height > 0.15 * slotArea
+            }
+        }
+        precondition(!emittedOverlapViolation, "Importer emitted \(id) with a decoration covering over 15% of a photo slot")
+        return record
     }
 }
 
