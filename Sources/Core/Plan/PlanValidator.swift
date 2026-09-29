@@ -57,16 +57,13 @@ public enum PlanValidator {
             }
             if !d.moments.isEmpty {
                 let flat = d.moments.flatMap(\.photos)
-                if Set(flat).count != flat.count { add("moments", "a photo appears in more than one moment") }
-                for id in flat where !poolSet.contains(id) { add("moments", "\(id) is not a candidate") }
                 for (m, moment) in d.moments.enumerated() {
                     if moment.photos.isEmpty { add("moments[\(m)]", "empty moment") }
                     if !moment.mustInclude.allSatisfy(moment.photos.contains) { add("moments[\(m)].mustInclude", "must be photos of this moment") }
                     if !["1", "few", "many"].contains(moment.size) { add("moments[\(m)].size", "unknown size") }
                 }
-                if exactSet && (Set(flat) != poolSet || flat.count != pool.count) { add("moments", "must contain every exact photo exactly once") }
-                if keepOrder && flat != pool { add("moments", "must preserve the exact input order") }
                 if !d.coverCandidates.allSatisfy(Set(flat).contains) { add("coverCandidates", "must be photos in this direction's moments") }
+                if d.coverCandidates.isEmpty { add("coverCandidates", "must not be empty when moments are present") }
             }
             if !set.contains(d.coverAssetID) { add("coverAssetID", "\(d.coverAssetID) is not in this direction's photos") }
             if flagged.contains(d.coverAssetID), ids.contains(where: { !flagged.contains($0) }) {

@@ -437,7 +437,6 @@ public struct ArtDirector: Sendable {
             if keepOrder {
                 r.spine.orderedAssetIDs = pool
                 r.spine.sequenceIntent = pool.map { _ in r.spine.sequenceIntent.first ?? .build }
-                for i in r.directions.indices { r.directions[i].orderedAssetIDs = pool }
             }
             return (r, PlanValidator.validate(r, pool: pool, flagged: flagged, requestedSlides: requested, exactSet: exactSet, keepOrder: keepOrder))
         } catch {

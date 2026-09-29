@@ -151,7 +151,9 @@ struct StoryPipeline: Sendable {
                 if let labels = features[id]?.labels.prefix(3).map(\.identifier), !labels.isEmpty {
                     summary.append(labels.joined(separator: ", "))
                 }
-                if features[id]?.faces.isEmpty == false { summary.append("\(features[id]!.faces.count) faces") }
+                if let faces = features[id]?.faces, !faces.isEmpty {
+                    summary.append(faces.count == 1 ? "1 face" : "\(faces.count) faces")
+                }
                 let photoSummary = summary.joined(separator: " · ")
                 return CandidateCard(assetID: id, summary: photoSummary,
                                      capturedAt: photo.metadata.capturedAt,

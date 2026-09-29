@@ -8,7 +8,7 @@ import TestSupport
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
 final class FakeModel: ResponsesTransport, @unchecked Sendable {
-    enum Behaviour { case valid, duplicatePhoto, invalidMoments, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed, omitExact }
+    enum Behaviour { case valid, duplicatePhoto, invalidMoments, mustIncludeOutsideMoment, coverOutsideMoments, unknownMomentSize, emptyCoverCandidates, shuffledMoments, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed, omitExact }
     /// How many directions the planner proposes (2-5).
     var directions = 3
     private let lock = NSLock()
@@ -20,6 +20,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     let withTitleIdeas: Bool
     let withMoments: Bool
     private var flagged: [String] = []
+    private var keepOrderScenario = false
 
     init(_ script: [String: [Behaviour]] = [:], flagCover: Bool = false, withTitleIdeas: Bool = false,
          withMoments: Bool = false) {
@@ -35,6 +36,7 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             maxOutputTokens[stage] = request["max_output_tokens"]?.intValue
             guard var queue = script[stage], !queue.isEmpty else { return .valid }
             let b = queue.removeFirst(); script[stage] = queue
+            if b == .shuffledMoments { keepOrderScenario = true }
             return b
         }
         if behaviour == .delayed { try await Task.sleep(for: .seconds(1)) }
@@ -78,10 +80,17 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             let first = lock.withLock { flagged }
             let exact = request["input"]?.arrayValue?.flatMap { $0["content"]?.arrayValue ?? [] }
                 .contains { $0["text"]?.stringValue?.contains("exact set") == true } == true
+            let keepOrder = request["input"]?.arrayValue?.flatMap { $0["content"]?.arrayValue ?? [] }
+                .contains { $0["text"]?.stringValue?.contains("Preserve the listed input order") == true } == true ||
+                lock.withLock { keepOrderScenario }
             text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first, directions: directions,
                                 badDirection: behaviour == .badDirection, useAll: exact && behaviour != .omitExact,
+                                keepOrder: keepOrder,
                                 invalidMoments: behaviour == .invalidMoments,
-                                withMoments: withMoments || behaviour == .invalidMoments,
+                                momentViolation: behaviour,
+                                withMoments: withMoments || behaviour == .invalidMoments || behaviour == .mustIncludeOutsideMoment ||
+                                    behaviour == .coverOutsideMoments || behaviour == .unknownMomentSize ||
+                                    behaviour == .emptyCoverCandidates || behaviour == .shuffledMoments,
                                 withTitleIdeas: withTitleIdeas)
         }
         let envelope: JSONValue = .object([
@@ -119,7 +128,8 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     ]
 
     static func planner(_ schema: JSONValue, duplicate: Bool, first: [String] = [], directions: Int = 3,
-                        badDirection: Bool = false, useAll: Bool = false, invalidMoments: Bool = false,
+                        badDirection: Bool = false, useAll: Bool = false, keepOrder: Bool = false, invalidMoments: Bool = false,
+                        momentViolation: Behaviour = .valid,
                         withMoments: Bool = false, withTitleIdeas: Bool = false) -> String {
         let pool = enumValues(schema["properties"]?["spine"]?["properties"]?["orderedAssetIDs"]?["items"])
         let ids = pool.filter { first.contains($0) } + pool.filter { !first.contains($0) }
@@ -128,28 +138,47 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         let items = (0..<directions).map { k -> String in
             // Each direction tells the story from a different opening photo, with one or two extra candidates.
             let opening = k % spine.count
-            var list = Array(spine.dropFirst(opening) + spine.prefix(opening)) + Array(ids.dropFirst(6).prefix(k % 3))
+            var list = keepOrder ? Array(spine) : Array(spine.dropFirst(opening) + spine.prefix(opening)) + Array(ids.dropFirst(6).prefix(k % 3))
             if duplicate && k == 0 { list.append(list[1]) }
             if badDirection && k == 1 { list.append("a_notacandidate") }
             let cover = list.first { !first.contains($0) } ?? list[0]
             let keep = k == 1 ? quoted([list[1], list[2]]) : ""
             let emphasis = k == 0 ? quoted([list[3]]) : "[]"
             let split = max(1, list.count / 2)
-            var momentChunks = [Array(list.prefix(split)), Array(list.dropFirst(split))].filter { !$0.isEmpty }
+            var momentChunks: [[String]]
+            if withMoments || momentViolation == .shuffledMoments {
+                let third = max(1, list.count / 3)
+                momentChunks = [Array(list.prefix(third)), Array(list.dropFirst(third).prefix(third)), Array(list.dropFirst(third * 2))]
+                    .filter { !$0.isEmpty }
+            } else {
+                momentChunks = [Array(list.prefix(split)), Array(list.dropFirst(split))].filter { !$0.isEmpty }
+            }
             var mustInclude: [String] = []
             if invalidMoments && k == 0 && momentChunks.count == 2 {
                 momentChunks[1].append(momentChunks[0][0])
                 momentChunks[1].append("zzz")
                 mustInclude = ["zzz"]
             }
+            if (withMoments || momentViolation == .shuffledMoments) && k == 0 && momentChunks.count > 1 {
+                momentChunks.reverse()
+            }
             let moments = momentChunks.enumerated().map { i, photos in
-                #"{"label":"moment \#(i + 1)","photos":\#(quoted(photos)),"mustInclude":\#(quoted(i == 1 ? mustInclude : [])),"size":"few"}"#
+                let must: [String]
+                if momentViolation == .mustIncludeOutsideMoment && k == 0 && i == 0 {
+                    must = [momentChunks.last?.last ?? photos[0]]
+                } else { must = i == 1 ? mustInclude : [] }
+                let size = momentViolation == .unknownMomentSize && k == 0 && i == 0 ? "huge" : (i == 0 ? "1" : (i == 1 ? "few" : "many"))
+                return #"{"label":"moment \#(i + 1)","photos":\#(quoted(photos)),"mustInclude":\#(quoted(must)),"size":"\#(size)"}"#
             }.joined(separator: ",")
             let titleJSON = withTitleIdeas ? #"["A day together"]"# : "[]"
+            let candidates = momentChunks.flatMap { $0 }.dropFirst().first ?? cover
+            let coverCandidates = momentViolation == .coverOutsideMoments && k == 0 ? ["not_a_moment_photo"] : [candidates]
+            let coverCandidateJSON = momentViolation == .emptyCoverCandidates && k == 0 ? "[]" : quoted(coverCandidates)
+            let declaredOrder = list
             let templateFields = withMoments
-                ? ",\"moments\":[\(moments)],\"coverCandidates\":[\"\(cover)\"],\"titleIdeas\":\(titleJSON)"
+                ? ",\"moments\":[\(moments)],\"coverCandidates\":\(coverCandidateJSON),\"titleIdeas\":\(titleJSON)"
                 : ""
-            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(list)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis),"seamless":false,"titleIdea":null\#(templateFields)}"#
+            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(declaredOrder)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis),"seamless":false,"titleIdea":"Original planner title"\#(templateFields)}"#
         }
         let spineJSON = #"{"orderedAssetIDs":\#(quoted(spine)),"sequenceIntent":[\#(spine.map { _ in "\"build\"" }.joined(separator: ","))],"rationale":[]}"#
         return #"{"recommendedSlideCount":\#(spine.count),"spine":\#(spineJSON),"directions":[\#(items.joined(separator: ","))]}"#
@@ -165,18 +194,32 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     let direction = try #require(report.plans.first(where: { !$0.isBaseline })?.direction)
     #expect(!direction.moments.isEmpty)
     #expect(direction.orderedAssetIDs == direction.moments.flatMap(\.photos))
+    #expect(direction.coverAssetID != direction.moments.flatMap(\.photos).first)
     #expect(direction.coverAssetID == direction.coverCandidates.first)
     #expect(direction.titleIdea == direction.titleIdeas.first)
-    #expect(direction.moments[0].sizeRange == 2...3)
+    #expect(direction.titleIdea == "A day together")
+    #expect(direction.moments.map(\.sizeRange) == [1...1, 2...3, 4...9])
 }
 
 @Test func invalidMomentsTriggerTheExistingRepairPath() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
-    let model = FakeModel(["planner": [.invalidMoments]])
-    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
+    for violation in [FakeModel.Behaviour.mustIncludeOutsideMoment, .coverOutsideMoments, .unknownMomentSize, .emptyCoverCandidates] {
+        let caseTmp = try TempDirectory(); defer { caseTmp.remove() }
+        let model = FakeModel(["planner": [violation]])
+        let store = try await directorRun(caseTmp, folder: try directorSceneFolder(caseTmp), model: model)
+        let manifest = try store.read(RunManifest.self, from: "manifest.json")
+        #expect(model.stages == ["occasion_split", "triage", "planner", "repair"], "\(violation)")
+        #expect(manifest.directorStatus == "ok", "\(violation): \(manifest.warnings)")
+    }
+}
+
+@Test func shuffledMomentsAreFlaggedByOrderedAssetIDsUnderKeepOrder() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let model = FakeModel(["planner": [.shuffledMoments]])
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model, exact: true, keepOrder: true)
     let manifest = try store.read(RunManifest.self, from: "manifest.json")
-    #expect(model.stages == ["occasion_split", "triage", "planner", "repair"])
-    #expect(manifest.directorStatus == "ok")
+    #expect(Array(model.stages.prefix(3)) == ["triage", "planner", "repair"], "status \(manifest.directorStatus); stages \(model.stages)")
+    #expect(manifest.directorStatus == "ok", "\(manifest.warnings)")
 }
 
 func directorSceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {
@@ -188,9 +231,11 @@ func directorSceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {
     return folder
 }
 
-func directorRun(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: Int? = nil, judge: Bool = false) async throws -> RunStore {
+func directorRun(_ tmp: TempDirectory, folder: URL, model: FakeModel, slides: Int? = nil, judge: Bool = false,
+                 exact: Bool = false, keepOrder: Bool = false) async throws -> RunStore {
     var o = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"), cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
     o.slides = slides
+    o.exact = exact; o.keepOrder = keepOrder
     o.allEvents = true
     o.judge = judge ? true : nil
     let client = ResponsesClient(transport: model, sleep: { _ in })
