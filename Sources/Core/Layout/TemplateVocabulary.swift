@@ -175,19 +175,22 @@ public enum TemplateVocabulary {
     public static func render(page set: DesignedSet, placed: [SlotAssignment.Placed], plan: CarouselPlan, start: Int,
                               context: LayoutContext, titlePlaced: inout Bool, captionCount: inout Int) -> [ResolvedSlide] {
         var window = Array(plan.slides.dropFirst(start).prefix(set.slideCount))
-        if window.count != set.slideCount {
+        let synthesizing = window.count != set.slideCount
+        if synthesizing {
             let synthesized = (0..<set.slideCount).map { slide in
                 let ids = placed.compactMap { assignment -> AssetID? in
                     guard set.expandedSlots.indices.contains(assignment.slotIndex) else { return nil }
                     let frame = set.expandedSlots[assignment.slotIndex].frame
-                    return frame.x < Double(slide + 1) && frame.x + frame.width > Double(slide) ? assignment.assetID : nil
+                    return Int(floor(frame.x + frame.width / 2)) == slide ? assignment.assetID : nil
                 }
                 return SlidePlan(primitive: .hero, mood: "", density: "balanced",
                                  photos: ids.map(PhotoElement.plain), decorations: [], stamps: [])
             }
             window = synthesized
         }
-        let photos = window.flatMap(\.photos)
+        // Authored runs assign each photo once, even when its rendered slices span two pages.
+        // Keep the existing windowed path's validation and photo intents unchanged.
+        let photos = synthesizing ? placed.map { PhotoElement.plain($0.assetID) } : window.flatMap(\.photos)
         let slots = set.expandedSlots
         guard photos.count == slots.count, Set(photos.map(\.assetID)).count == photos.count,
               photos.allSatisfy({ context.photos[$0.assetID] != nil }),
@@ -251,7 +254,7 @@ public enum TemplateVocabulary {
             if text.role == "title" { localTitleUsed = true }
             if text.role == "caption" { localCaptions += 1 }
         }
-        guard buckets.allSatisfy({ !$0.isEmpty }) else { return [] }
+        guard synthesizing || buckets.allSatisfy({ !$0.isEmpty }) else { return [] }
 
         let slides = window.enumerated().map { offset, slide in
             let elements = buckets[offset].sorted { $0.zIndex < $1.zIndex }
@@ -283,7 +286,7 @@ public enum TemplateVocabulary {
     }
 
     private static func storyTitle(plan: CarouselPlan, context: LayoutContext) -> String? {
-        if let idea = plan.direction?.titleIdea?.trimmingCharacters(in: .whitespacesAndNewlines),
+        if let idea = (plan.direction?.titleIdeas.first ?? plan.direction?.titleIdea)?.trimmingCharacters(in: .whitespacesAndNewlines),
            !idea.isEmpty { return String(idea.prefix(40)) }
         guard let hint = context.storyHint?.trimmingCharacters(in: .whitespacesAndNewlines),
               (3...28).contains(hint.count) else { return nil }

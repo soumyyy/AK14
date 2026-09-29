@@ -39,6 +39,13 @@ public enum PlanEditor {
         case .remove(let s, let id):
             guard p.slides.indices.contains(s) else { throw PlanEditError.slideOutOfRange(s) }
             guard let i = p.slides[s].photos.firstIndex(where: { $0.assetID == id }) else { throw PlanEditError.photoNotOnSlide(id) }
+            // A run member without a centred photo carries a support reference only.
+            // Removing that reference must not shorten the authored run.
+            if p.slides[s].placement?.runLength ?? 1 > 1,
+               p.slides[s].photos.count == 1, p.slides[s].photos[i].role == "support" {
+                p.slides[s].placement = nil
+                return p
+            }
             guard p.photoAssetIDs.count > 1 else { throw PlanEditError.lastPhoto }
             invalidateRun(in: &p.slides, at: s)
             p.slides[s].photos.remove(at: i)
