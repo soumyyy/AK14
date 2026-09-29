@@ -8,7 +8,7 @@ import TestSupport
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
 final class FakeModel: ResponsesTransport, @unchecked Sendable {
-    enum Behaviour { case valid, duplicatePhoto, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed, omitExact }
+    enum Behaviour { case valid, duplicatePhoto, invalidMoments, garbage, rateLimited, incomplete, badDirection, splitGroups, mergeAll, delayed, omitExact }
     /// How many directions the planner proposes (2-5).
     var directions = 3
     private let lock = NSLock()
@@ -17,9 +17,14 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     private(set) var maxOutputTokens: [String: Int] = [:]
     /// When set, triage flags the first 3 photos (blink) and the planner puts flagged photos first (as cover).
     let flagCover: Bool
+    let withTitleIdeas: Bool
+    let withMoments: Bool
     private var flagged: [String] = []
 
-    init(_ script: [String: [Behaviour]] = [:], flagCover: Bool = false) { self.script = script; self.flagCover = flagCover }
+    init(_ script: [String: [Behaviour]] = [:], flagCover: Bool = false, withTitleIdeas: Bool = false,
+         withMoments: Bool = false) {
+        self.script = script; self.flagCover = flagCover; self.withTitleIdeas = withTitleIdeas; self.withMoments = withMoments
+    }
 
     func send(_ body: Data) async throws -> (status: Int, body: Data) {
         let request = try JSONDecoder().decode(JSONValue.self, from: body)
@@ -74,7 +79,10 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
             let exact = request["input"]?.arrayValue?.flatMap { $0["content"]?.arrayValue ?? [] }
                 .contains { $0["text"]?.stringValue?.contains("exact set") == true } == true
             text = Self.planner(schema, duplicate: behaviour == .duplicatePhoto, first: first, directions: directions,
-                                badDirection: behaviour == .badDirection, useAll: exact && behaviour != .omitExact)
+                                badDirection: behaviour == .badDirection, useAll: exact && behaviour != .omitExact,
+                                invalidMoments: behaviour == .invalidMoments,
+                                withMoments: withMoments || behaviour == .invalidMoments,
+                                withTitleIdeas: withTitleIdeas)
         }
         let envelope: JSONValue = .object([
             ("id", .string("resp_test")), ("status", .string(behaviour == .incomplete ? "incomplete" : "completed")),
@@ -111,24 +119,64 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     ]
 
     static func planner(_ schema: JSONValue, duplicate: Bool, first: [String] = [], directions: Int = 3,
-                        badDirection: Bool = false, useAll: Bool = false) -> String {
+                        badDirection: Bool = false, useAll: Bool = false, invalidMoments: Bool = false,
+                        withMoments: Bool = false, withTitleIdeas: Bool = false) -> String {
         let pool = enumValues(schema["properties"]?["spine"]?["properties"]?["orderedAssetIDs"]?["items"])
         let ids = pool.filter { first.contains($0) } + pool.filter { !first.contains($0) }
         let spine = Array(ids.prefix(useAll ? ids.count : 6))
         let quoted = { (list: [String]) in "[" + list.map { "\"\($0)\"" }.joined(separator: ",") + "]" }
         let items = (0..<directions).map { k -> String in
             // Each direction tells the story from a different opening photo, with one or two extra candidates.
-            var list = Array(spine.dropFirst(k % spine.count) + spine.prefix(k % spine.count)) + Array(ids.dropFirst(6).prefix(k % 3))
+            let opening = k % spine.count
+            var list = Array(spine.dropFirst(opening) + spine.prefix(opening)) + Array(ids.dropFirst(6).prefix(k % 3))
             if duplicate && k == 0 { list.append(list[1]) }
             if badDirection && k == 1 { list.append("a_notacandidate") }
             let cover = list.first { !first.contains($0) } ?? list[0]
             let keep = k == 1 ? quoted([list[1], list[2]]) : ""
             let emphasis = k == 0 ? quoted([list[3]]) : "[]"
-            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(list)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis),"seamless":false,"titleIdea":null}"#
+            let split = max(1, list.count / 2)
+            var momentChunks = [Array(list.prefix(split)), Array(list.dropFirst(split))].filter { !$0.isEmpty }
+            var mustInclude: [String] = []
+            if invalidMoments && k == 0 && momentChunks.count == 2 {
+                momentChunks[1].append(momentChunks[0][0])
+                momentChunks[1].append("zzz")
+                mustInclude = ["zzz"]
+            }
+            let moments = momentChunks.enumerated().map { i, photos in
+                #"{"label":"moment \#(i + 1)","photos":\#(quoted(photos)),"mustInclude":\#(quoted(i == 1 ? mustInclude : [])),"size":"few"}"#
+            }.joined(separator: ",")
+            let titleJSON = withTitleIdeas ? #"["A day together"]"# : "[]"
+            let templateFields = withMoments
+                ? ",\"moments\":[\(moments)],\"coverCandidates\":[\"\(cover)\"],\"titleIdeas\":\(titleJSON)"
+                : ""
+            return #"{"brief":"test direction \#(k + 1)","style":\#(styles[k % styles.count]),"coverAssetID":"\#(cover)","orderedAssetIDs":\#(quoted(list)),"keepTogether":[\#(keep)],"emphasisAssetIDs":\#(emphasis),"seamless":false,"titleIdea":null\#(templateFields)}"#
         }
         let spineJSON = #"{"orderedAssetIDs":\#(quoted(spine)),"sequenceIntent":[\#(spine.map { _ in "\"build\"" }.joined(separator: ","))],"rationale":[]}"#
         return #"{"recommendedSlideCount":\#(spine.count),"spine":\#(spineJSON),"directions":[\#(items.joined(separator: ","))]}"#
     }
+}
+
+@Test func momentsDecodeAndDriveTheDirection() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp),
+                                      model: FakeModel(withTitleIdeas: true, withMoments: true))
+    let report = try store.read(ConceptsReport.self, from: "plans/director.json")
+    #expect(report.plans.contains(where: { !$0.isBaseline }), "status \(report.status), unavailable \(report.unavailable), warnings \(report.warnings)")
+    let direction = try #require(report.plans.first(where: { !$0.isBaseline })?.direction)
+    #expect(!direction.moments.isEmpty)
+    #expect(direction.orderedAssetIDs == direction.moments.flatMap(\.photos))
+    #expect(direction.coverAssetID == direction.coverCandidates.first)
+    #expect(direction.titleIdea == direction.titleIdeas.first)
+    #expect(direction.moments[0].sizeRange == 2...3)
+}
+
+@Test func invalidMomentsTriggerTheExistingRepairPath() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let model = FakeModel(["planner": [.invalidMoments]])
+    let store = try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model)
+    let manifest = try store.read(RunManifest.self, from: "manifest.json")
+    #expect(model.stages == ["occasion_split", "triage", "planner", "repair"])
+    #expect(manifest.directorStatus == "ok")
 }
 
 func directorSceneFolder(_ tmp: TempDirectory, count: Int = 12) throws -> URL {

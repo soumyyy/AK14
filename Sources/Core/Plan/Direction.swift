@@ -48,6 +48,19 @@ public struct StyleVector: Codable, Sendable, Equatable, Hashable {
 /// A creative direction from the model: what story to tell and how it should feel. The composer engine turns it
 /// into slides; the model never writes slides, primitives or coordinates.
 public struct Direction: Codable, Sendable, Equatable {
+    public struct Moment: Codable, Sendable, Equatable {
+        public var label: String
+        public var photos: [AssetID]
+        public var mustInclude: [AssetID]
+        public var size: String
+
+        public init(label: String, photos: [AssetID], mustInclude: [AssetID], size: String) {
+            self.label = label; self.photos = photos; self.mustInclude = mustInclude; self.size = size
+        }
+
+        public var sizeRange: ClosedRange<Int> { size == "1" ? 1...1 : size == "few" ? 2...3 : 4...9 }
+    }
+
     /// One internal sentence written for these photos (operator-facing only).
     public var brief: String
     public var style: StyleVector
@@ -60,9 +73,13 @@ public struct Direction: Codable, Sendable, Equatable {
     public var emphasisAssetIDs: [AssetID]
     public var seamless: Bool
     public var titleIdea: String?
+    public var moments: [Moment]
+    public var coverCandidates: [AssetID]
+    public var titleIdeas: [String]
 
     private enum CodingKeys: String, CodingKey {
         case brief, style, coverAssetID, orderedAssetIDs, keepTogether, emphasisAssetIDs, seamless, titleIdea
+        case moments, coverCandidates, titleIdeas
     }
 
     public init(from decoder: Decoder) throws {
@@ -74,14 +91,25 @@ public struct Direction: Codable, Sendable, Equatable {
                   keepTogether: try c.decodeIfPresent([[AssetID]].self, forKey: .keepTogether) ?? [],
                   emphasisAssetIDs: try c.decodeIfPresent([AssetID].self, forKey: .emphasisAssetIDs) ?? [],
                   seamless: try c.decodeIfPresent(Bool.self, forKey: .seamless) ?? false,
-                  titleIdea: try c.decodeIfPresent(String.self, forKey: .titleIdea))
+                  titleIdea: try c.decodeIfPresent(String.self, forKey: .titleIdea),
+                  moments: try c.decodeIfPresent([Moment].self, forKey: .moments) ?? [],
+                  coverCandidates: try c.decodeIfPresent([AssetID].self, forKey: .coverCandidates) ?? [],
+                  titleIdeas: try c.decodeIfPresent([String].self, forKey: .titleIdeas) ?? [])
     }
 
     public init(brief: String, style: StyleVector, coverAssetID: AssetID, orderedAssetIDs: [AssetID],
-                keepTogether: [[AssetID]] = [], emphasisAssetIDs: [AssetID] = [], seamless: Bool = false, titleIdea: String? = nil) {
+                keepTogether: [[AssetID]] = [], emphasisAssetIDs: [AssetID] = [], seamless: Bool = false, titleIdea: String? = nil,
+                moments: [Moment] = [], coverCandidates: [AssetID] = [], titleIdeas: [String] = []) {
         self.brief = brief; self.style = style; self.coverAssetID = coverAssetID; self.orderedAssetIDs = orderedAssetIDs
         self.keepTogether = keepTogether; self.emphasisAssetIDs = emphasisAssetIDs
         self.seamless = seamless; self.titleIdea = Self.cleanTitle(titleIdea)
+        self.moments = moments; self.coverCandidates = coverCandidates
+        self.titleIdeas = titleIdeas.compactMap(Self.cleanTitle)
+        if !moments.isEmpty {
+            self.orderedAssetIDs = moments.flatMap(\.photos)
+            self.coverAssetID = coverCandidates.first ?? coverAssetID
+            self.titleIdea = self.titleIdeas.first ?? self.titleIdea
+        }
     }
 }
 

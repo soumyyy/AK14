@@ -271,7 +271,7 @@ public struct ArtDirector: Sendable {
     private func plannerContent(_ input: DirectorInput, pool: [AssetID], cards: [AssetID: CandidateCard],
                                 triage: [AssetID: TriageScore]) -> [ContentPart] {
         let target = input.exactSet ? "The requested slide count is handled by grouping during composition; keep every candidate in the spine."
-            : input.requestedSlides.map { "Target exactly \($0) photos in the spine unless fewer strong photos exist." }
+            : input.requestedSlides.map { "Target exactly \($0) photos in the spine unless fewer strong photos exist." + " Directions: the owner wants about \($0) slides; the layout engine decides how many photos share a slide, so list moments with alternatives rather than a photo count." }
                 ?? "Choose the length yourself: usually 8-12, fewer if the pool is weak."
         let constitution = stylePack.constitution ?? Self.defaultConstitution
         var content: [ContentPart] = [.text("""

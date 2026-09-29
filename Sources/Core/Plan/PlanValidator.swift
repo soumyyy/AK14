@@ -50,9 +50,23 @@ public enum PlanValidator {
             if keepOrder && ids != pool { add("orderedAssetIDs", "must preserve the exact input order") }
             if set.count != ids.count { add("orderedAssetIDs", "duplicate asset IDs") }
             for id in ids where !poolSet.contains(id) { add("orderedAssetIDs", "\(id) is not a candidate") }
-            if !(minSlides...20).contains(ids.count) { add("orderedAssetIDs", "has \(ids.count) photos; need \(minSlides)...20") }
-            if !exactSet, let n = requestedSlides, d.style.grouping == "single", ids.count > n {
+            let maxDirectionPhotos = d.moments.isEmpty ? 20 : 30
+            if !(minSlides...maxDirectionPhotos).contains(ids.count) { add("orderedAssetIDs", "has \(ids.count) photos; need \(minSlides)...\(maxDirectionPhotos)") }
+            if d.moments.isEmpty, !exactSet, let n = requestedSlides, d.style.grouping == "single", ids.count > n {
                 add("orderedAssetIDs", "has \(ids.count) photos, one per slide; the user asked for at most \(n) slides")
+            }
+            if !d.moments.isEmpty {
+                let flat = d.moments.flatMap(\.photos)
+                if Set(flat).count != flat.count { add("moments", "a photo appears in more than one moment") }
+                for id in flat where !poolSet.contains(id) { add("moments", "\(id) is not a candidate") }
+                for (m, moment) in d.moments.enumerated() {
+                    if moment.photos.isEmpty { add("moments[\(m)]", "empty moment") }
+                    if !moment.mustInclude.allSatisfy(moment.photos.contains) { add("moments[\(m)].mustInclude", "must be photos of this moment") }
+                    if !["1", "few", "many"].contains(moment.size) { add("moments[\(m)].size", "unknown size") }
+                }
+                if exactSet && (Set(flat) != poolSet || flat.count != pool.count) { add("moments", "must contain every exact photo exactly once") }
+                if keepOrder && flat != pool { add("moments", "must preserve the exact input order") }
+                if !d.coverCandidates.allSatisfy(Set(flat).contains) { add("coverCandidates", "must be photos in this direction's moments") }
             }
             if !set.contains(d.coverAssetID) { add("coverAssetID", "\(d.coverAssetID) is not in this direction's photos") }
             if flagged.contains(d.coverAssetID), ids.contains(where: { !flagged.contains($0) }) {

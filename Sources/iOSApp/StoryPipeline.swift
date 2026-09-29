@@ -145,10 +145,15 @@ struct StoryPipeline: Sendable {
                 if let date = photo.metadata.capturedAt, let start = eventStart {
                     relativeDay = "day \(max(1, Int(date.timeIntervalSince(start) / 86_400) + 1))"
                 } else { relativeDay = "day unknown" }
-                let summary = [photo.orientation.rawValue, relativeDay,
-                    features[id]?.labels.prefix(3).map(\.identifier).joined(separator: ", ")]
-                    .compactMap { $0 }.joined(separator: " · ")
-                return CandidateCard(assetID: id, summary: summary,
+                var summary = [photo.orientation.rawValue,
+                    ShapeClass.of(aspect: Double(photo.pixelWidth) / Double(max(photo.pixelHeight, 1))).rawValue,
+                    relativeDay]
+                if let labels = features[id]?.labels.prefix(3).map(\.identifier), !labels.isEmpty {
+                    summary.append(labels.joined(separator: ", "))
+                }
+                if features[id]?.faces.isEmpty == false { summary.append("\(features[id]!.faces.count) faces") }
+                let photoSummary = summary.joined(separator: " · ")
+                return CandidateCard(assetID: id, summary: photoSummary,
                                      capturedAt: photo.metadata.capturedAt,
                                      triageJPEG: triageURLs[id].flatMap { try? Data(contentsOf: $0) },
                                      planningJPEG: planningURLs[id].flatMap { try? Data(contentsOf: $0) })

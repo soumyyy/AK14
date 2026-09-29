@@ -31,11 +31,17 @@ enum Schemas {
             ("brief", .str()),
             ("style", style),
             ("coverAssetID", id),
-            ("orderedAssetIDs", .arr(id, min: 1, max: 20)),
+            ("orderedAssetIDs", .arr(id, min: 1, max: 30)),
             ("keepTogether", .arr(.arr(id, min: 2, max: 4))),
             ("emphasisAssetIDs", .arr(id)),
             ("seamless", .object([("type", .string("boolean"))])),
             ("titleIdea", .object([("type", .array([.string("string"), .string("null")])), ("maxLength", .int(40))])),
+            ("moments", .arr(.obj([
+                ("label", .str()), ("photos", .arr(id, min: 1, max: 9)), ("mustInclude", .arr(id, min: 0, max: 2)),
+                ("size", .str(["1", "few", "many"])),
+            ]), min: 1, max: 12)),
+            ("coverCandidates", .arr(id, min: 1, max: 3)),
+            ("titleIdeas", .arr(.object([("type", .string("string")), ("maxLength", .int(40))]), min: 0, max: 3)),
         ])
         return .obj([
             ("recommendedSlideCount", .integer(1, 20)),

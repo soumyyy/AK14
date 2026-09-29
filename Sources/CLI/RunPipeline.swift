@@ -387,7 +387,10 @@ struct RunPipeline: Sendable {
             let minutes = Int(t.timeIntervalSince(s) / 60)
             parts.append("day \(minutes / 1440 + 1) +\(minutes % 1440 / 60)h\(String(format: "%02d", minutes % 60))m")
         } else { parts.append("time unknown") }
-        if let p = photo { parts.append(p.orientation.rawValue) }
+        if let p = photo {
+            parts.append(p.orientation.rawValue)
+            parts.append(ShapeClass.of(aspect: Double(p.pixelWidth) / Double(max(p.pixelHeight, 1))).rawValue)
+        }
         if let f {
             if !f.faces.isEmpty {
                 let q = f.faces.compactMap(\.captureQuality)
