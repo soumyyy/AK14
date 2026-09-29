@@ -77,3 +77,49 @@ No page group was rejected for the 15% photo-slot overlap condition. Contact she
 - This report.
 
 Reviewed the final diff against the controller rules: decorations no longer connect pages, clipped geometry drives coverage and slot intersection, and the 12% rule and test thresholds remain unchanged. Linked runs retain full geometry and pass the e2e run-integrity check. The only outstanding concern is the 4:5 catalogue shortfall of 64 pages; 3:4 exceeds its threshold by 22 pages.
+
+## Fix round 2
+
+### Changes
+
+- Lowered the 4:5 e2e minimum from 150 to 80 and added the requested comment explaining that 150 requires decorative layers in phase B. Kept the 3:4 minimum at 100.
+- Added the measured Task 2 catalogue yield and phase B coverage explanation under Results in the design spec.
+
+### TDD evidence and test results
+
+- RED command: `swift test --filter DesignedPagesE2ETests` before the threshold edit.
+
+```text
+✘ Test catalogueHasEnoughUsablePagesAndNoSampleText() recorded an issue at DesignedPagesE2ETests.swift:34:9: Expectation failed: portrait.count >= 150
+↳ only 86 usable 4:5 pages
+↳ portrait.count >= 150 → false
+↳   portrait.count → 86
+✘ Suite DesignedPagesE2ETests failed after 0.016 seconds with 1 issue.
+✘ Test run with 4 tests in 1 suite failed after 0.017 seconds with 1 issue.
+```
+
+The failure confirmed the measured 86-page yield against the stale 150 minimum; no other focused assertion failed.
+
+- GREEN command: `swift test --filter DesignedPagesE2ETests` after the edit.
+
+```text
+✔ Suite DesignedPagesE2ETests passed after 0.014 seconds.
+✔ Test run with 4 tests in 1 suite passed after 0.015 seconds.
+```
+
+- Full command: `swift test`.
+
+```text
+✔ Suite DesignedPagesE2ETests passed after 1.081 seconds.
+✔ Test run with 124 tests in 2 suites passed after 100.541 seconds.
+```
+
+The repository's `testOperatorDryRun()` remained skipped. Both green runs emitted no new warnings.
+
+### Files changed and self-review
+
+- `Tests/CLITests/DesignedPagesE2ETests.swift`
+- `docs/superpowers/specs/2026-09-29-template-first-engine-design.md`
+- This report.
+
+Confirmed the exact requested 4:5 floor and comment, the unchanged 3:4 floor, and the catalogue Results text. Both required test commands pass. No concerns for this fix round.
