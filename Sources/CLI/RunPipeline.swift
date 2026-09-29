@@ -144,6 +144,7 @@ struct RunPipeline: Sendable {
         var early = RunManifest(runID: store.root.lastPathComponent, createdAt: now, sourceFolderLabel: options.folder.lastPathComponent)
         early.studyCode = options.studyCode
         early.exactSet = options.exact
+        early.keepOrder = options.keepOrder
         try store.write(early, to: "manifest.json")
         try store.write(IngestResult(photos: ingest.photos.map { $0.redactingLocation() }, skipped: ingest.skipped), to: "input-index.json")
 
@@ -208,7 +209,7 @@ struct RunPipeline: Sendable {
                 let result = try ConceptRendering.renderAll(
                     output.plans, runID: store.root.lastPathComponent, aspect: aspect,
                     photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
-                    features: features, stylePack: stylePack, sourceFolder: folder, into: store.root, storyHint: options.story)
+                    features: features, stylePack: stylePack, sourceFolder: folder, into: store.root, storyHint: options.story, exactSet: options.exact, keepOrder: options.keepOrder)
                 rendered = result.slides
                 warnings += result.warnings
             } catch {
@@ -236,6 +237,7 @@ struct RunPipeline: Sendable {
         manifest.chosenEvent = chosenEvent
         manifest.storyHint = options.story
         manifest.exactSet = options.exact
+        manifest.keepOrder = options.keepOrder
         manifest.skippedCount = ingest.skipped.count
         manifest.aspectRatio = aspect
         manifest.aspectOverridden = options.aspect != nil
@@ -338,10 +340,11 @@ struct RunPipeline: Sendable {
         let vocabulary: [DesignedSet] = (try? StylePackLoader.loadDesignedSets()).flatMap { library in
             library.validationError() == nil ? library.vocabulary(for: aspect) : nil
         } ?? []
+        let pages = (try? StylePackLoader.loadDesignedPages())?.vocabulary(for: aspect) ?? []
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
                                              sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides,
                                              exactSet: options.exact, keepOrder: options.keepOrder, storyHint: options.story,
-                                             vocabulary: vocabulary)
+                                             vocabulary: vocabulary, pages: pages)
         let director = ArtDirector(client: client!, stylePack: stylePack, log: log)
         var input = DirectorInput(storyLabel: "a personal event", dateSpan: span,
                                                    requestedSlides: options.slides, shortlist: cards, selectPool: selectPool,

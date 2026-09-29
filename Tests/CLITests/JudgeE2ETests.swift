@@ -6,7 +6,11 @@ import Director
 @testable import Core
 
 private func judgeRun(_ tmp: TempDirectory, _ model: FakeModel) async throws -> RunStore {
-    try await directorRun(tmp, folder: try directorSceneFolder(tmp), model: model, judge: true)
+    // A thin aspect exercises the legacy candidate judge; authored winners are already selected by PageSearch.
+    var options = RunOptions(folder: try directorSceneFolder(tmp), runsDirectory: tmp.url.appending(path: "runs"),
+                             cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
+    options.judge = true; options.aspect = .square; options.allEvents = true
+    return try await RunPipeline.live(options: options, client: ResponsesClient(transport: model, sleep: { _ in }), log: { _ in }).run(options)
 }
 
 @Test func judgeRanksAvailableCandidatesAndSkipsDirectionsWithOnlyOne() async throws {

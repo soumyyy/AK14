@@ -217,7 +217,8 @@ public final class RunSession: @unchecked Sendable {
         defer { try? fm.removeItem(at: stagingRoot) }
         let result = try ConceptRendering.renderAll([plan], runID: runID, aspect: manifest.aspectRatio, photos: photos,
                                                     features: features, stylePack: stylePack, sourceFolder: folder,
-                                                    into: stagingRoot, seedOverride: seed)
+                                                    into: stagingRoot, seedOverride: seed, storyHint: manifest.storyHint,
+                                                    exactSet: manifest.exactSet, keepOrder: manifest.keepOrder)
         guard !result.failed else { throw Failure.render(result.warnings) }
         let concept = stagingRoot.appending(path: "concept")
         try fm.createDirectory(at: concept, withIntermediateDirectories: true)
@@ -255,8 +256,9 @@ public final class RunSession: @unchecked Sendable {
                                   flagged: Set(triage.filter { !$0.value.safety.isEmpty }.keys),
                                   sequenceIntent: Dictionary(zip(spine?.orderedAssetIDs ?? [], spine?.sequenceIntent ?? []),
                                                              uniquingKeysWith: { a, _ in a }),
-                                  stylePack: stylePack, maxSlides: concepts.requestedSlides, storyHint: manifest.storyHint,
-                                  vocabulary: (try? StylePackLoader.loadDesignedSets())?.vocabulary(for: manifest.aspectRatio) ?? [])
+                                  stylePack: stylePack, maxSlides: concepts.requestedSlides, exactSet: manifest.exactSet, keepOrder: manifest.keepOrder, storyHint: manifest.storyHint,
+                                  vocabulary: (try? StylePackLoader.loadDesignedSets())?.vocabulary(for: manifest.aspectRatio) ?? [],
+                                  pages: (try? StylePackLoader.loadDesignedPages())?.vocabulary(for: manifest.aspectRatio) ?? [])
     }
 
     private func verify(_ id: AssetID, in folder: URL) throws {

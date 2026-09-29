@@ -432,7 +432,11 @@ public enum PageSearch {
             titlePlaced = true // Title layers on later pages never become story titles.
             let slots = page.expandedSlots
             for (offset, resolved) in rendered.enumerated() {
-                let onSlide = step.placed.filter {
+                let readingOrder = SlotAssignment.readingOrder(page)
+                let ordered = context.keepOrder ? step.placed.sorted {
+                    readingOrder.firstIndex(of: $0.slotIndex)! < readingOrder.firstIndex(of: $1.slotIndex)!
+                } : step.placed
+                let onSlide = ordered.filter {
                     let frame = slots[$0.slotIndex].frame
                     return Int(floor(frame.x + frame.width / 2)) == offset
                 }.map(\.assetID)

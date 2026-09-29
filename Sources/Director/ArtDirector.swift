@@ -163,6 +163,11 @@ public struct ArtDirector: Sendable {
             let id = "c\(index + 1)"
             guard let composed = out.plans.first(where: { $0.id == id }), let finalDirection = composed.direction,
                   let compositionSeed = composed.compositionSeed, let seed = UInt64(compositionSeed, radix: 16) else { continue }
+            if composed.slides.contains(where: { $0.placement != nil }) {
+                out.judgeResults.append(JudgeResult(directionID: id, candidateFingerprints: [], model: client.model,
+                    promptVersion: prompt.version, skipped: "page search selected an authored composition"))
+                continue
+            }
             let finalLayoutSeed = ComposerEngine.layoutSeed(runID: input.runID, id: id)
             let candidates = ComposerEngine.candidates(finalDirection, id: id, context: context, seed: seed,
                                                        layoutSeed: finalLayoutSeed, limit: count)
@@ -188,7 +193,8 @@ public struct ArtDirector: Sendable {
                     let resolved = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                         features: context.features, stylePack: context.stylePack,
                         seed: ComposerEngine.layoutSeed(runID: input.runID, id: id), storyHint: context.storyHint,
-                        vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
+                        vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary,
+                        pages: candidate.plan.isBaseline ? [] : context.pages, keepOrder: context.keepOrder))
                     return try StripRenderer().strip(resolved, photos: thumbnailRecords, sourceFolder: sourceFolder)
                 }
                 let stripURLs = try stripData.enumerated().map { index, bytes -> URL in

@@ -40,6 +40,7 @@ public struct CompositionContext: Sendable {
 public enum ComposerEngine {
     public static let version = "composer-2"
     static let candidateCount = 6
+    public static let minimumPagesPerAspect = 20
 
     public struct Composition: Sendable {
         public var plan: CarouselPlan
@@ -72,6 +73,45 @@ public enum ComposerEngine {
         let base = compose(baselineDirection, id: CarouselPlan.baselineID, context: context,
                            seed: layoutSeed(runID: runID, id: CarouselPlan.baselineID))
         warnings += base.warnings.map { "baseline: \($0)" }
+
+        let pages = context.pages.filter { $0.aspect == context.aspect }
+        if pages.count >= minimumPagesPerAspect {
+            var kept: [CarouselPlan] = []
+            var usedFamilies = Set<String>(), usedCovers = Set<AssetID>()
+            let candidates: [Direction]
+            if directions.isEmpty, let cover = spine.orderedAssetIDs.first {
+                candidates = [Direction(brief: "offline", style: .baseline, coverAssetID: cover,
+                                        orderedAssetIDs: spine.orderedAssetIDs, moments: timeMoments(spine, context: context))]
+            } else { candidates = directions }
+            for (i, direction) in candidates.prefix(3).enumerated() {
+                let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
+                let families = PageSearch.candidateFamilies(pages, photos: direction.orderedAssetIDs, context: context)
+                    .filter { !usedFamilies.contains($0) }
+                let results = families.compactMap {
+                    PageSearch.search(direction, id: id, family: $0, pages: pages, context: context,
+                                      seed: seed, excludedCovers: usedCovers)
+                }.filter { result in
+                    // Keep-order fixes the cover, and search may relax exclusions when no opening fits.
+                    // Such a result must fall back rather than duplicate a template-first cover.
+                    let coverIsDistinct = result.plan.coverAssetID.map { !usedCovers.contains($0) } ?? false
+                    return coverIsDistinct && (!context.keepOrder || result.plan.photoAssetIDs == direction.orderedAssetIDs)
+                }
+                guard let best = results.max(by: { $0.score != $1.score ? $0.score < $1.score : $0.family > $1.family }) else {
+                    let fallback = compose(direction, id: id, context: context, seed: seed)
+                    warnings += fallback.warnings.map { "\(id): \($0)" }
+                    warnings.append("\(id): no family fits; used the current engine")
+                    kept.append(fallback.plan)
+                    continue
+                }
+                warnings += best.warnings
+                usedFamilies.insert(best.family)
+                if let cover = best.plan.coverAssetID { usedCovers.insert(cover) }
+                kept.append(best.plan)
+            }
+            return finish(base: base.plan, kept: kept, warnings: warnings, runID: runID)
+        } else if !context.pages.isEmpty || !context.vocabulary.isEmpty {
+            warnings.append("template-first unavailable for \(context.aspect.rawValue): \(pages.count) pages")
+        }
 
         var kept: [CarouselPlan] = []
         for (i, d) in directions.enumerated() {
@@ -129,6 +169,25 @@ public enum ComposerEngine {
             kept.append(comp.plan)
         }
 
+        return finish(base: base.plan, kept: kept, warnings: warnings, runID: runID)
+    }
+
+    private static func timeMoments(_ spine: SelectionSpine, context: CompositionContext) -> [Direction.Moment] {
+        var groups: [[AssetID]] = []
+        var previous: Date?
+        for id in spine.orderedAssetIDs {
+            let date = context.photos[id]?.metadata.capturedAt
+            if groups.isEmpty || (date.flatMap { current in previous.map { current.timeIntervalSince($0) >= 20 * 60 } } ?? false) {
+                groups.append([])
+            }
+            groups[groups.count - 1].append(id)
+            previous = date
+        }
+        return groups.map { .init(label: "", photos: $0, mustInclude: [],
+                                  size: $0.count == 1 ? "1" : $0.count <= 3 ? "few" : "many") }
+    }
+
+    private static func finish(base: CarouselPlan, kept: [CarouselPlan], warnings: [String], runID: String) -> ComposedSet {
         var distances: [ConceptDistance] = []
         for i in kept.indices { for j in kept.indices where j > i {
             var d = PlanMetrics.diversity(kept[i], kept[j])
@@ -136,7 +195,7 @@ public enum ComposerEngine {
             if let si = kept[i].style, let sj = kept[j].style { d.styleDistance = si.distance(to: sj) }
             distances.append(d)
         }}
-        let plans = [base.plan] + kept
+        let plans = [base] + kept
         var order = plans.map(\.id)
         var rng = SeededRandom(seed: SeededRandom.seed(runID, "presentation-order"))
         for i in stride(from: order.count - 1, to: 0, by: -1) { order.swapAt(i, Int(rng.next() % UInt64(i + 1))) }
@@ -149,6 +208,10 @@ public enum ComposerEngine {
             // distinct so the comparison remains meaningful, without applying option-only
             // selection and template-family thresholds to it.
             return a.coverAssetID != b.coverAssetID
+        }
+        if a.slides.contains(where: { $0.placement != nil }), b.slides.contains(where: { $0.placement != nil }) {
+            return a.coverAssetID != b.coverAssetID
+                && templateFamilies(a, context: context).subtracting(["layouts"]) != templateFamilies(b, context: context).subtracting(["layouts"])
         }
         guard PlanMetrics.diversity(a, b).passes else { return false }
         // The same photos in a different order still reads as one option to the owner.
@@ -164,10 +227,15 @@ public enum ComposerEngine {
     }
 
     private static func templateFamilies(_ plan: CarouselPlan, context: CompositionContext) -> Set<String> {
+        let pageIDs = plan.slides.compactMap(\.placement?.pageID)
+        if !pageIDs.isEmpty {
+            return Set(pageIDs.compactMap { id in context.pages.first { $0.id == id }?.familyID })
+        }
         let layout = LayoutResolver.resolve(plan, context: LayoutContext(
             aspect: context.aspect, photos: context.photos, features: context.features,
             stylePack: context.stylePack, seed: layoutSeed(runID: plan.id, id: plan.id),
-            storyHint: context.storyHint, vocabulary: plan.isBaseline ? [] : context.vocabulary))
+            storyHint: context.storyHint, vocabulary: plan.isBaseline ? [] : context.vocabulary,
+            pages: plan.isBaseline ? [] : context.pages, keepOrder: context.keepOrder))
         return Set(layout.slides.compactMap { slide in
             guard let variant = slide.variant, variant.hasPrefix("template.") else { return nil }
             let id = String(variant.dropFirst("template.".count))
@@ -291,7 +359,8 @@ public enum ComposerEngine {
             let layout = LayoutResolver.resolve(candidate.plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: layoutSeed ?? seed,
                 storyHint: context.storyHint,
-                vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary))
+                vocabulary: candidate.plan.isBaseline ? [] : context.vocabulary,
+                pages: candidate.plan.isBaseline ? [] : context.pages, keepOrder: context.keepOrder))
             guard !layout.slides.contains(where: { slide in
                 slide.warnings.contains { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }
             }) else { return }
@@ -310,7 +379,7 @@ public enum ComposerEngine {
             && LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: layoutSeed,
                 storyHint: context.storyHint,
-                vocabulary: context.vocabulary)).slides.contains { $0.variant?.hasPrefix("template.") == true }
+                vocabulary: context.vocabulary, pages: context.pages, keepOrder: context.keepOrder)).slides.contains { $0.variant?.hasPrefix("template.") == true }
         if !selectedTemplate, let recipes = context.stylePack.recipes,
            let recipe = RecipeFiller.select(for: direction.style, recipes: recipes, seed: seed) {
             plan.recipeID = recipe.id
@@ -371,7 +440,7 @@ public enum ComposerEngine {
         while plan.slides.contains(where: { $0.photos.count > 1 }) {
             let hosted = LayoutResolver.templateHosted(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: seed, storyHint: context.storyHint,
-                vocabulary: context.vocabulary))
+                vocabulary: context.vocabulary, pages: context.pages, keepOrder: context.keepOrder))
             var groups: [[AssetID]] = [], split = false
             for (index, slide) in plan.slides.enumerated() {
                 let ids = slide.photos.map(\.assetID)
@@ -595,7 +664,8 @@ public enum ComposerEngine {
         let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                                                                           features: context.features, stylePack: context.stylePack,
                                                                           seed: seed, storyHint: context.storyHint,
-                                                                          vocabulary: plan.isBaseline ? [] : context.vocabulary))
+                                                                          vocabulary: plan.isBaseline ? [] : context.vocabulary,
+                                                                          pages: plan.isBaseline ? [] : context.pages, keepOrder: context.keepOrder))
         let n = Double(layout.slides.count)
         var perSlide = 0.0, coverageGap = 0.0, framed = 0.0
         for (slide, planned) in zip(layout.slides, plan.slides) {

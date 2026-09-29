@@ -259,6 +259,10 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
             report.append("\(concept) \(i + 1) \(variant) cov \(m.coverage) hero \(m.heroShare ?? 0) loss \(m.maxCropLoss)")
             // Imported template pages author their own hierarchy (balanced pairs are intended).
             let templated = variant.hasPrefix("template.")
+            if let placement = plan.slides[i].placement {
+                #expect(s.variant == placement.slide?.variant)
+                #expect(placement.placed.allSatisfy { $0.crop.width * $0.crop.height >= SlotAssignment.cropFloor })
+            }
             if !templated && (s.primitive == .asymmetricPair || s.primitive == .inset) {
                 #expect((m.heroShare ?? 0) >= 1.5, "\(concept) slide \(i + 1): hero only \(m.heroShare ?? 0)× the support")
             }
@@ -271,7 +275,7 @@ private func run(_ tmp: TempDirectory, folder: URL) async throws -> RunStore {
         if !ComposerEngine.cleanOutput {
             #expect(repeats <= 1, "\(concept) repeats an arrangement on consecutive slides \(repeats)×: \(families)")
         }
-        if plan.style?.whitespace == "airy" {
+        if plan.style?.whitespace == "airy", !plan.slides.contains(where: { $0.placement != nil }) {
             #expect(singlePhotoVariants.count > 1, "\(concept) airy single-photo layouts never vary: \(singlePhotoVariants)")
         }
     }

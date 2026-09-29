@@ -40,8 +40,10 @@ private func candidateRun(_ tmp: TempDirectory, folder: URL, model: FakeModel) a
     let layoutSeed = ComposerEngine.layoutSeed(runID: session.runID, id: id)
     let context = session.compositionContext()
 
-    let storedReplay = ComposerEngine.compose(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
-    #expect(storedReplay.plan == plan)
+    let storedReplay = ComposerEngine.composeSet(directions: report.plans.filter { !$0.isBaseline }.compactMap(\.direction),
+        spine: try #require(report.spine), context: context, runID: session.runID)
+    #expect(storedReplay.plans.first { $0.id == id } == plan)
+    let legacyReplay = ComposerEngine.compose(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
 
     let pool = ComposerEngine.candidates(direction, id: id, context: context, seed: seed, layoutSeed: layoutSeed)
     #expect((2...6).contains(pool.count))
@@ -49,7 +51,7 @@ private func candidateRun(_ tmp: TempDirectory, folder: URL, model: FakeModel) a
     #expect(pool.allSatisfy { $0.plan.compositionSeed == String(seed, radix: 16) })
     #expect(pool.allSatisfy { !$0.warnings.contains(where: { $0.contains("people are cropped") || $0.contains("could not fully satisfy") }) })
     let nearBest = pool.filter { $0.score <= pool[0].score + 0.04 }
-    #expect(nearBest.contains(where: { $0.plan == storedReplay.plan }))
+    #expect(nearBest.contains(where: { $0.plan == legacyReplay.plan }))
 
     let paths = try #require(report.renderedSlides[id])
     let slideURLs = paths.map { store.root.appending(path: $0) }

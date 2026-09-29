@@ -61,7 +61,11 @@ final class EditorUITests: XCTestCase {
         let warmth = app.sliders["Warmth"]
         XCTAssertTrue(warmth.waitForExistence(timeout: 10))
         attachScreenshot(of: app, named: "editor-adjust-sheet")
-        warmth.adjust(toNormalizedSliderPosition: 0.8)
+        // Authored options already carry automatic warmth; a nearby target can be a no-op
+        // within XCTest's slider tolerance. Use an endpoint and verify a real adjustment.
+        let originalWarmth = warmth.value as? String
+        warmth.adjust(toNormalizedSliderPosition: 0)
+        XCTAssertNotEqual(warmth.value as? String, originalWarmth)
         app.buttons["Done"].tap()
 
         let undo = app.buttons["Undo edit"]

@@ -18,7 +18,7 @@ enum RerenderCommand {
 
     /// Re-resolves and re-renders every concept from saved plans and the source folder. Never calls the model.
     /// Renders into a staging directory and swaps only if every slide succeeded, so a failure keeps the old output.
-    /// `recompose` first re-runs the composer engine on the stored directions (legacy plans without one are kept).
+    /// `recompose` first re-runs the page search on the stored directions (legacy plans without one are kept).
     static func rerender(runDirectory: URL, source: URL, seed: UInt64? = nil, recompose: Bool = false) throws {
         let store = RunStore.open(runDirectory)
         let manifest = try store.read(RunManifest.self, from: "manifest.json")
@@ -27,17 +27,29 @@ enum RerenderCommand {
         var concepts = try store.read(ConceptsReport.self, from: "plans/director.json")
         guard !concepts.plans.isEmpty else { throw Failure.noPlans }
         if recompose, let spine = concepts.spine {
-            // Replays each plan's own direction and seed under its own id. Carousels already edited or handed off
-            // keep their plan, so edits, snapshots and study metrics stay comparable to the original.
+            // Search all stored directions together to retain distinct families and covers.
+            // Edited and handed-off plans keep their original artifacts.
             let fm = FileManager.default
             let touched = Set(concepts.plans.map(\.id).filter { id in
                 fm.fileExists(atPath: store.url("edits/\(id)").path)
                     || ((try? fm.contentsOfDirectory(atPath: store.url("handoffs").path)) ?? []).contains { $0.hasPrefix("\(id)-") }
             })
             let context = try RunSession(runDirectory: runDirectory).compositionContext()
-            let fresh = ComposerEngine.recompose(concepts.plans.filter { !touched.contains($0.id) }, context: context,
-                                                 runID: manifest.runID)
-            concepts.plans = concepts.plans.map { p in fresh.first { $0.id == p.id } ?? p }
+            let directed = concepts.plans.filter { !$0.isBaseline && $0.direction != nil }
+            if !directed.isEmpty {
+                let set = ComposerEngine.composeSet(directions: directed.compactMap(\.direction), spine: spine,
+                                                    context: context, runID: manifest.runID)
+                var fresh: [String: CarouselPlan] = [:]
+                if concepts.baseline?.direction != nil { fresh[CarouselPlan.baselineID] = set.plans.first { $0.isBaseline } }
+                for (index, original) in directed.enumerated() {
+                    if var plan = set.plans.first(where: { $0.id == "c\(index + 1)" }) {
+                        plan.id = original.id
+                        fresh[original.id] = plan
+                    }
+                }
+                concepts.plans = concepts.plans.map { touched.contains($0.id) ? $0 : fresh[$0.id] ?? $0 }
+                concepts.warnings += set.warnings
+            }
             for id in touched.sorted() { concepts.warnings.append("\(id): not recomposed (it has edits or a hand-off)") }
             let directions = concepts.plans.filter { !$0.isBaseline }
             concepts.diversity = directions.indices.flatMap { i in directions.indices.filter { $0 > i }.map { j in
@@ -64,7 +76,7 @@ enum RerenderCommand {
             concepts.plans, runID: manifest.runID, aspect: manifest.aspectRatio, photos: photos,
             features: Dictionary(uniqueKeysWithValues: features.map { ($0.assetID, $0) }),
             stylePack: try StylePackLoader.load(id: concepts.stylePackID), sourceFolder: folder, into: staging,
-            seedOverride: seed, storyHint: manifest.storyHint)
+            seedOverride: seed, storyHint: manifest.storyHint, exactSet: manifest.exactSet, keepOrder: manifest.keepOrder)
         guard !result.failed else {
             try? fm.removeItem(at: staging)
             throw Failure.render(result.warnings)

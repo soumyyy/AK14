@@ -127,6 +127,7 @@ struct StoryPipeline: Sendable {
             designedLibrary = nil
         }
         let vocabulary = designedLibrary?.vocabulary(for: aspect) ?? []
+        let pages = (try? StylePackLoader.loadDesignedPages())?.vocabulary(for: aspect) ?? []
 
         stageStart = clock.now
         if modelAssist, let client = responsesClient {
@@ -178,7 +179,7 @@ struct StoryPipeline: Sendable {
             let context = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:],
                                              flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil,
                                              exactSet: exactSet, keepOrder: keepOrder, storyHint: modelAssist ? storyHint : nil,
-                                             vocabulary: vocabulary)
+                                             vocabulary: vocabulary, pages: pages)
             progress("Building options…")
             var directorInput = DirectorInput(storyLabel: "a personal event", dateSpan: dateSpan, requestedSlides: nil,
                               shortlist: cards, selectPool: poolSelector, composition: context, runID: runID,
@@ -217,7 +218,7 @@ struct StoryPipeline: Sendable {
             let context = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:],
                                              flagged: [], sequenceIntent: Dictionary(uniqueKeysWithValues: zip(ordered, spine.sequenceIntent)),
                                              stylePack: stylePack, maxSlides: nil, exactSet: exactSet, keepOrder: keepOrder,
-                                             vocabulary: vocabulary)
+                                             vocabulary: vocabulary, pages: pages)
             let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: runID)
             plans = set.plans
             timings.append(StageTiming(stage: "director", seconds: 0))
@@ -251,7 +252,8 @@ struct StoryPipeline: Sendable {
             progress("Rendering option \(optionIndex + 1) of \(plans.count) · \(plan.slides.count) slides")
             let layout = LayoutContext(aspect: aspect, photos: photoByID, features: features, stylePack: stylePack,
                                        seed: ComposerEngine.layoutSeed(runID: runID, id: plan.id),
-                                       vocabulary: plan.isBaseline ? [] : vocabulary)
+                                       vocabulary: plan.isBaseline ? [] : vocabulary,
+                                       pages: plan.isBaseline ? [] : pages, keepOrder: keepOrder)
             let resolved = LayoutResolver.resolve(plan, context: layout)
             let directory = runRoot.appending(path: "slides/\(plan.id)", directoryHint: .isDirectory)
             let result = try CarouselRenderer().render(resolved, photos: photoByID, sourceFolder: folder,
@@ -280,6 +282,7 @@ struct StoryPipeline: Sendable {
         var manifest = RunManifest(runID: runID, createdAt: Date(), sourceFolderLabel: folder.lastPathComponent)
         manifest.photoCount = photos.count
         manifest.exactSet = exactSet
+        manifest.keepOrder = keepOrder
         manifest.events = events.map(EventSegmentSummary.init)
         manifest.chosenEvent = chosenEvent
         manifest.storyHint = storyHint

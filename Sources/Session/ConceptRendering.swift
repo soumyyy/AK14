@@ -17,13 +17,14 @@ public enum ConceptRendering {
 
     public static func renderAll(_ plans: [CarouselPlan], runID: String, aspect: CarouselAspect, photos: [AssetID: PhotoRecord],
                           features: [AssetID: PhotoFeatures], stylePack: StylePack, sourceFolder: URL, into root: URL,
-                          seedOverride: UInt64? = nil, storyHint: String? = nil) throws -> Result {
+                          seedOverride: UInt64? = nil, storyHint: String? = nil, exactSet: Bool = false, keepOrder: Bool = false) throws -> Result {
         var result = Result()
         let store = RunStore.open(root)
         let vocabulary = (try? StylePackLoader.loadDesignedSets())?.vocabulary(for: aspect) ?? []
+        let pages = (try? StylePackLoader.loadDesignedPages())?.vocabulary(for: aspect) ?? []
         for plan in plans {
             let concept = plan.id
-            if !plan.isBaseline, let recipeID = plan.recipeID, let direction = plan.direction,
+            if !plan.isBaseline, !plan.slides.contains(where: { $0.placement != nil }), let recipeID = plan.recipeID, let direction = plan.direction,
                let recipe = stylePack.recipes?.first(where: { $0.id == recipeID }) {
                 let documentURL = store.url("documents/\(concept).json")
                 let document: CanvasDocument
@@ -31,8 +32,8 @@ public enum ConceptRendering {
                    let saved = try? JSONDecoder().decode(CanvasDocument.self, from: data) { document = saved }
                 else {
                     let composition = CompositionContext(aspect: aspect, photos: photos, features: features, triage: [:],
-                        flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil, storyHint: storyHint,
-                        vocabulary: vocabulary)
+                        flagged: [], sequenceIntent: [:], stylePack: stylePack, maxSlides: nil, exactSet: exactSet, keepOrder: keepOrder, storyHint: storyHint,
+                        vocabulary: vocabulary, pages: pages)
                     document = RecipeFiller.fill(plan: plan, direction: direction, recipe: recipe, context: composition,
                                                  seed: seedOverride ?? seed(runID: runID, concept: concept))
                     try store.write(document, to: "documents/\(concept).json")
@@ -47,7 +48,8 @@ public enum ConceptRendering {
             let context = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
                                         seed: seedOverride ?? seed(runID: runID, concept: plan.id),
                                         storyHint: storyHint,
-                                        vocabulary: plan.isBaseline ? [] : vocabulary)
+                                        vocabulary: plan.isBaseline ? [] : vocabulary,
+                                        pages: plan.isBaseline ? [] : pages, keepOrder: keepOrder)
             let carousel = LayoutResolver.resolve(plan, context: context)
             for slide in carousel.slides {
                 try store.write(slide, to: String(format: "layouts/%@/slide-%02d.json", concept, slide.index + 1))

@@ -30,6 +30,7 @@ actor StoryEditingService {
     private let store: RunStore
     private let runID: String
     private let aspect: CarouselAspect
+    private let keepOrder: Bool
     private let photos: [AssetID: PhotoRecord]
     private let features: [AssetID: PhotoFeatures]
     private let reduction: ReductionResult?
@@ -53,6 +54,7 @@ actor StoryEditingService {
         stylePack = try store.read(StylePack.self, from: "style-pack.json")
         stylePackPin = try store.read(StylePackPin.self, from: "style-pack-pin.json")
         aspect = (try? store.read(CarouselAspect.self, from: "aspect.json")) ?? .infer(from: photoList)
+        keepOrder = (try? store.read(RunManifest.self, from: "manifest.json"))?.keepOrder ?? false
         let plans = try store.read([CarouselPlan].self, from: "plans/options.json")
         guard plans.allSatisfy({ Self.isSafeOptionID($0.id) }) else {
             throw StoryEditingFailure.unavailableOption("invalid option ID")
@@ -117,9 +119,10 @@ actor StoryEditingService {
 
         try verifySources(for: edited)
         let vocabulary = edited.isBaseline ? [] : ((try? StylePackLoader.loadDesignedSets())?.vocabulary(for: aspect) ?? [])
+        let pages = edited.isBaseline ? [] : ((try? StylePackLoader.loadDesignedPages())?.vocabulary(for: aspect) ?? [])
         let layoutContext = LayoutContext(aspect: aspect, photos: photos, features: features, stylePack: stylePack,
                                           seed: ComposerEngine.layoutSeed(runID: runID, id: optionID),
-                                          vocabulary: vocabulary)
+                                          vocabulary: vocabulary, pages: pages, keepOrder: keepOrder)
         let resolved = LayoutResolver.resolve(edited, context: layoutContext)
         let stagingRoot = store.url("edits/.staging/\(UUID().uuidString)")
         let stagedOption = stagingRoot.appending(path: "new", directoryHint: .isDirectory)

@@ -77,7 +77,7 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     #expect(try store.read([PhotoFeatures].self, from: "cache/features.json").allSatisfy { $0.color != nil })
     let directions = d.plans.filter { !$0.isBaseline }
     let dropped = d.warnings.filter { $0.contains("dropped") }.count
-    #expect(directions.count + dropped == count && directions.count >= 2, "\(d.warnings)")
+    #expect(directions.count + dropped == min(count, 3) && directions.count >= 2, "\(d.warnings)")
     #expect(d.plans.first?.id == "baseline" && Set(d.presentationOrder) == Set(d.plans.map(\.id)))
     #expect(d.diversity.count == directions.count * (directions.count - 1) / 2)
 
@@ -128,11 +128,11 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     // The diversity step may drop a direction; use whichever direction survived.
     let directionID = try #require(session.availableConcepts.sorted().first { $0 != CarouselPlan.baselineID })
     let plan = try #require(session.plan(directionID))
-    // Replay the plan's own stored seed: the diversity remedy may have composed it with an alternative seed.
-    let seed = try #require(plan.compositionSeed.flatMap { UInt64($0, radix: 16) })
-    let again = ComposerEngine.compose(try #require(plan.direction), id: directionID, context: session.compositionContext(),
-                                       seed: seed, layoutSeed: ComposerEngine.layoutSeed(runID: session.runID, id: directionID))
-    #expect(again.plan == plan)
+    // Replaying the full set preserves the cover/family exclusions used for each direction.
+    let directions = session.concepts.plans.filter { !$0.isBaseline }.compactMap(\.direction)
+    let again = ComposerEngine.composeSet(directions: directions, spine: try #require(session.concepts.spine),
+                                          context: session.compositionContext(), runID: session.runID)
+    #expect(again.plans.first { $0.id == directionID } == plan)
     try session.setSource(folder)
     let calls = model.stages.count
     try session.reroll(directionID)
@@ -386,4 +386,157 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
 private func contextWith(feature: PhotoFeatures, photo: PhotoRecord, style: StylePack) -> CompositionContext {
     CompositionContext(aspect: .portrait4x5, photos: [photo.assetID: photo], features: [photo.assetID: feature],
                        triage: [:], flagged: [], sequenceIntent: [:], stylePack: style, maxSlides: nil)
+}
+
+
+struct ComposerE2ETests {
+    @Test(arguments: [CarouselAspect.portrait4x5, .portrait3x4])
+    func composeSetGivesTemplateFirstOptionsFromDifferentFamiliesAndCovers(aspect: CarouselAspect) throws {
+        let pages = try StylePackLoader.loadDesignedPages().vocabulary(for: aspect)
+        #expect(pages.count == (aspect == .portrait4x5 ? 80 : 119))
+        let (context, spine, directions) = try realisticRun(aspect: aspect, pages: pages)
+        let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "r1")
+        let options = set.plans.filter { !$0.isBaseline }
+        #expect((2...3).contains(options.count))
+        #expect(options.allSatisfy { $0.slides.allSatisfy { $0.placement != nil || $0.primitive == .hero } })
+        let families = options.map { plan in Set(plan.slides.compactMap(\.placement?.pageID).compactMap { id in
+            pages.first { $0.id == id }?.familyID
+        }).subtracting(["layouts"]) }
+        #expect(families.allSatisfy { $0.count == 1 })
+        #expect(Set(families).count == options.count)
+        #expect(Set(options.compactMap(\.coverAssetID)).count == options.count)
+        #expect(set.plans.contains { $0.isBaseline })
+        #expect(set.plans == ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "r1").plans)
+        for plan in options {
+            let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
+                features: context.features, stylePack: context.stylePack, seed: 42, pages: pages))
+            #expect(layout.slides.count == plan.slides.count)
+            // Linked pages render fragments of one assigned crop; the floor applies to the full slot crop.
+            #expect(plan.slides.allSatisfy { $0.placement?.placed.allSatisfy {
+                $0.crop.width * $0.crop.height >= SlotAssignment.cropFloor
+            } ?? true })
+        }
+    }
+
+    @Test func thinAspectFallsBackToTheCurrentEngineWithAWarning() throws {
+        let pages = try StylePackLoader.loadDesignedPages().vocabulary(for: .square)
+        #expect(pages.count == 13)
+        let (context, spine, directions) = try realisticRun(aspect: .square, pages: pages)
+        let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "r1")
+        #expect(set.warnings.contains("template-first unavailable for 1:1: 13 pages"))
+        #expect(set.plans.filter { !$0.isBaseline }.allSatisfy { !$0.slides.isEmpty && $0.slides.allSatisfy { $0.placement == nil } })
+    }
+
+    @Test func offlineDirectionUsesTimeMomentsAndAuthoredPages() throws {
+        let pages = try StylePackLoader.loadDesignedPages().vocabulary(for: .portrait4x5)
+        let (context, spine, _) = try realisticRun(aspect: .portrait4x5, pages: pages)
+        let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: "offline")
+        let option = try #require(set.plans.first { !$0.isBaseline })
+        #expect(set.plans.count == 2)
+        #expect(option.slides.contains { $0.placement != nil })
+        #expect(option.direction?.moments.map { $0.photos.count } == [3, 3, 3, 3])
+        #expect(option.direction?.moments.allSatisfy { $0.size == "few" } == true)
+    }
+
+    @Test func exhaustedFamiliesFallBackWithoutReusingPlacements() throws {
+        let catalogue = try StylePackLoader.loadDesignedPages().vocabulary(for: .portrait4x5)
+        let family = try #require(catalogue.first { $0.familyID != "layouts" && $0.coverCapable == true }?.familyID)
+        let selected = catalogue.filter { $0.familyID == family || $0.familyID == "layouts" }
+        // Repeat records with unique ids to exercise the availability threshold with one authored family.
+        var pages = selected
+        while pages.count < 20 {
+            var page = selected[0]; page.id += "-copy-\(pages.count)"; pages.append(page)
+        }
+        let (context, spine, directions) = try realisticRun(aspect: .portrait4x5, pages: pages)
+        let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "limited")
+        #expect(set.plans.filter { !$0.isBaseline && $0.slides.contains { $0.placement != nil } }.count == 1)
+        #expect(set.warnings.filter { $0.contains("no family fits; used the current engine") }.count == 2)
+        #expect(set.plans.count == 4)
+    }
+
+    @Test func judgeCannotReplaceAuthoredOptionsWithLegacyCandidates() async throws {
+        let tmp = try TempDirectory(); defer { tmp.remove() }
+        var options = RunOptions(folder: try sceneFolder(tmp), runsDirectory: tmp.url.appending(path: "runs"),
+                                 cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
+        options.judge = true; options.aspect = .portrait4x5
+        let model = FakeModel()
+        let store = try await RunPipeline.live(options: options, client: ResponsesClient(transport: model, sleep: { _ in }), log: { _ in }).run(options)
+        let plans = try store.read(ConceptsReport.self, from: "plans/director.json").plans.filter { !$0.isBaseline }
+        #expect(plans.count == 3)
+        #expect(plans.allSatisfy { $0.slides.allSatisfy { $0.placement != nil } })
+        #expect(!model.stages.contains("judge"))
+    }
+
+    @Test func keepOrderCLIRunRecomposesAndEditsInInputOrderAndOldManifestDefaultsFalse() async throws {
+        let tmp = try TempDirectory(); defer { tmp.remove() }
+        let folder = try sceneFolder(tmp, count: 9)
+        var options = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"),
+                                 cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
+        options.exact = true; options.keepOrder = true; options.aspect = .portrait4x5
+        let store = try await RunPipeline.live(options: options, client: ResponsesClient(transport: FakeModel(), sleep: { _ in }), log: { _ in }).run(options)
+        let expected = try store.read(IngestResult.self, from: "input-index.json").photos
+            .sorted { $0.sourceRelativePaths[0] < $1.sourceRelativePaths[0] }.map(\.assetID)
+        let manifestJSON = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: store.url("manifest.json"))) as? [String: Any])
+        #expect(manifestJSON["keepOrder"] as? Bool == true)
+        let session = try RunSession(runDirectory: store.root)
+        #expect(session.manifest.keepOrder)
+        #expect(session.compositionContext().keepOrder)
+        #expect(session.compositionContext().exactSet)
+        let original = try store.read(ConceptsReport.self, from: "plans/director.json")
+        let paths = original.renderedSlides.values.flatMap { $0 }.sorted()
+        let beforeReplay = try paths.map { try Data(contentsOf: store.url($0)) }
+        try RerenderCommand.rerender(runDirectory: store.root, source: folder)
+        #expect(try paths.map { try Data(contentsOf: store.url($0)) } == beforeReplay)
+        try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
+        let report = try store.read(ConceptsReport.self, from: "plans/director.json")
+        for plan in report.plans { #expect(plan.photoAssetIDs == expected, "\(plan.id)") }
+        let placed = try #require(report.plans.first { !$0.isBaseline && $0.slides.contains { $0.placement != nil } })
+        try session.setSource(folder)
+        // A no-op reorder invalidates a grouped page and exercises re-assignment with the stored order constraint.
+        let grouped = try #require(placed.slides.firstIndex { $0.photos.count > 1 && $0.placement?.runLength == 1 })
+        try session.apply(.reorder(from: grouped, to: grouped), to: placed.id)
+        #expect(session.plan(placed.id)?.photoAssetIDs == expected)
+        let edited = try store.read(CarouselPlan.self, from: "edits/\(placed.id)/plan.json")
+        #expect(edited.photoAssetIDs == expected)
+        let editedLayout = try store.read(ResolvedSlide.self, from: String(format: "edits/%@/layouts/slide-%02d.json", placed.id, grouped + 1))
+        #expect(editedLayout.variant?.hasPrefix("template.") == true)
+        let readingOrder = editedLayout.elements.filter { $0.kind == .photo }.sorted {
+            let a = $0.frame, b = $1.frame
+            return abs((a.y + a.height / 2) - (b.y + b.height / 2)) > 0.05
+                ? a.y + a.height / 2 < b.y + b.height / 2 : a.x + a.width / 2 < b.x + b.width / 2
+        }.compactMap(\.assetID)
+        #expect(readingOrder == edited.slides[grouped].photos.map(\.assetID))
+        var oldJSON = manifestJSON
+        oldJSON.removeValue(forKey: "keepOrder"); oldJSON.removeValue(forKey: "exactSet")
+        try JSONSerialization.data(withJSONObject: oldJSON).write(to: store.url("manifest.json"))
+        let oldSession = try RunSession(runDirectory: store.root)
+        #expect(oldSession.manifest.keepOrder == false)
+        #expect(!oldSession.compositionContext().keepOrder)
+        #expect(!oldSession.compositionContext().exactSet)
+        let decodedJSON = try #require(JSONSerialization.jsonObject(with: JSONCoding.encoder.encode(oldSession.manifest)) as? [String: Any])
+        #expect(decodedJSON["keepOrder"] as? Bool == false)
+    }
+
+    private func realisticRun(aspect: CarouselAspect, pages: [DesignedSet]) throws -> (CompositionContext, SelectionSpine, [Direction]) {
+        let photos: [PhotoRecord] = (0..<12).map { i in
+            let landscape = aspect == .square || i >= 8
+            let seconds = Double(i / 3 * 1800 + i % 3 * 60)
+            return PhotoRecord(assetID: AssetID(rawValue: "p\(i)"), contentSHA256: "p\(i)", sourceRelativePaths: [],
+                        byteCount: 1, fileType: "public.jpeg", pixelWidth: landscape ? 1600 : 1200,
+                        pixelHeight: landscape ? 1200 : 1600, exifOrientation: 1,
+                        metadata: CaptureMetadata(capturedAt: Date(timeIntervalSince1970: 1_800_000_000 + seconds)))
+        }
+        let ids = photos.map(\.assetID)
+        let spine = SelectionSpine(orderedAssetIDs: ids, sequenceIntent: ids.map { _ in .build }, rationale: [])
+        let directions = (0..<3).map { i in
+            let selected = Array(ids[i..<8]) + Array(ids[8..<12])
+            return Direction(brief: "Story \(i)", style: .baseline, coverAssetID: selected[0], orderedAssetIDs: selected,
+                             moments: [.init(label: "people", photos: Array(selected.prefix(4)), mustInclude: [selected[0]], size: "few"),
+                                       .init(label: "place", photos: Array(selected.dropFirst(4)), mustInclude: [], size: "few")],
+                             coverCandidates: Array(selected.prefix(3)))
+        }
+        return (CompositionContext(aspect: aspect, photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
+            features: [:], triage: [:], flagged: [], sequenceIntent: [:], stylePack: try StylePackLoader.load(), maxSlides: nil,
+            vocabulary: try StylePackLoader.loadDesignedSets().vocabulary(for: aspect), pages: pages), spine, directions)
+    }
 }
