@@ -178,6 +178,63 @@ import Testing
         }
     }
 
+    @Test func removingAnotherPhotoDropsSurvivingRunSupportReferences() throws {
+        var (plan, ctx) = try runWithSupportReference()
+        plan.slides.removeFirst() // Isolate the exact two-member run: [A, B], [support A].
+        let edited = try PlanEditor.apply(.remove(slide: 0, photo: AssetID(rawValue: "p2")), to: plan)
+        let resolved = LayoutResolver.resolve(edited, context: layoutContext(ctx))
+        #expect(edited.slides.count == 1)
+        #expect(edited.slides[0].placement == nil)
+        #expect(resolved.slides.count == 1)
+        let ids = resolved.slides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.assetID)
+        #expect(ids.map(\.rawValue) == ["p1"])
+        #expect(Set(ids).count == ids.count)
+        #expect(resolved.slides.filter { $0.elements.contains { $0.assetID?.rawValue == "p1" } }.count == 1)
+    }
+
+    @Test func swappingARunPhotoDropsSupportReferencesToOtherPhotos() throws {
+        let (plan, ctx) = try runWithSupportReference()
+        // Swap B while the other member holds support A; also swap A from either occurrence.
+        for (member, old, expected) in [(1, "p2", ["p0", "p1", "p3"]),
+                                        (1, "p1", ["p0", "p3", "p2"]),
+                                        (2, "p1", ["p0", "p3", "p2"])] {
+            let edited = try PlanEditor.apply(.swap(slide: member, photo: AssetID(rawValue: old),
+                                                    with: AssetID(rawValue: "p3")), to: plan)
+            let resolved = LayoutResolver.resolve(edited, context: layoutContext(ctx))
+            #expect(edited.slides.count == 2)
+            #expect(edited.slides[1].placement == nil)
+            #expect(resolved.slides.count == 2)
+            let ids = resolved.slides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.assetID)
+            #expect(ids.map(\.rawValue) == expected)
+            #expect(Set(ids).count == ids.count)
+            for id in Set(ids) {
+                #expect(resolved.slides.filter { $0.elements.contains { $0.assetID == id } }.count == 1)
+            }
+        }
+    }
+
+    @Test func invalidatedRunsPreferNonSupportOccurrencesOtherwiseTheFirstMember() throws {
+        let (original, ctx) = try runWithSupportReference()
+        for onlySupport in [false, true] {
+            var plan = original
+            plan.slides[1].photos[0].role = "support"
+            plan.slides[2].photos[0].role = onlySupport ? "support" : "hero"
+            let edits: [(PlanEdit, Bool)] = [(.remove(slide: 1, photo: AssetID(rawValue: "p2")), false),
+                                            (.swap(slide: 1, photo: AssetID(rawValue: "p2"), with: AssetID(rawValue: "p3")), true)]
+            for (edit, isSwap) in edits {
+                let edited = try PlanEditor.apply(edit, to: plan)
+                let resolved = LayoutResolver.resolve(edited, context: layoutContext(ctx))
+                let ids = resolved.slides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.assetID)
+                let expected = !isSwap ? ["p0", "p1"] : onlySupport ? ["p0", "p1", "p3"] : ["p0", "p3", "p1"]
+                #expect(ids.map(\.rawValue) == expected)
+                #expect(Set(ids).count == ids.count)
+                #expect(edited.slides.count == (isSwap && !onlySupport ? 3 : 2))
+                #expect(resolved.slides.count == edited.slides.count)
+                #expect(edited.slides.last?.photos.first { $0.assetID.rawValue == "p1" }?.role == (onlySupport ? "support" : "hero"))
+            }
+        }
+    }
+
     @Test func nonAdjacentCoverIsConsumedFromItsOwnMomentWithoutAMovePenalty() throws {
         let pages = [familyA[0], familyA[1]]
         let ctx = try context(pool: portraits(3), pages: pages, exactSet: true)
@@ -346,6 +403,26 @@ import Testing
         #expect(layout.slides[0].elements.first?.assetID?.rawValue == "p0")
         #expect(!Set(layout.slides.flatMap(\.elements).compactMap(\.assetID?.rawValue)).isSuperset(of: ["p1", "p2"]))
         #expect(!result.warnings.isEmpty)
+    }
+
+    private func runWithSupportReference() throws -> (CarouselPlan, CompositionContext) {
+        // A is centred on the first run member and spans the seam; B is wholly on that member.
+        let run = DesignedSet(id: "support-run", sourceRef: "test", aspect: .portrait4x5, slideCount: 2,
+                              background: "#FFFFFF", slots: [slot(0.7, 0.1, 0.4, 0.8, 0.4), slot(0.1, 0.1, 0.4, 0.5, 0.64)],
+                              family: "A", sourceTemplate: "run", pageIndex: 1, pageRole: "strip")
+        let pages = [familyA[0], run]
+        let ctx = try context(pool: [photo("p0", aspect: 0.75), photo("p1", aspect: 0.4),
+                                     photo("p2", aspect: 0.75), photo("p3", aspect: 0.75)], pages: pages, exactSet: true)
+        let d = direction(momentsOf: [["p0"], ["p1", "p2"]], cover: ["p0"], title: nil)
+        let plan = try #require(PageSearch.search(d, id: "c1", family: "A", pages: pages, context: ctx, seed: 1)).plan
+        #expect(plan.slides.count == 3)
+        #expect(plan.slides[1].photos.map(\.assetID.rawValue) == ["p1", "p2"])
+        #expect(plan.slides[2].photos.map(\.assetID.rawValue) == ["p1"])
+        #expect(plan.slides[2].photos.first?.role == "support")
+        let resolved = LayoutResolver.resolve(plan, context: layoutContext(ctx))
+        #expect(resolved.slides[1].elements.contains { $0.assetID?.rawValue == "p1" })
+        #expect(resolved.slides[2].elements.contains { $0.assetID?.rawValue == "p1" })
+        return (plan, ctx)
     }
 
     private var familyA: [DesignedSet] { family("A") }

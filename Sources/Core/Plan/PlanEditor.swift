@@ -31,26 +31,49 @@ public enum PlanEditor {
 
         case .swap(let s, let old, let new):
             guard p.slides.indices.contains(s) else { throw PlanEditError.slideOutOfRange(s) }
-            guard let i = p.slides[s].photos.firstIndex(where: { $0.assetID == old }) else { throw PlanEditError.photoNotOnSlide(old) }
+            guard p.slides[s].photos.contains(where: { $0.assetID == old }) else { throw PlanEditError.photoNotOnSlide(old) }
             guard !p.photoAssetIDs.contains(new) else { throw PlanEditError.alreadyInConcept(new) }
-            invalidateRun(in: &p.slides, at: s)
-            p.slides[s].photos[i].assetID = new
+            let members = invalidateRun(in: &p.slides, at: s)
+            for member in members {
+                for photo in p.slides[member].photos.indices where p.slides[member].photos[photo].assetID == old {
+                    p.slides[member].photos[photo].assetID = new
+                }
+            }
+            deduplicateRunMembers(in: &p.slides, members: members)
 
         case .remove(let s, let id):
             guard p.slides.indices.contains(s) else { throw PlanEditError.slideOutOfRange(s) }
             guard p.slides[s].photos.contains(where: { $0.assetID == id }) else { throw PlanEditError.photoNotOnSlide(id) }
             guard p.photoAssetIDs.contains(where: { $0 != id }) else { throw PlanEditError.lastPhoto }
             let members = invalidateRun(in: &p.slides, at: s)
-            for member in members.reversed() {
-                p.slides[member].photos.removeAll { $0.assetID == id }
-                if p.slides[member].photos.isEmpty {
-                    p.slides.remove(at: member) // removal never pads the carousel
-                } else if !p.slides[member].primitive.photoRange.contains(p.slides[member].photos.count) {
-                    p.slides[member].primitive = p.slides[member].photos.count == 1 ? .hero : .asymmetricPair
-                }
-            }
+            for member in members { p.slides[member].photos.removeAll { $0.assetID == id } }
+            deduplicateRunMembers(in: &p.slides, members: members)
         }
         return p
+    }
+
+    private static func deduplicateRunMembers(in slides: inout [SlidePlan], members: Range<Int>) {
+        var owners: [AssetID: (member: Int, photo: Int, isSupport: Bool)] = [:]
+        for member in members {
+            for (photo, element) in slides[member].photos.enumerated() {
+                let isSupport = element.role == "support"
+                if let owner = owners[element.assetID], !owner.isSupport || isSupport { continue }
+                owners[element.assetID] = (member, photo, isSupport)
+            }
+        }
+        // Keep each distinct photo's first non-support occurrence, or its first support occurrence.
+        // Reference-only members then disappear; delete backwards so the run's indices stay valid.
+        for member in members.reversed() {
+            slides[member].photos = slides[member].photos.enumerated().compactMap { photo, element in
+                guard let owner = owners[element.assetID], owner.member == member, owner.photo == photo else { return nil }
+                return element
+            }
+            if slides[member].photos.isEmpty {
+                slides.remove(at: member)
+            } else if !slides[member].primitive.photoRange.contains(slides[member].photos.count) {
+                slides[member].primitive = slides[member].photos.count == 1 ? .hero : .asymmetricPair
+            }
+        }
     }
 
     @discardableResult
