@@ -328,7 +328,7 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     #expect(withVocabHero < withoutVocabHero)
 }
 
-@Test func fourByThreeLandscapeCanUseFullBleedAtTheRetentionFloor() throws {
+@Test func fourByThreeLandscapeBelowTheSharedFloorUsesAHero() throws {
     let id = AssetID(rawValue: "landscape")
     let photo = PhotoRecord(assetID: id, contentSHA256: "landscape", sourceRelativePaths: [],
                             byteCount: 1, fileType: "public.jpeg", pixelWidth: 1200, pixelHeight: 900,
@@ -341,8 +341,8 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
                                      maxSlides: nil)
     var rng = SeededRandom(seed: 7)
     #expect(ComposerEngine.choosePrimitive(hero: id, others: [], style: .baseline, position: .opener,
-                                           density: "balanced", context: context, rng: &rng) == .fullBleed)
-    #expect(!ComposerEngine.floats(id, context: context))
+                                           density: "balanced", context: context, rng: &rng) == .hero)
+    #expect(ComposerEngine.floats(id, context: context))
 
     var peopleCut = feature
     peopleCut.humans = [UnitRect(x: 0.05, y: 0.2, width: 0.8, height: 0.5)]

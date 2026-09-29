@@ -10,10 +10,12 @@ public struct LayoutContext: Sendable {
     /// Imported page arrangements the resolver may fill. Empty keeps the six primitives.
     public var vocabulary: [DesignedSet]
     public var pages: [DesignedSet]
+    public var keepOrder: Bool
     public init(aspect: CarouselAspect, photos: [AssetID: PhotoRecord], features: [AssetID: PhotoFeatures],
-                stylePack: StylePack, seed: UInt64, storyHint: String? = nil, vocabulary: [DesignedSet] = [], pages: [DesignedSet] = []) {
+                stylePack: StylePack, seed: UInt64, storyHint: String? = nil, vocabulary: [DesignedSet] = [], pages: [DesignedSet] = [],
+                keepOrder: Bool = false) {
         self.aspect = aspect; self.photos = photos; self.features = features; self.stylePack = stylePack
-        self.seed = seed; self.storyHint = storyHint; self.vocabulary = vocabulary; self.pages = pages
+        self.seed = seed; self.storyHint = storyHint; self.vocabulary = vocabulary; self.pages = pages; self.keepOrder = keepOrder
     }
 }
 
@@ -157,7 +159,7 @@ public enum LayoutResolver {
             let eligible = CropPlanner.fullBleedEligible(imageAspect: a, boxAspect: content.w / content.h,
                                                          features: context.features[e.assetID])
             if !eligible {
-                warnings.append(landscapeOnPortraitCanvas && cropLoss > 0.42
+                warnings.append(landscapeOnPortraitCanvas && cropLoss > 1 - SlotAssignment.cropFloor
                     ? "landscape crop is too severe for a portrait slide; showing the whole photo as a hero"
                     : "faces do not fit a full-bleed crop; showing the whole photo as a hero")
                 primitive = .hero

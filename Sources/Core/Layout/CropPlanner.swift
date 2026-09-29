@@ -87,7 +87,7 @@ public enum CropPlanner {
                                          features: PhotoFeatures?) -> Bool {
         let crop = cover(imageAspect: imageAspect, boxAspect: boxAspect, features: features)
         return facesFit(features, crop: crop) && salientRetention(features, crop: crop) >= 0.85
-            && crop.width * crop.height >= 0.58
+            && crop.width * crop.height >= SlotAssignment.cropFloor
     }
 
     /// Face boxes mapped into canvas pixels for a photo drawn with `crop` into `frame`.

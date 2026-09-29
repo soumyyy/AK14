@@ -162,28 +162,12 @@ enum TemplateVocabulary {
         guard photos.count == slots.count, Set(photos.map(\.assetID)).count == photos.count else { return nil }
         guard photos.allSatisfy({ context.photos[$0.assetID] != nil }) else { return nil }
 
-        var ordered = photos
-        if let heroIndex = ordered.firstIndex(where: { $0.role == "hero" }), heroIndex != 0 {
-            ordered.insert(ordered.remove(at: heroIndex), at: 0)
-        }
-        let ranked = slots.sorted { lhs, rhs in
-            let left = lhs.frame.width * lhs.frame.height
-            let right = rhs.frame.width * rhs.frame.height
-            if left != right { return left > right }
-            return lhs.z < rhs.z
-        }
-
-        var assigned: [(slot: DesignedSet.Slot, photo: PhotoElement, crop: UnitRect)] = []
-        for (slot, photo) in zip(ranked, ordered) {
-            guard let record = context.photos[photo.assetID] else { return nil }
-            let imageAspect = Double(record.pixelWidth) / Double(max(record.pixelHeight, 1))
-            let boxAspect = slot.aspect > 0 ? slot.aspect : slot.frame.width / max(slot.frame.height, 0.01)
-            let features = context.features[photo.assetID]
-            let crop = CropPlanner.cover(imageAspect: imageAspect, boxAspect: boxAspect, features: features,
-                                          cropIntent: photo.cropIntent, anchorIntent: photo.anchorIntent)
-            guard crop.width * crop.height >= 0.65, CropPlanner.facesFit(features, crop: crop) else { return nil }
-            guard !subjectCrossesSeam(features: features, crop: crop, slot: slot.frame) else { return nil }
-            assigned.append((slot, photo, crop))
+        guard let placement = SlotAssignment.assign(photos.map(\.assetID), to: set,
+            hero: photos.first { $0.role == "hero" }?.assetID, keepOrder: context.keepOrder,
+            records: context.photos, features: context.features) else { return nil }
+        let assigned: [(slot: DesignedSet.Slot, photo: PhotoElement, crop: UnitRect)] = placement.placed.compactMap { placed in
+            guard let photo = photos.first(where: { $0.assetID == placed.assetID }) else { return nil }
+            return (slots[placed.slotIndex], photo, placed.crop)
         }
 
         var buckets = Array(repeating: [ResolvedElement](), count: set.slideCount)
@@ -202,7 +186,7 @@ enum TemplateVocabulary {
             let frameCrop = CropPlanner.cover(imageAspect: imageAspect, boxAspect: photoWindowAspect,
                                               features: context.features[item.photo.assetID],
                                               cropIntent: item.photo.cropIntent, anchorIntent: item.photo.anchorIntent)
-            guard frameCrop.width * frameCrop.height >= 0.65,
+            guard frameCrop.width * frameCrop.height >= SlotAssignment.cropFloor,
                   CropPlanner.facesFit(context.features[item.photo.assetID], crop: frameCrop) else { continue }
             for slide in 0..<set.slideCount {
                 guard let element = sliceFrame(frame, photo: item.photo, crop: frameCrop, onto: slide) else { continue }
@@ -514,7 +498,7 @@ enum TemplateVocabulary {
     }
 
     /// A face or a significant person mapped through the cover crop onto the slot's carousel span.
-    private static func subjectCrossesSeam(features: PhotoFeatures?, crop: UnitRect, slot: UnitRect) -> Bool {
+    static func subjectCrossesSeam(features: PhotoFeatures?, crop: UnitRect, slot: UnitRect) -> Bool {
         guard let features, crop.width > 1e-6 else { return false }
         let boxes = features.faces.map(\.box) + features.humans.filter { $0.height >= 0.2 }
         return boxes.contains { box in

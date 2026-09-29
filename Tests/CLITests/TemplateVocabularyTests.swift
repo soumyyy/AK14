@@ -41,6 +41,42 @@ import Testing
         #expect(abs((frames[support.assetID]?.width ?? 0) - 0.3) < 0.001)
     }
 
+    @Test func bestPairingAcceptsWhatTheOldZipRejected() throws {
+        // The hero is a landscape, so the zip put it in the tall big slot (crop < 0.65) and rejected the page.
+        let page = set("mixed", slides: 1, slots: [
+            slot(x: 0, y: 0, w: 0.55, h: 1, aspect: 0.55, z: 1, role: "hero"),
+            slot(x: 0.58, y: 0.3, w: 0.42, h: 0.28, aspect: 1.5, z: 0, role: "support")
+        ])
+        let wide = photo("wide", aspect: 1.5), tall = photo("tall", aspect: 0.56)
+        var heroElement = PhotoElement.plain(wide.assetID); heroElement.role = "hero"
+        var supportElement = PhotoElement.plain(tall.assetID); supportElement.role = "support"
+        let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [
+            SlidePlan(primitive: .asymmetricPair, mood: "", density: "balanced", photos: [heroElement, supportElement], decorations: [], stamps: [])
+        ])
+        let resolved = LayoutResolver.resolve(plan, context: try context(photos: [wide, tall], vocabulary: [page]))
+        #expect(resolved.slides[0].variant == "template.mixed")
+        let crops = resolved.slides[0].elements.compactMap { $0.crop.map { $0.width * $0.height } }
+        #expect(crops.allSatisfy { $0 >= SlotAssignment.cropFloor })
+    }
+
+    @Test func keepOrderFillsSlotsInReadingOrder() throws {
+        let page = set("row", slides: 1, slots: [
+            slot(x: 0.52, y: 0.1, w: 0.46, h: 0.8, aspect: 0.58, z: 0),
+            slot(x: 0.02, y: 0.1, w: 0.46, h: 0.8, aspect: 0.58, z: 1)
+        ])
+        let a = photo("a", aspect: 0.58), b = photo("b", aspect: 0.58)
+        let result = SlotAssignment.assign([a.assetID, b.assetID], to: page, hero: nil, keepOrder: true,
+                                           records: [a.assetID: a, b.assetID: b], features: [:])
+        let left = SlotAssignment.readingOrder(page)[0]
+        #expect(result?.placed.first { $0.slotIndex == left }?.assetID == a.assetID)
+    }
+
+    @Test func fullBleedUsesTheSharedFloor() {
+        // 4:3 on 4:5 keeps 0.60, which the old 0.58 rule accepted and the shared 0.65 floor rejects.
+        #expect(!CropPlanner.fullBleedEligible(imageAspect: 4.0 / 3.0, boxAspect: 0.8, features: nil))
+        #expect(CropPlanner.fullBleedEligible(imageAspect: 1.0, boxAspect: 0.8, features: nil))
+    }
+
     @Test func heroLabelDoesNotExcludeBalancedPairOrGathering() throws {
         let balancedPair = set("balanced-pair", slides: 1, slots: [
             slot(x: 0, y: 0, w: 0.48, h: 0.8, aspect: 0.6, z: 1),
