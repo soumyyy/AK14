@@ -321,7 +321,6 @@ public struct ArtDirector: Sendable {
 - Imperfection can carry emotional value; repeated perfection feels artificial.
 - A carousel should respond to its particular photos.
 - Surprise is valuable when coherent.
-- Avoid recognizable template fingerprints.
 - Do not optimize every image for generic beauty.
 - Random images (signs, food, details) can provide rhythm and personality.
 - Whitespace is an active compositional element.

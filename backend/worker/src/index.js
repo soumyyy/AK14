@@ -1,5 +1,15 @@
 import styleConfig from "./style-config.json" with { type: "json" };
 
+function fnv1a(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+const CONFIG_REVISION = fnv1a(JSON.stringify(styleConfig));
+
 const encoder = new TextEncoder();
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_IMAGE_PARTS = 100;
@@ -110,7 +120,7 @@ export function createHandler(fetchUpstream = fetch) {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true });
     if (request.method === "GET" && url.pathname === "/v1/config") {
-      const etag = `"starter-editorial-1.0.0-config-${styleConfig.configVersion}"`;
+      const etag = `"starter-editorial-1.0.0-config-${styleConfig.configVersion}-${CONFIG_REVISION}"`;
       if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers: { etag } });
       return json(styleConfig, 200, { etag, "cache-control": "public, max-age=300" });
     }

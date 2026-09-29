@@ -4,6 +4,7 @@ import TestSupport
 @testable import CLI
 @testable import Core
 @testable import Director
+@testable import Render
 
 /// Fake Responses API: reads the strict schema out of each request and answers with valid JSON built from the
 /// schema's own ID enums, or with scripted failures.
@@ -15,6 +16,8 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
     private var script: [String: [Behaviour]]
     private(set) var stages: [String] = []
     private(set) var maxOutputTokens: [String: Int] = [:]
+    private var plannerPrompts: [String] = []
+    var plannerPrompt: String? { lock.withLock { plannerPrompts.first } }
     /// When set, triage flags the first 3 photos (blink) and the planner puts flagged photos first (as cover).
     let flagCover: Bool
     let withTitleIdeas: Bool
@@ -34,6 +37,10 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         let behaviour: Behaviour = lock.withLock {
             stages.append(stage)
             maxOutputTokens[stage] = request["max_output_tokens"]?.intValue
+            if stage == "planner" {
+                plannerPrompts.append(request["input"]?.arrayValue?.flatMap { $0["content"]?.arrayValue ?? [] }
+                    .compactMap { $0["text"]?.stringValue }.joined(separator: "\n") ?? "")
+            }
             guard var queue = script[stage], !queue.isEmpty else { return .valid }
             let b = queue.removeFirst(); script[stage] = queue
             if b == .shuffledMoments || b == .legacyDirectionOutOfOrder { keepOrderScenario = true }
@@ -180,6 +187,34 @@ final class FakeModel: ResponsesTransport, @unchecked Sendable {
         let spineJSON = #"{"orderedAssetIDs":\#(quoted(spine)),"sequenceIntent":[\#(spine.map { _ in "\"build\"" }.joined(separator: ","))],"rationale":[]}"#
         return #"{"recommendedSlideCount":\#(spine.count),"spine":\#(spineJSON),"directions":[\#(items.joined(separator: ","))]}"#
     }
+}
+
+@Test func defaultConstitutionAllowsTemplateFingerprintsInThePlannerPrompt() async throws {
+    var pack = try StylePackLoader.load()
+    pack.constitution = nil // Older style packs exercise the Director's default constitution.
+    let photos = (0..<6).map { i in
+        PhotoRecord(assetID: AssetID(rawValue: "photo\(i)"), contentSHA256: "photo\(i)", sourceRelativePaths: [],
+                    byteCount: 1, fileType: "public.jpeg", pixelWidth: 1600, pixelHeight: 1200,
+                    exifOrientation: 1, metadata: CaptureMetadata())
+    }
+    let ids = photos.map(\.assetID)
+    let context = CompositionContext(aspect: .portrait4x5,
+                                     photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
+                                     features: [:], triage: [:], flagged: [], sequenceIntent: [:],
+                                     stylePack: pack, maxSlides: nil)
+    let cards = ids.map { CandidateCard(assetID: $0, summary: "A moment together", capturedAt: nil,
+                                       triageJPEG: nil, planningJPEG: nil) }
+    let model = FakeModel()
+    let director = ArtDirector(client: ResponsesClient(transport: model, sleep: { _ in }), stylePack: pack)
+    let output = await director.direct(DirectorInput(storyLabel: "a personal event", dateSpan: "a single day",
+                                                    requestedSlides: nil, shortlist: cards, selectPool: { _ in ids },
+                                                    composition: context, runID: "default-constitution"))
+    #expect(output.status == "ok", "\(output.warnings)")
+    #expect(output.plans.contains { !$0.isBaseline && !$0.slides.isEmpty })
+    let prompt = try #require(model.plannerPrompt)
+    #expect(prompt.contains("Taste constitution:\n- Good composition requires hierarchy."))
+    #expect(prompt.contains("Design must earn its presence."))
+    #expect(!prompt.contains("Avoid recognizable template fingerprints"))
 }
 
 @Test func momentsDecodeAndDriveTheDirection() async throws {

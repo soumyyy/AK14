@@ -126,7 +126,25 @@ test("serves a versioned style config matching the bundled style pack", async ()
   assert.deepEqual(config.stylePacks[0].referenceImages, []);
   assert.deepEqual(config.stylePacks[0].trendNotes, []);
   assert.deepEqual(config.stylePacks[0].judge, { enabled: false, candidates: 6 });
-  assert.equal(response.headers.get("etag"), '"starter-editorial-1.0.0-config-1"');
+});
+
+test("config ETag carries a content revision and schema version 1", async () => {
+  const handle = createHandler(async () => { throw new Error("no upstream"); });
+  const res = await handle(new Request("https://x/v1/config"), {});
+  const etag = res.headers.get("etag");
+  assert.match(etag, /^"starter-editorial-1\.0\.0-config-1-[0-9a-f]{8}"$/);
+  const body = await res.json();
+  assert.equal(body.configVersion, 1);
+  assert.ok(!JSON.stringify(body).includes("Avoid recognizable template fingerprints"));
+  const again = await handle(new Request("https://x/v1/config", { headers: { "if-none-match": etag } }), {});
+  assert.equal(again.status, 304);
+  assert.equal(again.headers.get("etag"), etag);
+  assert.equal(await again.text(), "");
+  const stale = await handle(new Request("https://x/v1/config", {
+    headers: { "if-none-match": '"starter-editorial-1.0.0-config-1"' },
+  }), {});
+  assert.equal(stale.status, 200);
+  assert.deepEqual(await stale.json(), body);
 });
 
 test("serves hash-addressed reference assets and rejects missing or corrupt bytes", async () => {
