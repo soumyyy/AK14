@@ -51,7 +51,10 @@ public struct DocumentRenderer: Sendable {
                                 frame: UnitRect(x: layer.frame.x * Double(document.slideCount) - Double(index), y: layer.frame.y,
                                                 width: layer.frame.width * Double(document.slideCount), height: layer.frame.height),
                                 rotationDegrees: layer.rotation, crop: layer.crop, zIndex: layer.z, opacity: layer.opacity,
-                                border: layer.border, shadow: layer.shadow, adjustments: layer.adjustments)
+                                border: layer.border, shadow: layer.shadow, adjustments: layer.adjustments,
+                                fontID: layer.fontID, fontSize: layer.size, textColor: layer.colour,
+                                alignment: layer.alignment, lineSpacing: layer.lineHeight, letterSpacing: layer.tracking,
+                                numberOfLines: layer.lineCount, textRole: layer.textRole)
             }
             return ResolvedSlide(index: index, primitive: .fullBleed, requestedPrimitive: .fullBleed,
                                  background: document.slideBackgrounds[safe: index] ?? "plain",

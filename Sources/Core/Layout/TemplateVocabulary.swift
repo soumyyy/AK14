@@ -2,7 +2,7 @@ import Foundation
 
 /// Each imported layout has one job. The photos say which job they are, and that layout is used.
 /// Layouts are not scored against each other. A face that would be cut refuses that layout.
-enum TemplateVocabulary {
+public enum TemplateVocabulary {
     enum Skill: Equatable {
         /// One photo is the page.
         case statement
@@ -165,9 +165,36 @@ enum TemplateVocabulary {
         guard let placement = SlotAssignment.assign(photos.map(\.assetID), to: set,
             hero: photos.first { $0.role == "hero" }?.assetID, keepOrder: context.keepOrder,
             records: context.photos, features: context.features) else { return nil }
-        let assigned: [(slot: DesignedSet.Slot, photo: PhotoElement, crop: UnitRect)] = placement.placed.compactMap { placed in
-            guard let photo = photos.first(where: { $0.assetID == placed.assetID }) else { return nil }
-            return (slots[placed.slotIndex], photo, placed.crop)
+        var localTitleUsed = titlePlaced
+        var localCaptions = captionCount
+        let slides = render(page: set, placed: placement.placed, plan: plan, start: start,
+                            context: context, titlePlaced: &localTitleUsed, captionCount: &localCaptions)
+        return (set.id, 0, slides)
+    }
+
+    public static func render(page set: DesignedSet, placed: [SlotAssignment.Placed], plan: CarouselPlan, start: Int,
+                              context: LayoutContext, titlePlaced: inout Bool, captionCount: inout Int) -> [ResolvedSlide] {
+        var window = Array(plan.slides.dropFirst(start).prefix(set.slideCount))
+        if window.count != set.slideCount {
+            let synthesized = (0..<set.slideCount).map { slide in
+                let ids = placed.compactMap { assignment -> AssetID? in
+                    guard set.expandedSlots.indices.contains(assignment.slotIndex) else { return nil }
+                    let frame = set.expandedSlots[assignment.slotIndex].frame
+                    return frame.x < Double(slide + 1) && frame.x + frame.width > Double(slide) ? assignment.assetID : nil
+                }
+                return SlidePlan(primitive: .hero, mood: "", density: "balanced",
+                                 photos: ids.map(PhotoElement.plain), decorations: [], stamps: [])
+            }
+            window = synthesized
+        }
+        let photos = window.flatMap(\.photos)
+        let slots = set.expandedSlots
+        guard photos.count == slots.count, Set(photos.map(\.assetID)).count == photos.count,
+              photos.allSatisfy({ context.photos[$0.assetID] != nil }),
+              placed.count == slots.count, placed.allSatisfy({ slots.indices.contains($0.slotIndex) }) else { return [] }
+        let assigned: [(slot: DesignedSet.Slot, photo: PhotoElement, crop: UnitRect)] = placed.compactMap { item in
+            guard slots.indices.contains(item.slotIndex), let photo = photos.first(where: { $0.assetID == item.assetID }) else { return nil }
+            return (slots[item.slotIndex], photo, item.crop)
         }
 
         var buckets = Array(repeating: [ResolvedElement](), count: set.slideCount)
@@ -224,7 +251,7 @@ enum TemplateVocabulary {
             if text.role == "title" { localTitleUsed = true }
             if text.role == "caption" { localCaptions += 1 }
         }
-        guard buckets.allSatisfy({ !$0.isEmpty }) else { return nil }
+        guard buckets.allSatisfy({ !$0.isEmpty }) else { return [] }
 
         let slides = window.enumerated().map { offset, slide in
             let elements = buckets[offset].sorted { $0.zIndex < $1.zIndex }
@@ -233,7 +260,9 @@ enum TemplateVocabulary {
                                  elements: elements, warnings: [],
                                  variant: "template.\(set.id)", metrics: metrics(elements))
         }
-        return (set.id, 0, slides)
+        titlePlaced = localTitleUsed
+        captionCount = localCaptions
+        return slides
     }
 
     /// Coverage and crop loss score a template page like any other. Hierarchy is authored by the layout,

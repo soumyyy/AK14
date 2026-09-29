@@ -71,10 +71,45 @@ public struct SlidePlan: Codable, Sendable, Equatable {
     public var photos: [PhotoElement]
     public var decorations: [DecorationElement]
     public var stamps: [StampElement]
+    public var placement: SlidePlacement?
     public init(primitive: Primitive, mood: String, density: String, photos: [PhotoElement],
-                decorations: [DecorationElement], stamps: [StampElement]) {
+                decorations: [DecorationElement], stamps: [StampElement], placement: SlidePlacement? = nil) {
         self.primitive = primitive; self.mood = mood; self.density = density
         self.photos = photos; self.decorations = decorations; self.stamps = stamps
+        self.placement = placement
+    }
+
+    enum CodingKeys: String, CodingKey { case primitive, mood, density, photos, decorations, stamps, placement }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        primitive = try c.decode(Primitive.self, forKey: .primitive)
+        mood = try c.decode(String.self, forKey: .mood)
+        density = try c.decode(String.self, forKey: .density)
+        photos = try c.decode([PhotoElement].self, forKey: .photos)
+        decorations = try c.decode([DecorationElement].self, forKey: .decorations)
+        stamps = try c.decode([StampElement].self, forKey: .stamps)
+        placement = try c.decodeIfPresent(SlidePlacement.self, forKey: .placement)
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(primitive, forKey: .primitive); try c.encode(mood, forKey: .mood)
+        try c.encode(density, forKey: .density); try c.encode(photos, forKey: .photos)
+        try c.encode(decorations, forKey: .decorations); try c.encode(stamps, forKey: .stamps)
+        try c.encodeIfPresent(placement, forKey: .placement)
+    }
+}
+
+public struct SlidePlacement: Codable, Sendable, Equatable {
+    public var catalogueVersion: Int
+    public var pageID: String
+    public var runOffset: Int
+    public var runLength: Int
+    public var placed: [SlotAssignment.Placed]
+    public var slide: ResolvedSlide?
+    public init(catalogueVersion: Int, pageID: String, runOffset: Int, runLength: Int,
+                placed: [SlotAssignment.Placed], slide: ResolvedSlide?) {
+        self.catalogueVersion = catalogueVersion; self.pageID = pageID; self.runOffset = runOffset
+        self.runLength = runLength; self.placed = placed; self.slide = slide
     }
 }
 

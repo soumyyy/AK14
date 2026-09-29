@@ -40,19 +40,22 @@ public struct DocumentLayer: Codable, Sendable, Equatable {
     public var assetID: AssetID?, crop: UnitRect?, adjustments: PhotoAdjustments?, border: Double, shadow: Bool, mask: Mask?
     public var cornerRadius: Double?
     public var string: String?, fontID: String?, size: Double?, colour: String?, alignment: String?, tracking: Double?, lineHeight: Double?
+    public var textRole: String?, lineCount: Int?
     public var stickerTint: String?, shapeKind: String?, fill: String?, stroke: String?, textureBlend: String?, intensity: Double?
     public var frameAssetID: String?
     public init(id: String, kind: Kind, frame: UnitRect, rotation: Double = 0, z: Int = 0, opacity: Double = 1, locked: Bool = false, slideHint: Int? = nil,
                 assetID: AssetID? = nil, crop: UnitRect? = nil, adjustments: PhotoAdjustments? = nil, border: Double = 0, shadow: Bool = false, mask: Mask? = nil,
                 cornerRadius: Double? = nil,
                 string: String? = nil, fontID: String? = nil, size: Double? = nil, colour: String? = nil, alignment: String? = nil, tracking: Double? = nil, lineHeight: Double? = nil,
-                stickerTint: String? = nil, shapeKind: String? = nil, fill: String? = nil, stroke: String? = nil, textureBlend: String? = nil, intensity: Double? = nil, frameAssetID: String? = nil) {
+                stickerTint: String? = nil, shapeKind: String? = nil, fill: String? = nil, stroke: String? = nil, textureBlend: String? = nil, intensity: Double? = nil, frameAssetID: String? = nil,
+                textRole: String? = nil, lineCount: Int? = nil) {
         self.id=id; self.kind=kind; self.frame=frame; self.rotation=rotation; self.z=z; self.opacity=opacity; self.locked=locked; self.slideHint=slideHint
         self.assetID=assetID; self.crop=crop; self.adjustments=adjustments; self.border=border; self.shadow=shadow; self.mask=mask
         self.cornerRadius = cornerRadius
         self.string=string; self.fontID=fontID; self.size=size; self.colour=colour; self.alignment=alignment; self.tracking=tracking; self.lineHeight=lineHeight
         self.stickerTint=stickerTint; self.shapeKind=shapeKind; self.fill=fill; self.stroke=stroke; self.textureBlend=textureBlend; self.intensity=intensity
         self.frameAssetID=frameAssetID
+        self.textRole=textRole; self.lineCount=lineCount
     }
 }
 public struct CanvasDocument: Codable, Sendable, Equatable {
@@ -103,7 +106,9 @@ public extension CanvasDocument {
                                         tracking: isText ? e.letterSpacing : nil,
                                         lineHeight: isText ? e.lineSpacing : nil,
                                         shapeKind: e.kind == .tape ? "legacy-tape" : e.kind == .stamp ? "legacy-stamp" : nil,
-                                        frameAssetID: e.frameAssetID))
+                                        frameAssetID: e.frameAssetID,
+                                        textRole: isText ? e.textRole : nil,
+                                        lineCount: isText ? e.numberOfLines : nil))
         } }
         let variants = carousel.slides.map(\.variant)
         let templateIDs = variants.compactMap { variant -> String? in

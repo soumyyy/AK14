@@ -32,6 +32,30 @@ public enum LayoutResolver {
         var index = 0
         let useVocabulary = !plan.isBaseline && !context.vocabulary.isEmpty
         while index < plan.slides.count {
+            if !plan.isBaseline, let placement = plan.slides[index].placement {
+                if var stored = placement.slide {
+                    stored.index = slides.count
+                    slides.append(stored)
+                    if stored.elements.contains(where: { $0.textRole == "title" }) { titlePlaced = true }
+                    index += 1
+                    continue
+                }
+                if placement.runLength == 1, let page = context.pages.first(where: { $0.id == placement.pageID }) {
+                    let ids = plan.slides[index].photos.map(\.assetID)
+                    let hero = plan.slides[index].photos.first { $0.role == "hero" }?.assetID ?? ids.first
+                    if let fresh = SlotAssignment.assign(ids, to: page, hero: hero, keepOrder: context.keepOrder,
+                                                         records: context.photos, features: context.features) {
+                        slides += TemplateVocabulary.render(page: page, placed: fresh.placed, plan: plan, start: index,
+                                                            context: context, titlePlaced: &titlePlaced, captionCount: &captionCount)
+                        index += 1
+                        continue
+                    }
+                }
+                slides.append(resolveSlide(plan.slides[index], index: slides.count, plan: plan, context: context,
+                                           history: &history, rng: &rng))
+                index += 1
+                continue
+            }
             if useVocabulary, let placed = TemplateVocabulary.place(plan: plan, start: index, context: context,
                                                                      usedTemplateIDs: &usedTemplateIDs, selectedFamily: &selectedFamily,
                                                                      titlePlaced: &titlePlaced, captionCount: &captionCount) {
