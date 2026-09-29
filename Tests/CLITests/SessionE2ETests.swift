@@ -188,3 +188,126 @@ private func bytes(_ urls: [URL]) throws -> [Data] { try urls.map { try Data(con
     #expect(throws: (any Error).self) { try session.apply(.swap(slide: 0, photo: old, with: candidate), to: "c1") }
     #expect(session.plan("c1") == plan)
 }
+
+struct SessionE2ETests {
+    @Test(arguments: [(false, false), (true, false), (true, true)])
+    func authoredRerollRetainsEditsAndRebuildsMoments(exactSet: Bool, keepOrder: Bool) async throws {
+        let tmp = try TempDirectory(); defer { tmp.remove() }
+        let (store, folder, ids) = try await authoredRun(tmp, exactSet: exactSet, keepOrder: keepOrder)
+        let session = try RunSession(runDirectory: store.root)
+        try session.setSource(folder)
+        let original = try #require(session.plan("c1"))
+        let pages = session.compositionContext().pages
+        func families(_ plan: CarouselPlan) -> Set<String> {
+            Set(plan.slides.compactMap(\.placement?.pageID).compactMap { id in
+                pages.first { $0.id == id }?.familyID
+            }).subtracting(["layouts", "white-card"])
+        }
+        #expect(families(original).count == 1)
+        // Reserve the removed photo as the sibling cover, so search has a distinct opening in every mode.
+        try session.apply(.reorder(from: 3, to: 0), to: "baseline")
+        let removeSlide = try #require(original.slides.firstIndex { $0.photos.contains { $0.assetID == ids[3] } })
+        try session.apply(.remove(slide: removeSlide, photo: ids[3]), to: "c1")
+        let afterRemove = try #require(session.plan("c1"))
+        let grouped = try #require(afterRemove.slides.firstIndex { $0.photos.count > 1 && $0.placement?.runLength == 1 })
+        let old = try #require(afterRemove.slides[grouped].photos.last?.assetID)
+        let companions = afterRemove.slides[grouped].photos.map(\.assetID).filter { $0 != old }
+        let originalMoment = try #require(original.direction?.moments.first { $0.photos.contains(old) })
+        try session.apply(.swap(slide: grouped, photo: old, with: ids[8]), to: "c1")
+        // A swapped-in cover shares no slide with an existing moment, so it needs a new opening moment.
+        let beforeSingleSwap = try #require(session.plan("c1"))
+        let cover = try #require(beforeSingleSwap.coverAssetID)
+        #expect(beforeSingleSwap.slides[0].photos.map(\.assetID) == [cover])
+        try session.apply(.swap(slide: 0, photo: cover, with: ids[9]), to: "c1")
+        let edited = try #require(session.plan("c1"))
+        try session.reroll("c1")
+        let rerolled = try #require(session.plan("c1"))
+        #expect(Set(rerolled.photoAssetIDs) == Set(edited.photoAssetIDs))
+        #expect(!rerolled.photoAssetIDs.contains(ids[3]) && !rerolled.photoAssetIDs.contains(old))
+        #expect(rerolled.photoAssetIDs.contains(ids[8]) && rerolled.photoAssetIDs.contains(ids[9]))
+        #expect(rerolled.slides.allSatisfy { $0.placement != nil })
+        #expect(families(rerolled) == families(original))
+        if keepOrder { #expect(rerolled.photoAssetIDs == edited.photoAssetIDs) }
+        let direction = try #require(rerolled.direction)
+        #expect(Set(direction.orderedAssetIDs) == Set(edited.photoAssetIDs))
+        #expect(direction.moments.allSatisfy { !$0.photos.isEmpty && Set($0.mustInclude) == Set($0.photos) })
+        #expect(Set(direction.moments.flatMap(\.photos)) == Set(edited.photoAssetIDs))
+        #expect(direction.coverCandidates.allSatisfy(edited.photoAssetIDs.contains))
+        let joined = try #require(direction.moments.first { $0.photos.contains(ids[8]) })
+        #expect(joined.label == originalMoment.label && companions.allSatisfy(joined.photos.contains))
+        let newMoment = try #require(direction.moments.first { $0.photos.contains(ids[9]) })
+        #expect(newMoment.photos == [ids[9]] && newMoment.size == "1")
+        #expect(direction.moments.first == newMoment)
+        #expect(!direction.moments.contains { $0.label == "moment 1" })
+        #expect(try store.read(CarouselPlan.self, from: "edits/c1/plan.json") == rerolled)
+        #expect(try RunSession(runDirectory: store.root).plan("c1") == rerolled)
+    }
+
+    @Test(arguments: [false, true])
+    func authoredRerollFallsBackWhenSearchViolatesCoverOrOrder(keepOrder: Bool) async throws {
+        let tmp = try TempDirectory(); defer { tmp.remove() }
+        let (store, folder, _) = try await authoredRun(tmp, exactSet: true, keepOrder: keepOrder)
+        var report = try store.read(ConceptsReport.self, from: "plans/director.json")
+        let index = try #require(report.plans.firstIndex { $0.id == "c1" })
+        let current = report.plans[index]
+        if keepOrder {
+            // Interleaved moments make search's final sequence differ from the current slide order.
+            let ids = current.photoAssetIDs
+            report.plans[index].direction?.moments = [
+                .init(label: "interleaved", photos: [ids[0], ids[2]], mustInclude: [ids[0], ids[2]], size: "few"),
+                .init(label: "rest", photos: [ids[1]] + Array(ids.dropFirst(3)), mustInclude: [], size: "many")
+            ]
+            report.plans[0].slides.reverse() // The sibling cover is distinct; only order should reject search.
+        } else {
+            let cover = try #require(current.coverAssetID)
+            let ids = current.photoAssetIDs
+            report.plans[index].direction?.moments = [
+                .init(label: "opening", photos: [cover], mustInclude: [cover], size: "1"),
+                .init(label: "rest", photos: ids.filter { $0 != cover }, mustInclude: [], size: "many")
+            ]
+            report.plans[index].direction?.coverCandidates = [cover]
+            let siblingSlide = try #require(report.plans[0].slides.firstIndex { $0.photos.first?.assetID == cover })
+            report.plans[0].slides.insert(report.plans[0].slides.remove(at: siblingSlide), at: 0)
+        }
+        try store.write(report, to: "plans/director.json")
+        let session = try RunSession(runDirectory: store.root)
+        try session.setSource(folder)
+        try session.reroll("c1")
+        let rerolled = try #require(session.plan("c1"))
+        #expect(rerolled.slides.allSatisfy { $0.placement == nil })
+        #expect(Set(rerolled.photoAssetIDs) == Set(current.photoAssetIDs))
+        if keepOrder { #expect(rerolled.photoAssetIDs == current.photoAssetIDs) }
+        let event = try #require(session.log.read().last)
+        #expect(event.event == "concept_rerolled")
+        #expect(event.after?.contains("c1: page search violated cover or order constraints; used the current engine") == true)
+    }
+
+    private func authoredRun(_ tmp: TempDirectory, exactSet: Bool, keepOrder: Bool) async throws -> (RunStore, URL, [AssetID]) {
+        let folder = try tmp.sub("trip")
+        for i in 0..<12 {
+            var exif = FixtureFactory.Exif(); exif.orientation = 6
+            exif.date = String(format: "2026:05:29 %02d:10:00", 8 + i)
+            try FixtureFactory.writeScene(to: folder.appending(path: String(format: "IMG_%04d.jpg", i)), scene: i, exif: exif)
+        }
+        var options = RunOptions(folder: folder, runsDirectory: tmp.url.appending(path: "runs"),
+                                 cacheDirectory: tmp.url.appending(path: "cache"), consent: true)
+        options.exact = exactSet; options.keepOrder = keepOrder
+        let model = FakeModel(); model.directions = 1
+        let store = try await RunPipeline.live(options: options, client: ResponsesClient(transport: model, sleep: { _ in }), log: { _ in }).run(options)
+        let session = try RunSession(runDirectory: store.root)
+        let context = session.compositionContext()
+        let ids = context.photos.values.sorted { $0.sourceRelativePaths[0] < $1.sourceRelativePaths[0] }.map(\.assetID)
+        let selected = Array(ids.prefix(8))
+        let spine = SelectionSpine(orderedAssetIDs: selected, sequenceIntent: selected.map { _ in .build }, rationale: [])
+        let groups = [Array(ids[0..<3]), [ids[3]], Array(ids[4..<7]), [ids[7]]]
+        let direction = Direction(brief: "edited story", style: .baseline, coverAssetID: ids[1], orderedAssetIDs: selected,
+            moments: groups.enumerated().map { i, photos in
+                .init(label: "moment \(i)", photos: photos, mustInclude: photos, size: photos.count == 1 ? "1" : "few")
+            }, coverCandidates: [ids[1], ids[2], ids[3]])
+        let set = ComposerEngine.composeSet(directions: [direction], spine: spine, context: context, runID: session.runID)
+        var report = session.concepts
+        report.plans = set.plans; report.presentationOrder = set.presentationOrder; report.spine = spine
+        try store.write(report, to: "plans/director.json")
+        return (store, folder, ids)
+    }
+}

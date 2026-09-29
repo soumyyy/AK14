@@ -149,20 +149,30 @@ public final class RunSession: @unchecked Sendable {
                     context.pages.first { $0.id == id }?.familyID
                 }).subtracting(["layouts", "white-card"])
                 let covers = Set(availableConcepts.filter { $0 != c }.compactMap { plan($0)?.coverAssetID })
-                if !pageIDs.isEmpty, let family = families.sorted().first,
-                   let result = PageSearch.search(direction, id: c, family: family, pages: context.pages,
-                                                  context: context, seed: seed, excludedCovers: covers) {
+                let searchDirection = pageIDs.isEmpty ? direction : Self.rebuildDirection(direction, from: current, keepOrder: context.keepOrder)
+                let result = !pageIDs.isEmpty ? families.sorted().first.flatMap { family in
+                    PageSearch.search(searchDirection, id: c, family: family, pages: context.pages,
+                                      context: context, seed: seed, excludedCovers: covers)
+                } : nil
+                warnings = result?.warnings ?? []
+                if let result, result.plan.coverAssetID.map({ !covers.contains($0) }) == true,
+                   !context.keepOrder || result.plan.photoAssetIDs == current.photoAssetIDs {
                     next = result.plan
-                    warnings = result.warnings
                 } else {
-                    if !pageIDs.isEmpty { warnings.append("\(c): page search unavailable; used the current engine") }
-                    var legacyDirection = direction
+                    if !pageIDs.isEmpty {
+                        warnings.append(result == nil
+                            ? "\(c): page search unavailable; used the current engine"
+                            : "\(c): page search violated cover or order constraints; used the current engine")
+                    }
+                    var legacyDirection = searchDirection
                     let ids = current.photoAssetIDs
                     legacyDirection.orderedAssetIDs = ids
                     if let cover = current.coverAssetID { legacyDirection.coverAssetID = cover }
                     legacyDirection.keepTogether = direction.keepTogether.filter { $0.allSatisfy(ids.contains) }
                     legacyDirection.emphasisAssetIDs = direction.emphasisAssetIDs.filter(ids.contains)
-                    let result = ComposerEngine.compose(legacyDirection, id: c, context: context, seed: seed)
+                    var legacyContext = context
+                    if !pageIDs.isEmpty { legacyContext.exactSet = true }
+                    let result = ComposerEngine.compose(legacyDirection, id: c, context: legacyContext, seed: seed)
                     next = result.plan
                     warnings += result.warnings.map { "\(c): \($0)" }
                 }
@@ -225,6 +235,52 @@ public final class RunSession: @unchecked Sendable {
     }
 
     // MARK: - Internals
+
+    /// Stored directions predate edits. Search may vary pages, but every current photo must survive.
+    private static func rebuildDirection(_ stored: Direction, from plan: CarouselPlan, keepOrder: Bool) -> Direction {
+        var direction = stored
+        let ids = plan.photoAssetIDs, current = Set(ids)
+        let positions = Dictionary(ids.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: min)
+        var moments = (stored.moments.isEmpty ? PageSearch.legacyMoments(stored) : stored.moments).compactMap { moment in
+            var moment = moment
+            moment.photos = moment.photos.filter(current.contains)
+            return moment.photos.isEmpty ? nil : moment
+        }
+        var assigned = Set(moments.flatMap(\.photos))
+        for slide in plan.slides {
+            let photos = slide.photos.map(\.assetID)
+            for id in photos where !assigned.contains(id) {
+                if let index = moments.firstIndex(where: { moment in moment.photos.contains { photos.contains($0) } }) {
+                    moments[index].photos.append(id)
+                } else {
+                    let position = positions[id] ?? ids.count
+                    let index = moments.firstIndex { moment in
+                        moment.photos.compactMap { positions[$0] }.min().map { $0 > position } ?? false
+                    } ?? moments.endIndex
+                    moments.insert(.init(label: "", photos: [id], mustInclude: [id], size: "1"), at: index)
+                }
+                assigned.insert(id)
+            }
+        }
+        if keepOrder {
+            for index in moments.indices {
+                moments[index].photos.sort { (positions[$0] ?? ids.count) < (positions[$1] ?? ids.count) }
+            }
+            moments.sort {
+                ($0.photos.compactMap { positions[$0] }.min() ?? ids.count)
+                    < ($1.photos.compactMap { positions[$0] }.min() ?? ids.count)
+            }
+        }
+        for index in moments.indices { moments[index].mustInclude = moments[index].photos }
+        direction.moments = moments
+        direction.orderedAssetIDs = moments.flatMap(\.photos)
+        direction.coverCandidates = direction.coverCandidates.filter(current.contains)
+        // Direction decoding gives the first candidate precedence; keep the saved value consistent.
+        if let cover = direction.coverCandidates.first ?? plan.coverAssetID { direction.coverAssetID = cover }
+        direction.keepTogether = direction.keepTogether.filter { $0.allSatisfy(current.contains) }
+        direction.emphasisAssetIDs = direction.emphasisAssetIDs.filter(current.contains)
+        return direction
+    }
 
     /// Renders `plan` into a private staging directory, then swaps `edits/<concept>/` in with one rename
     /// and only then updates in-memory state. A failure leaves the previous edit (or original) untouched.

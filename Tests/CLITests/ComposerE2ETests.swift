@@ -149,7 +149,10 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     let rerolled = try #require(session.plan(directionID))
     #expect(rerolled.slides.allSatisfy { $0.placement != nil })
     #expect(families(rerolled) == families(plan))
-    #expect(rerolled.direction == plan.direction)
+    #expect(rerolled.direction?.brief == plan.direction?.brief)
+    #expect(rerolled.direction?.style == plan.direction?.style)
+    #expect(Set(rerolled.photoAssetIDs) == Set(plan.photoAssetIDs))
+    #expect(Set(rerolled.direction?.moments.flatMap(\.mustInclude) ?? []) == Set(plan.photoAssetIDs))
     let cover = try #require(rerolled.coverAssetID)
     #expect(!siblings.contains(cover))
     #expect(rerolled.compositionSeed != plan.compositionSeed)
@@ -447,8 +450,10 @@ struct ComposerE2ETests {
         let index = try #require(report.plans.firstIndex { !$0.isBaseline && $0.slides.contains { $0.placement != nil } })
         let original = report.plans[index]
         if authored {
-            // An empty stored direction makes search return nil; legacy composition can recover the saved photos.
-            report.plans[index].direction?.orderedAssetIDs = []
+            // A missing authored family forces recovery from the saved current photos.
+            for slide in report.plans[index].slides.indices {
+                report.plans[index].slides[slide].placement?.pageID = "unavailable-page"
+            }
         } else {
             report.plans[index].slides = original.slides.map { var slide = $0; slide.placement = nil; return slide }
         }
@@ -484,6 +489,24 @@ struct ComposerE2ETests {
         #expect(option.slides.contains { $0.placement != nil })
         #expect(option.direction?.moments.map { $0.photos.count } == [3, 3, 3, 3])
         #expect(option.direction?.moments.allSatisfy { $0.size == "few" } == true)
+    }
+
+    @Test(arguments: [false, true])
+    func offlineCoverSkipsFlaggedPhotosUnlessOrderWins(keepOrder: Bool) throws {
+        let pages = try StylePackLoader.loadDesignedPages().vocabulary(for: .portrait4x5)
+        var (context, spine, _) = try realisticRun(aspect: .portrait4x5, pages: pages)
+        context.keepOrder = keepOrder
+        context.flagged = Set(spine.orderedAssetIDs.prefix(2))
+        let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: "offline-safety")
+        let option = try #require(set.plans.first { !$0.isBaseline })
+        let cover = try #require(option.coverAssetID)
+        if keepOrder {
+            #expect(cover == spine.orderedAssetIDs.first)
+            #expect(option.photoAssetIDs == spine.orderedAssetIDs)
+        } else {
+            #expect(!context.flagged.contains(cover))
+            #expect(cover != set.plans.first { $0.isBaseline }?.coverAssetID)
+        }
     }
 
     @Test func exhaustedFamiliesFallBackWithoutReusingPlacements() throws {

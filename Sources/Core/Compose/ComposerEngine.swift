@@ -80,7 +80,9 @@ public enum ComposerEngine {
             var usedFamilies = Set<String>(), usedCovers = Set<AssetID>()
             let candidates: [Direction]
             if directions.isEmpty, let first = spine.orderedAssetIDs.first {
-                let cover = spine.orderedAssetIDs.first { $0 != base.plan.coverAssetID } ?? first
+                let safe = spine.orderedAssetIDs.filter { !context.flagged.contains($0) }
+                let choices = safe.isEmpty ? spine.orderedAssetIDs : safe
+                let cover = choices.first { $0 != base.plan.coverAssetID } ?? choices.first ?? first
                 candidates = [Direction(brief: "offline", style: .baseline, coverAssetID: cover,
                                         orderedAssetIDs: spine.orderedAssetIDs, moments: timeMoments(spine, context: context))]
             } else { candidates = directions }
