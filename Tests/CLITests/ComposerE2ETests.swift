@@ -77,7 +77,8 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     #expect(try store.read([PhotoFeatures].self, from: "cache/features.json").allSatisfy { $0.color != nil })
     let directions = d.plans.filter { !$0.isBaseline }
     let dropped = d.warnings.filter { $0.contains("dropped") }.count
-    #expect(directions.count + dropped == min(count, 3) && directions.count >= 2, "\(d.warnings)")
+    #expect(directions.count + dropped == count && directions.count >= 2, "\(d.warnings)")
+    #expect(d.warnings.filter { $0.contains("dropped; at most 3 directions") }.count == max(0, count - 3))
     #expect(d.plans.first?.id == "baseline" && Set(d.presentationOrder) == Set(d.plans.map(\.id)))
     #expect(d.diversity.count == directions.count * (directions.count - 1) / 2)
 
@@ -122,7 +123,7 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
 @Test func compositionIsDeterministicAndRerollNeedsNoModel() async throws {
     let tmp = try TempDirectory(); defer { tmp.remove() }
     let folder = try sceneFolder(tmp)
-    let model = FakeModel()
+    let model = FakeModel(withMoments: true)
     let store = try await run(tmp, folder: folder, model: model)
     let session = try RunSession(runDirectory: store.root)
     // The diversity step may drop a direction; use whichever direction survived.
@@ -137,6 +138,25 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
     let calls = model.stages.count
     try session.reroll(directionID)
     #expect(model.stages.count == calls)
+    let pages = session.compositionContext().pages
+    func families(_ plan: CarouselPlan) -> Set<String> {
+        Set(plan.slides.compactMap(\.placement?.pageID).compactMap { id in
+            pages.first { $0.id == id }?.familyID
+        }).subtracting(["layouts", "white-card"])
+    }
+    #expect(families(plan).count == 1)
+    let siblings = session.availableConcepts.filter { $0 != directionID }.compactMap { session.plan($0)?.coverAssetID }
+    let rerolled = try #require(session.plan(directionID))
+    #expect(rerolled.slides.allSatisfy { $0.placement != nil })
+    #expect(families(rerolled) == families(plan))
+    #expect(rerolled.direction == plan.direction)
+    let cover = try #require(rerolled.coverAssetID)
+    #expect(!siblings.contains(cover))
+    #expect(rerolled.compositionSeed != plan.compositionSeed)
+    #expect(try store.read(CarouselPlan.self, from: "edits/\(directionID)/plan.json") == rerolled)
+    let storedSeed = try String(contentsOf: store.url("edits/\(directionID)/seed.txt"), encoding: .utf8)
+    #expect(storedSeed == rerolled.compositionSeed)
+
 }
 
 @Test func legacyRunsOpenReportAndRerenderWithoutRecomposition() async throws {
@@ -418,6 +438,33 @@ struct ComposerE2ETests {
         }
     }
 
+    @Test(arguments: [true, false])
+    func rerollFallsBackWithAWarningAndKeepsLegacyPlansLegacy(authored: Bool) async throws {
+        let tmp = try TempDirectory(); defer { tmp.remove() }
+        let folder = try sceneFolder(tmp)
+        let store = try await run(tmp, folder: folder, model: FakeModel())
+        var report = try store.read(ConceptsReport.self, from: "plans/director.json")
+        let index = try #require(report.plans.firstIndex { !$0.isBaseline && $0.slides.contains { $0.placement != nil } })
+        let original = report.plans[index]
+        if authored {
+            // An empty stored direction makes search return nil; legacy composition can recover the saved photos.
+            report.plans[index].direction?.orderedAssetIDs = []
+        } else {
+            report.plans[index].slides = original.slides.map { var slide = $0; slide.placement = nil; return slide }
+        }
+        try store.write(report, to: "plans/director.json")
+        let session = try RunSession(runDirectory: store.root)
+        try session.setSource(folder)
+        try session.reroll(original.id)
+        let rerolled = try #require(session.plan(original.id))
+        #expect(rerolled.slides.allSatisfy { $0.placement == nil })
+        #expect(Set(rerolled.photoAssetIDs) == Set(original.photoAssetIDs))
+        let event = try #require(session.log.read().last)
+        #expect(event.event == "concept_rerolled")
+        let warning = "\(original.id): page search unavailable; used the current engine"
+        #expect((event.after ?? []).contains(warning) == authored)
+    }
+
     @Test func thinAspectFallsBackToTheCurrentEngineWithAWarning() throws {
         let pages = try StylePackLoader.loadDesignedPages().vocabulary(for: .square)
         #expect(pages.count == 13)
@@ -433,6 +480,7 @@ struct ComposerE2ETests {
         let set = ComposerEngine.composeSet(directions: [], spine: spine, context: context, runID: "offline")
         let option = try #require(set.plans.first { !$0.isBaseline })
         #expect(set.plans.count == 2)
+        #expect(option.coverAssetID != set.plans.first { $0.isBaseline }?.coverAssetID)
         #expect(option.slides.contains { $0.placement != nil })
         #expect(option.direction?.moments.map { $0.photos.count } == [3, 3, 3, 3])
         #expect(option.direction?.moments.allSatisfy { $0.size == "few" } == true)
@@ -447,11 +495,14 @@ struct ComposerE2ETests {
         while pages.count < 20 {
             var page = selected[0]; page.id += "-copy-\(pages.count)"; pages.append(page)
         }
-        let (context, spine, directions) = try realisticRun(aspect: .portrait4x5, pages: pages)
+        let (context, spine, original) = try realisticRun(aspect: .portrait4x5, pages: pages)
+        // All directions request the same opener, so both fallback options must find another cover.
+        let directions = Array(repeating: original[0], count: 3)
         let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "limited")
         #expect(set.plans.filter { !$0.isBaseline && $0.slides.contains { $0.placement != nil } }.count == 1)
         #expect(set.warnings.filter { $0.contains("no family fits; used the current engine") }.count == 2)
         #expect(set.plans.count == 4)
+        #expect(Set(set.plans.filter { !$0.isBaseline }.compactMap(\.coverAssetID)).count == 3)
     }
 
     @Test func judgeCannotReplaceAuthoredOptionsWithLegacyCandidates() async throws {
@@ -489,6 +540,11 @@ struct ComposerE2ETests {
         #expect(try paths.map { try Data(contentsOf: store.url($0)) } == beforeReplay)
         try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
         let report = try store.read(ConceptsReport.self, from: "plans/director.json")
+        #expect(report.warnings.contains { $0.contains("no family fits") })
+        try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
+        let repeated = try store.read(ConceptsReport.self, from: "plans/director.json")
+        #expect(repeated.warnings == report.warnings)
+        #expect(Set(repeated.warnings).count == repeated.warnings.count)
         for plan in report.plans { #expect(plan.photoAssetIDs == expected, "\(plan.id)") }
         let placed = try #require(report.plans.first { !$0.isBaseline && $0.slides.contains { $0.placement != nil } })
         try session.setSource(folder)
@@ -506,6 +562,12 @@ struct ComposerE2ETests {
                 ? a.y + a.height / 2 < b.y + b.height / 2 : a.x + a.width / 2 < b.x + b.width / 2
         }.compactMap(\.assetID)
         #expect(readingOrder == edited.slides[grouped].photos.map(\.assetID))
+        try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
+        let withEdits = try store.read(ConceptsReport.self, from: "plans/director.json")
+        let editWarning = "\(placed.id): not recomposed (it has edits or a hand-off)"
+        #expect(withEdits.warnings.filter { $0 == editWarning }.count == 1)
+        try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
+        #expect(try store.read(ConceptsReport.self, from: "plans/director.json").warnings == withEdits.warnings)
         var oldJSON = manifestJSON
         oldJSON.removeValue(forKey: "keepOrder"); oldJSON.removeValue(forKey: "exactSet")
         try JSONSerialization.data(withJSONObject: oldJSON).write(to: store.url("manifest.json"))

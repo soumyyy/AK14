@@ -79,10 +79,14 @@ public enum ComposerEngine {
             var kept: [CarouselPlan] = []
             var usedFamilies = Set<String>(), usedCovers = Set<AssetID>()
             let candidates: [Direction]
-            if directions.isEmpty, let cover = spine.orderedAssetIDs.first {
+            if directions.isEmpty, let first = spine.orderedAssetIDs.first {
+                let cover = spine.orderedAssetIDs.first { $0 != base.plan.coverAssetID } ?? first
                 candidates = [Direction(brief: "offline", style: .baseline, coverAssetID: cover,
                                         orderedAssetIDs: spine.orderedAssetIDs, moments: timeMoments(spine, context: context))]
             } else { candidates = directions }
+            for i in candidates.indices.dropFirst(3) {
+                warnings.append("c\(i + 1): dropped; at most 3 directions are supported")
+            }
             for (i, direction) in candidates.prefix(3).enumerated() {
                 let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
                 let families = PageSearch.candidateFamilies(pages, photos: direction.orderedAssetIDs, context: context)
@@ -97,9 +101,21 @@ public enum ComposerEngine {
                     return coverIsDistinct && (!context.keepOrder || result.plan.photoAssetIDs == direction.orderedAssetIDs)
                 }
                 guard let best = results.max(by: { $0.score != $1.score ? $0.score < $1.score : $0.family > $1.family }) else {
-                    let fallback = compose(direction, id: id, context: context, seed: seed)
+                    var fallbackDirection = direction
+                    if !context.keepOrder {
+                        let available = direction.orderedAssetIDs.filter {
+                            context.photos[$0] != nil && !usedCovers.contains($0)
+                        }
+                        let safe = available.filter { !context.flagged.contains($0) }
+                        let choices = safe.isEmpty ? available : safe
+                        if !choices.contains(direction.coverAssetID), let cover = choices.max(by: { strengthOrder($0, $1, context) }) {
+                            fallbackDirection.coverAssetID = cover
+                        }
+                    }
+                    let fallback = compose(fallbackDirection, id: id, context: context, seed: seed)
                     warnings += fallback.warnings.map { "\(id): \($0)" }
                     warnings.append("\(id): no family fits; used the current engine")
+                    if let cover = fallback.plan.coverAssetID { usedCovers.insert(cover) }
                     kept.append(fallback.plan)
                     continue
                 }
@@ -310,15 +326,6 @@ public enum ComposerEngine {
         return !left.intersection(right).subtracting(generic).isEmpty || (left.isEmpty && right.isEmpty)
     }
 
-    /// Rebuilds stored plans from their own direction and composition seed: same ids, no diversity remedies, so a
-    /// plan composed by this engine version comes back identical. Legacy plans (no direction or seed) are returned as-is.
-    public static func recompose(_ plans: [CarouselPlan], context: CompositionContext, runID: String) -> [CarouselPlan] {
-        plans.map { p in
-            guard let d = p.direction, let hex = p.compositionSeed, let seed = UInt64(hex, radix: 16) else { return p }
-            return compose(d, id: p.id, context: context, seed: seed, layoutSeed: layoutSeed(runID: runID, id: p.id)).plan
-        }
-    }
-
     // MARK: - One direction
 
     /// Clean-output policy (owner feedback 2026-09-27: blurred backdrops, mats and forced pairs are not aesthetic).
@@ -374,7 +381,7 @@ public enum ComposerEngine {
         var plan = candidate.plan
         plan.compositionSeed = String(seed, radix: 16)
         // Recipe selection (spec §3/§4) happens for every composed plan, so any path that produces one —
-        // composeSet, recompose, a diversity-remedy retry, or a raw `compose` call — assigns it the same way.
+        // composeSet, a reroll, a diversity-remedy retry, or a raw `compose` call — assigns it the same way.
         let selectedTemplate = !plan.isBaseline && !context.vocabulary.isEmpty
             && LayoutResolver.resolve(plan, context: LayoutContext(aspect: context.aspect, photos: context.photos,
                 features: context.features, stylePack: context.stylePack, seed: layoutSeed,

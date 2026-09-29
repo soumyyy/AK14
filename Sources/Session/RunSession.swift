@@ -133,24 +133,42 @@ public final class RunSession: @unchecked Sendable {
         }
     }
 
-    /// Recomposes the carousel with a new seed, no model call: the composer engine regroups the current photos
-    /// (keeping swaps and removals) under the same direction. Legacy plans without a direction only get new geometry.
+    /// Reruns authored page search in the saved family with a new seed and no model call.
+    /// Legacy plans regroup current photos (keeping swaps and removals); directionless plans get new geometry.
     /// The seed is only kept if the render succeeds.
     public func reroll(_ c: String, source: String = "operator") throws {
         try operation.withLock {
             guard let current = plan(c) else { throw Failure.unavailable(c) }
             let seed = SeededRandom.seed(runID, c, UUID().uuidString)
             var next = current
-            if var direction = current.direction {
-                let ids = current.photoAssetIDs
-                direction.orderedAssetIDs = ids
-                if let cover = current.coverAssetID { direction.coverAssetID = cover }
-                direction.keepTogether = direction.keepTogether.filter { $0.allSatisfy(ids.contains) }
-                direction.emphasisAssetIDs = direction.emphasisAssetIDs.filter(ids.contains)
-                next = ComposerEngine.compose(direction, id: c, context: compositionContext(), seed: seed).plan
+            var warnings: [String] = []
+            if let direction = current.direction {
+                let context = compositionContext()
+                let pageIDs = current.slides.compactMap(\.placement?.pageID)
+                let families = Set(pageIDs.filter { $0 != "white-card" }.compactMap { id in
+                    context.pages.first { $0.id == id }?.familyID
+                }).subtracting(["layouts", "white-card"])
+                let covers = Set(availableConcepts.filter { $0 != c }.compactMap { plan($0)?.coverAssetID })
+                if !pageIDs.isEmpty, let family = families.sorted().first,
+                   let result = PageSearch.search(direction, id: c, family: family, pages: context.pages,
+                                                  context: context, seed: seed, excludedCovers: covers) {
+                    next = result.plan
+                    warnings = result.warnings
+                } else {
+                    if !pageIDs.isEmpty { warnings.append("\(c): page search unavailable; used the current engine") }
+                    var legacyDirection = direction
+                    let ids = current.photoAssetIDs
+                    legacyDirection.orderedAssetIDs = ids
+                    if let cover = current.coverAssetID { legacyDirection.coverAssetID = cover }
+                    legacyDirection.keepTogether = direction.keepTogether.filter { $0.allSatisfy(ids.contains) }
+                    legacyDirection.emphasisAssetIDs = direction.emphasisAssetIDs.filter(ids.contains)
+                    let result = ComposerEngine.compose(legacyDirection, id: c, context: context, seed: seed)
+                    next = result.plan
+                    warnings += result.warnings.map { "\(c): \($0)" }
+                }
             }
             try commit(next, c, seed: seed)
-            try record("concept_rerolled", c, source: source)
+            try record("concept_rerolled", c, after: warnings.isEmpty ? nil : warnings, source: source)
             try? RunReport.rebuild(runDirectory: root)
         }
     }

@@ -51,6 +51,8 @@ enum RerenderCommand {
                 concepts.warnings += set.warnings
             }
             for id in touched.sorted() { concepts.warnings.append("\(id): not recomposed (it has edits or a hand-off)") }
+            var seenWarnings = Set<String>()
+            concepts.warnings = concepts.warnings.filter { seenWarnings.insert($0).inserted }
             let directions = concepts.plans.filter { !$0.isBaseline }
             concepts.diversity = directions.indices.flatMap { i in directions.indices.filter { $0 > i }.map { j in
                 PlanMetrics.diversity(directions[i], directions[j]) } }
