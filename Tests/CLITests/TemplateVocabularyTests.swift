@@ -65,16 +65,38 @@ import Testing
             slot(x: 0.02, y: 0.1, w: 0.46, h: 0.8, aspect: 0.58, z: 1)
         ])
         let a = photo("a", aspect: 0.58), b = photo("b", aspect: 0.58)
-        let result = SlotAssignment.assign([a.assetID, b.assetID], to: page, hero: nil, keepOrder: true,
-                                           records: [a.assetID: a, b.assetID: b], features: [:])
-        let left = SlotAssignment.readingOrder(page)[0]
-        #expect(result?.placed.first { $0.slotIndex == left }?.assetID == a.assetID)
+        let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [
+            SlidePlan(primitive: .asymmetricPair, mood: "", density: "balanced",
+                      photos: [.plain(a.assetID), .plain(b.assetID)], decorations: [], stamps: [])
+        ])
+        let resolved = LayoutResolver.resolve(plan, context: try context(
+            photos: [a, b], vocabulary: [page], keepOrder: true))
+        let frames = Dictionary(uniqueKeysWithValues: resolved.slides[0].elements.compactMap { element in
+            element.assetID.map { ($0, element.frame) }
+        })
+        #expect((frames[a.assetID]?.x ?? 1) < (frames[b.assetID]?.x ?? 0),
+                "the first planned photo should occupy the left, reading-order-first slot")
     }
 
-    @Test func fullBleedUsesTheSharedFloor() {
+    @Test func fullBleedUsesTheSharedFloorThroughResolver() throws {
         // 4:3 on 4:5 keeps 0.60, which the old 0.58 rule accepted and the shared 0.65 floor rejects.
-        #expect(!CropPlanner.fullBleedEligible(imageAspect: 4.0 / 3.0, boxAspect: 0.8, features: nil))
-        #expect(CropPlanner.fullBleedEligible(imageAspect: 1.0, boxAspect: 0.8, features: nil))
+        let landscape = photo("landscape", aspect: 4.0 / 3.0)
+        let square = photo("square", aspect: 1.0)
+        func resolve(_ image: PhotoRecord) throws -> ResolvedCarousel {
+            let slide = SlidePlan(primitive: .fullBleed, mood: "", density: "balanced",
+                                  photos: [.plain(image.assetID)], decorations: [], stamps: [])
+            let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [slide])
+            return LayoutResolver.resolve(plan, context: try context(photos: [image], vocabulary: []))
+        }
+
+        let rejectedCrop = try resolve(landscape).slides[0]
+        #expect(rejectedCrop.variant != "bleed")
+        #expect((rejectedCrop.elements.first?.frame.width ?? 1) * (rejectedCrop.elements.first?.frame.height ?? 1) < 1)
+
+        let acceptedCrop = try resolve(square).slides[0]
+        #expect(acceptedCrop.variant == "bleed")
+        #expect(abs((acceptedCrop.elements.first?.frame.width ?? 0) - 1) < 0.001)
+        #expect(abs((acceptedCrop.elements.first?.frame.height ?? 0) - 1) < 0.001)
     }
 
     @Test func heroLabelDoesNotExcludeBalancedPairOrGathering() throws {
@@ -354,9 +376,10 @@ import Testing
         a.y < b.y + b.height && a.y + a.height > b.y
     }
 
-    private func context(photos: [PhotoRecord], features: [AssetID: PhotoFeatures] = [:], vocabulary: [DesignedSet], seed: UInt64 = 1) throws -> LayoutContext {
+    private func context(photos: [PhotoRecord], features: [AssetID: PhotoFeatures] = [:], vocabulary: [DesignedSet], seed: UInt64 = 1, keepOrder: Bool = false) throws -> LayoutContext {
         LayoutContext(aspect: .portrait4x5, photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }),
-                      features: features, stylePack: try StylePackLoader.load(), seed: seed, vocabulary: vocabulary)
+                      features: features, stylePack: try StylePackLoader.load(), seed: seed, vocabulary: vocabulary,
+                      keepOrder: keepOrder)
     }
 
     private func photo(_ id: String, aspect: Double) -> PhotoRecord {
