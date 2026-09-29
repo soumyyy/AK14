@@ -299,10 +299,11 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
         if parent[index] != index { parent[index] = find(parent[index]) }
         return parent[index]
     }
+    // Only content that participates in rendering links pages. Decorative images are omitted
+    // from this phase, so they must not turn neighboring pages into a linked run.
     let ranges = slots.map { spans($0.frame.x, $0.frame.width) }
         + texts.map { spans($0.frame.x, $0.frame.width) }
         + frames.map { spans($0.frame.x, $0.frame.width) }
-        + decor.map { spans($0.x, $0.width) }
     for range in ranges where range.count > 1 {
         let root = find(range.lowerBound)
         for index in range.dropFirst() { parent[find(index)] = root }
@@ -332,16 +333,27 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
             FrameLayer(frame: local($0.frame), frameAssetID: $0.frameAssetID, slotFrame: $0.slotFrame.map(local),
                        photoWindowAspect: $0.photoWindowAspect, z: $0.z, rotation: $0.rotation)
         }
-        let selectedDecor = decor.filter { inside($0.x, $0.width) }
-        let coverage = min(1, unionArea(selectedDecor.map { Box(x: $0.x - start, y: $0.y, width: $0.width, height: $0.height) }) / length)
-        let overlapsPhoto = selectedDecor.contains { decoration in
+        // Measure only the portion of each decoration inside this page or linked run.
+        // Vertical clipping is to the normalized page bounds; horizontal clipping is to the run.
+        let clippedDecor = decor.compactMap { decoration -> Box? in
+            let x0 = max(start, decoration.x), x1 = min(start + length, decoration.x + decoration.width)
+            let y0 = max(0, decoration.y), y1 = min(1, decoration.y + decoration.height)
+            guard x1 > x0, y1 > y0 else { return nil }
+            return Box(x: x0 - start, y: y0, width: x1 - x0, height: y1 - y0)
+        }
+        let coverage = min(1, unionArea(clippedDecor) / length)
+        // A small edge overlap is allowed. Reject only when one decoration covers
+        // more than 15% of an individual photo slot's area; decorations are never rendered.
+        let overlapsPhotoOverLimit = clippedDecor.contains { decoration in
             selectedSlots.contains { slot in
-                max(decoration.x - start, slot.frame.x) < min(decoration.x - start + decoration.width, slot.frame.x + slot.frame.width) &&
-                max(decoration.y, slot.frame.y) < min(decoration.y + decoration.height, slot.frame.y + slot.frame.height)
+                let intersectionWidth = max(0, min(decoration.x + start, slot.frame.x + slot.frame.width) - max(decoration.x + start, slot.frame.x))
+                let intersectionHeight = max(0, min(decoration.y + decoration.height, slot.frame.y + slot.frame.height) - max(decoration.y, slot.frame.y))
+                let slotArea = slot.frame.width * slot.frame.height
+                return slotArea > 0 && intersectionWidth * intersectionHeight > 0.15 * slotArea
             }
         }
-        guard coverage <= 0.12, !overlapsPhoto else {
-            let reason = overlapsPhoto ? "decoration intersects photo slot" : "decoration coverage over 12%"
+        guard coverage <= 0.12, !overlapsPhotoOverLimit else {
+            let reason = overlapsPhotoOverLimit ? "decoration overlap over 15% of photo slot" : "decoration coverage over 12%"
             rejectionCounts["\(aspect) \(reason)", default: 0] += 1
             return nil
         }
@@ -527,6 +539,10 @@ func main() throws {
     }, prefix: "pages")
     let pageCounts = Dictionary(grouping: pageRecords, by: \.aspect).mapValues(\.count)
     print("Imported \(pageRecords.count) pages (\(pageCounts["4:5", default: 0]) 4:5, \(pageCounts["3:4", default: 0]) 3:4, \(pageCounts["1:1", default: 0]) 1:1)")
+    for aspect in ["4:5", "3:4", "1:1"] {
+        let matching = pageRecords.filter { $0.aspect == aspect }
+        print("\(aspect) records: \(matching.filter { $0.slideCount == 1 }.count) single pages, \(matching.filter { $0.slideCount > 1 }.count) linked runs")
+    }
     print("Rejected page groups by reason: \(pageRejectionCounts)")
     print("Imported \(records.count) sets (\(records.filter { $0.sourceRef.contains(":template-") }.count) templates, \(layouts.count) layouts); rejected \(rejected.count): \(rejected)")
     print("Wrote \(output.path)")

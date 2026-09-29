@@ -32,7 +32,8 @@ import Testing
         let pages = try StylePackLoader.loadDesignedPages().sets
         let portrait = pages.filter { $0.aspect == .portrait4x5 }
         #expect(portrait.count >= 150, "only \(portrait.count) usable 4:5 pages")
-        #expect(pages.filter { $0.aspect == .portrait3x4 }.count >= 100)
+        let portrait3x4 = pages.filter { $0.aspect == .portrait3x4 }
+        #expect(portrait3x4.count >= 100, "only \(portrait3x4.count) usable 3:4 pages")
         for aspect in [CarouselAspect.portrait4x5, .portrait3x4] {
             #expect(pages.contains { $0.aspect == aspect && $0.coverCapable == true }, "no cover page for \(aspect)")
         }

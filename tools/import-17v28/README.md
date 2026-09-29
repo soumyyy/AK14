@@ -38,11 +38,15 @@ Template JSON is decoded after trailing commas are removed. The output keeps
 photo-slot geometry, corner radii, role-only text styling, mapped bundled-font
 IDs, resolvable frame IDs, category families, backgrounds, and decorative
 coverage. Literal source sample text is intentionally discarded. Pages with
-decorative coverage over 12% or decoration intersecting a photo slot are
-reported as rejected and are not written to `designed-sets.json`; the contact
-sheets are written under `/tmp` for review only. The same run also writes
+decorative coverage over 12% or a decoration covering more than 15% of a photo
+slot are rejected. Coverage uses each decoration's portion clipped to the page
+or linked run. Smaller edge overlaps are allowed, and decorative image layers
+are not rendered in this phase. The contact sheets are written under `/tmp` for
+review only. The same run also writes
 `Sources/Render/Resources/StylePacks/designed-pages.json`: supported 4:5, 3:4,
 and square templates are split into single authored pages or maximal linked runs.
-Decoration rescue is evaluated per page or run, so a clean page remains available
-even when another page in its source template is rejected. Page contact sheets use
+Only photo slots, frames, and text layers crossing a page boundary join pages;
+decorative image layers do not link pages. Decoration rescue is evaluated per
+page or run, so a clean page remains available even when another page in its
+source template is rejected. Page contact sheets use
 the `/tmp/ak14-designed-pages-<aspect>.png` names; neither sheet is committed.

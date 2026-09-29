@@ -5,6 +5,335 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : false,
+      "decorCoverage" : 0.08232167352537721,
+      "family" : "2",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.7481481481481481,
+            "width" : 0.7222222222222222,
+            "x" : 0.1388888888888889,
+            "y" : 0.1259259259259259
+          },
+          "frameAssetID" : "frame-preview-02-dark",
+          "photoWindowAspect" : 0.8333333333333334,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.562962962962963,
+            "width" : 0.5925925925925926,
+            "x" : 0.06481481481481481,
+            "y" : 0.1
+          },
+          "z" : 100
+        },
+        {
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 1,
+            "x" : 0.7870370370370371,
+            "y" : 0.014814814814814815
+          },
+          "frameAssetID" : "frame-paper-frame-16",
+          "photoWindowAspect" : 1.3951215366309704,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 0.06944444444444445,
+            "y" : 0.040740740740740744
+          },
+          "z" : 107
+        },
+        {
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 1,
+            "x" : 1.2037037037037037,
+            "y" : 0.3925925925925926
+          },
+          "frameAssetID" : "frame-paper-frame-16",
+          "photoWindowAspect" : 1.3951215366309704,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 0.06944444444444445,
+            "y" : 0.040740740740740744
+          },
+          "z" : 108
+        },
+        {
+          "frame" : {
+            "height" : 0.8,
+            "width" : 0.6388888888888888,
+            "x" : 2.1805555555555554,
+            "y" : 0.1
+          },
+          "frameAssetID" : "frame-polaroid-02",
+          "photoWindowAspect" : 0.75,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5555555555555556,
+            "x" : 0.041666666666666664,
+            "y" : 0.06666666666666667
+          },
+          "z" : 109
+        }
+      ],
+      "id" : "17v28-t100-p0-2",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 1.6,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 2,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.3623188405797102,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 0.06944444444444445,
+            "y" : 0.040740740740740744
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.8421052631578947,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.562962962962963,
+            "width" : 0.5925925925925926,
+            "x" : 0.06481481481481481,
+            "y" : 0.1
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5555555555555556,
+            "x" : 0.041666666666666664,
+            "y" : 0.06666666666666667
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        }
+      ],
+      "sourceRef" : "17v28:template-100",
+      "sourceTemplate" : "template-100",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.02994686412210741,
+            "width" : 0.2308514259191204,
+            "x" : 0.3845742870404398,
+            "y" : 0.04368704571672407
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 3.9568093086810006
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.03874626296296296,
+            "width" : 0.17588680194694448,
+            "x" : 0.4120565990265278,
+            "y" : 0.932133424074074
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 3.9568093086810006
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.1099965706447188,
+      "family" : "7",
+      "id" : "17v28-t113-p0",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.5373134328358209,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.3333333333333333,
+            "x" : 0,
+            "y" : 0.5037037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.5373134328358209,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.3333333333333333,
+            "x" : 0.3333333333333333,
+            "y" : 0.5037037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.5373134328358209,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.3333333333333333,
+            "x" : 0.6666666666666666,
+            "y" : 0.5037037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        }
+      ],
+      "sourceRef" : "17v28:template-113",
+      "sourceTemplate" : "template-113",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.05808207374085185,
+            "width" : 0.12031316871349305,
+            "x" : 0.4398434156432535,
+            "y" : 0.42677038535179634
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 8.3881326164145
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-amaticsc",
+          "frame" : {
+            "height" : 0.047995451298044445,
+            "width" : 0.03978667777777778,
+            "x" : 0.12040899907407407,
+            "y" : 0.4759682002769038
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : -0.439,
+          "size" : 7.2751001894424006
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-amaticsc",
+          "frame" : {
+            "height" : 0.0428574231498963,
+            "width" : 0.03552741851851852,
+            "x" : 0.3587174018518518,
+            "y" : 0.43234549212875556
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : -9.5,
+          "size" : 6.496283269442401
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-amaticsc",
+          "frame" : {
+            "height" : 0.057312828612318525,
+            "width" : 0.04751048240740741,
+            "x" : 0.6902871199074073,
+            "y" : 0.4773984375456925
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 12.56,
+          "size" : 8.6874184744242
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "7",
       "id" : "17v28-t113-p1",
@@ -1733,6 +2062,738 @@
     {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.1103037715793369,
+      "family" : "7",
+      "id" : "17v28-t120-p0",
+      "pageIndex" : 0,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.9032258064516129,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.8037037037037037,
+            "width" : 0.9074074074074074,
+            "x" : 0.013888888888888888,
+            "y" : 0.06296296296296296
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 14
+        }
+      ],
+      "sourceRef" : "17v28:template-120",
+      "sourceTemplate" : "template-120",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.03714413641278708,
+            "width" : 0.2317934105832741,
+            "x" : 0.3078583873009555,
+            "y" : 0.13452153920101387
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.90776810960099
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.008030554907407396,
+      "family" : "7",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8888888888888888,
+            "width" : 0.9351851851851852,
+            "x" : 0.7935453703703703,
+            "y" : 0.2706251481481482
+          },
+          "frameAssetID" : "frame-preview-01-dark",
+          "photoWindowAspect" : 0.9032258064516129,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.8037037037037037,
+            "width" : 0.9074074074074074,
+            "x" : -0.9861111111111112,
+            "y" : 0.06296296296296296
+          },
+          "z" : 119
+        }
+      ],
+      "id" : "17v28-t120-p1-2",
+      "pageIndex" : 1,
+      "pageRole" : "cover",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.4962962962962963
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.4962962962962963
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.8059701492537313,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.8059701492537313,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        }
+      ],
+      "sourceRef" : "17v28:template-120",
+      "sourceTemplate" : "template-120",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.06235696328455555,
+            "width" : 0.38451359143258335,
+            "x" : 0.30774320428370827,
+            "y" : 0.4522982961355
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 5.531953682986201
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.05331018518518519,
+      "family" : "7",
+      "id" : "17v28-t120-p3",
+      "pageIndex" : 3,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.2,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.3333333333333333,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 1.2,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.3333333333333333,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 1.2,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.3333333333333333,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.3333333333333333
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 1.2,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.3333333333333333,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.3333333333333333
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        },
+        {
+          "aspect" : 1.2,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.3333333333333333,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.6666666666666666
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 10
+        },
+        {
+          "aspect" : 1.2,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.3333333333333333,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.6666666666666666
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 11
+        }
+      ],
+      "sourceRef" : "17v28:template-120",
+      "sourceTemplate" : "template-120",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.029447884212524447,
+            "width" : 0.1639339386052778,
+            "x" : 0.3534188177343984,
+            "y" : 0.4817330208567008
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.25282263766244
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.015879628333333336,
+      "family" : "7",
+      "id" : "17v28-t120-p4",
+      "pageIndex" : 4,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.588235294117647,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.4962962962962963
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        },
+        {
+          "aspect" : 1.6119402985074627,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 12
+        }
+      ],
+      "sourceRef" : "17v28:template-120",
+      "sourceTemplate" : "template-120",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.0310805256372,
+            "width" : 0.16303829072700002,
+            "x" : 0.3481965953772397,
+            "y" : 0.4929771816258445
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.488606450174601
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.04502582357472066,
+      "family" : "7",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.6370370370370371,
+            "width" : 1,
+            "x" : 1.0417949074074073,
+            "y" : -0.006623274074074091
+          },
+          "frameAssetID" : "frame-photo-booth-dark",
+          "photoWindowAspect" : 1.5217391304347827,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.9722222222222222,
+            "x" : 0.013888888888888888,
+            "y" : 0.040740740740740744
+          },
+          "z" : 108
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 0.8564814814814815,
+            "x" : 1.6192405092592592,
+            "y" : 0.25850022222222224
+          },
+          "frameAssetID" : "frame-call",
+          "photoWindowAspect" : 1,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.6851851851851852,
+            "width" : 0.8564814814814815,
+            "x" : 0,
+            "y" : 0.2037037037037037
+          },
+          "z" : 109
+        },
+        {
+          "frame" : {
+            "height" : 0.8888888888888888,
+            "width" : 0.9351851851851852,
+            "x" : 0.6642683333333332,
+            "y" : 0.1534135185185185
+          },
+          "frameAssetID" : "frame-preview-01-dark",
+          "photoWindowAspect" : 0.9032258064516129,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.8037037037037037,
+            "width" : 0.9074074074074074,
+            "x" : 0.013888888888888888,
+            "y" : 0.06296296296296296
+          },
+          "z" : 110
+        }
+      ],
+      "id" : "17v28-t121-p0-2",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 2,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.9032258064516129,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.8037037037037037,
+            "width" : 0.9074074074074074,
+            "x" : 0.013888888888888888,
+            "y" : 0.06296296296296296
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 1,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.6851851851851852,
+            "width" : 0.8564814814814815,
+            "x" : 0,
+            "y" : 0.2037037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.6267281105990783,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.8037037037037037,
+            "width" : 0.6296296296296297,
+            "x" : 0.2916666666666667,
+            "y" : 0.06296296296296296
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 17
+        },
+        {
+          "aspect" : 1.5217391304347827,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.9722222222222222,
+            "x" : 0.013888888888888888,
+            "y" : 0.040740740740740744
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.037037037037037035,
+            "y" : 0.07037037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 14
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.037037037037037035,
+            "y" : 0.34074074074074073
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 15
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.037037037037037035,
+            "y" : 0.6074074074074074
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
+        }
+      ],
+      "sourceRef" : "17v28:template-121",
+      "sourceTemplate" : "template-121",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.07918403759095,
+            "width" : 0.20078256103172498,
+            "x" : 0.3996087194841375,
+            "y" : 0.41211746268600646
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 8.551876059822598
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.038869515029395556,
+            "width" : 0.20723415947628332,
+            "x" : 0.30094185544704355,
+            "y" : 0.48820109433715414
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.61348150648012
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.05331018518518521,
+      "family" : "7",
+      "id" : "17v28-t121-p3",
+      "pageIndex" : 3,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.1064814814814814,
+            "y" : 0.10740740740740741
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.37037037037037024,
+            "y" : 0.10740740740740741
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.6342592592592591,
+            "y" : 0.10740740740740741
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.1064814814814814,
+            "y" : 0.37037037037037035
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.37037037037037024,
+            "y" : 0.37037037037037035
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.6342592592592591,
+            "y" : 0.37037037037037035
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 10
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.1064814814814814,
+            "y" : 0.6333333333333333
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 11
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.37037037037037024,
+            "y" : 0.6333333333333333
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 12
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.25925925925925924,
+            "width" : 0.25925925925925924,
+            "x" : 0.6342592592592591,
+            "y" : 0.6333333333333333
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        }
+      ],
+      "sourceRef" : "17v28:template-121",
+      "sourceTemplate" : "template-121",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.025482758080567408,
+            "width" : 0.1502129695033463,
+            "x" : 0.37294694117425253,
+            "y" : 0.08533869503379037
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 3.6801846154033804
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
       "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "5",
@@ -2551,6 +3612,94 @@
       ],
       "sourceRef" : "17v28:template-144",
       "sourceTemplate" : "template-144",
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.11157689346250564,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8,
+            "width" : 1.2685185185185186,
+            "x" : 1.646956111111111,
+            "y" : 0.05215833333333335
+          },
+          "frameAssetID" : "frame-polaroid-05",
+          "photoWindowAspect" : 1.5609756097560976,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.6074074074074074,
+            "width" : 1.1851851851851851,
+            "x" : 0.046296296296296294,
+            "y" : 0.05555555555555555
+          },
+          "z" : 111
+        }
+      ],
+      "id" : "17v28-t146-p0-2",
+      "pageIndex" : 0,
+      "pageRole" : "grid",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 2,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 1.5609756097560976,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.6074074074074074,
+            "width" : 1.1851851851851851,
+            "x" : 0.046296296296296294,
+            "y" : 0.05555555555555555
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        }
+      ],
+      "sourceRef" : "17v28:template-146",
+      "sourceTemplate" : "template-146",
       "version" : 2
     },
     {
@@ -3444,6 +4593,84 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : false,
+      "decorCoverage" : 0.04287499999999997,
+      "family" : "3",
+      "id" : "17v28-t147-p7",
+      "pageIndex" : 7,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.4,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 18
+        },
+        {
+          "aspect" : 0.4,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 19
+        }
+      ],
+      "sourceRef" : "17v28:template-147",
+      "sourceTemplate" : "template-147",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.05422221770370371,
+            "width" : 0.15805554238425928,
+            "x" : 0.20535371028935234,
+            "y" : 0.05058482818518519
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.67999936
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.049999997222222224,
+            "width" : 0.1141796769900176,
+            "x" : 0.7016120133568426,
+            "y" : 0.4750000013888889
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.75999968
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "3",
       "frames" : [
@@ -3534,6 +4761,337 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 5.77659851117006
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.10587790672962942,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.7037037037037037,
+            "width" : 1.25,
+            "x" : 0.8743757870370369,
+            "y" : 0.34203399999999995
+          },
+          "frameAssetID" : "frame-paper-frame-13",
+          "photoWindowAspect" : 1.3978494623655915,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.6888888888888889,
+            "width" : 1.2037037037037037,
+            "x" : 0.032407407407407406,
+            "y" : 0.007407407407407408
+          },
+          "z" : 119
+        },
+        {
+          "frame" : {
+            "height" : 0.8,
+            "width" : 0.6388888888888888,
+            "x" : 1.2058496759259258,
+            "y" : -0.04915933333333334
+          },
+          "frameAssetID" : "frame-polaroid-02",
+          "photoWindowAspect" : 0.75,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5555555555555556,
+            "x" : 0.041666666666666664,
+            "y" : 0.06666666666666667
+          },
+          "z" : 120
+        }
+      ],
+      "id" : "17v28-t158-p0-2",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.7142857142857143,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9851851851851852,
+            "width" : 0.8796296296296297,
+            "x" : 0.009259259259259259,
+            "y" : 0.007407407407407408
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 14
+        },
+        {
+          "aspect" : 1.3978494623655915,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.6888888888888889,
+            "width" : 1.2037037037037037,
+            "x" : 0.032407407407407406,
+            "y" : 0.007407407407407408
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 12
+        },
+        {
+          "aspect" : 1.3333333333333333,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.6,
+            "width" : 1,
+            "x" : 2,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5555555555555556,
+            "x" : 0.041666666666666664,
+            "y" : 0.06666666666666667
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        }
+      ],
+      "sourceRef" : "17v28:template-158",
+      "sourceTemplate" : "template-158",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-instrumentserif",
+          "frame" : {
+            "height" : 0.19538193111111113,
+            "width" : 0.23148106885925926,
+            "x" : 0.10561541464444445,
+            "y" : 0.4819355159259259
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 40.1928544
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-instrumentserif",
+          "frame" : {
+            "height" : 0.19227083555555555,
+            "width" : 0.361286055762963,
+            "x" : 0.5239987313777777,
+            "y" : 0.4850465822222222
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 39.5528576
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.02871680211111111,
+            "width" : 0.07412179391059028,
+            "x" : 0.7662128993410012,
+            "y" : 0.35891676190740746
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.36187616
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#333333",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.028763726333333333,
+            "width" : 0.10495418172309028,
+            "x" : 1.039458557286603,
+            "y" : 0.02129552387037037
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.37227168
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#333333",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.028763726333333333,
+            "width" : 0.1083537407248264,
+            "x" : 1.445823129637587,
+            "y" : 0.02129552387037037
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.37227168
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#333333",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.028763726333333333,
+            "width" : 0.14799605586371528,
+            "x" : 1.809675027623698,
+            "y" : 0.02129552387037037
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.37227168
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#333333",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.057527452666666666,
+            "width" : 0.08758185902777778,
+            "x" : 1.456209070486111,
+            "y" : 0.9261628292222223
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.37227168
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.028763726333333333,
+            "width" : 0.19786585782986113,
+            "x" : 2.259689154418403,
+            "y" : 0.5210919516481483
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.37227168
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.031194029488682967,
+      "family" : "5",
+      "id" : "17v28-t158-p5",
+      "pageIndex" : 5,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.6119402985074627,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5037037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        }
+      ],
+      "sourceRef" : "17v28:template-158",
+      "sourceTemplate" : "template-158",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.028763726333333333,
+            "width" : 0.149940714242425,
+            "x" : 0.3616365873232317,
+            "y" : 0.7841764701666667
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.37227168
         }
       ],
       "version" : 2
@@ -3633,6 +5191,316 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : true,
+      "decorCoverage" : 0.009075031839032742,
+      "family" : "3",
+      "id" : "17v28-t162-p1",
+      "pageIndex" : 1,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 3
+        }
+      ],
+      "sourceRef" : "17v28:template-162",
+      "sourceTemplate" : "template-162",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.06130865,
+            "width" : 0.20737110481770832,
+            "x" : 0.5403004661096644,
+            "y" : 0.22719943055555555
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.791112
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.08200571141003982,
+      "family" : "3",
+      "id" : "17v28-t162-p3",
+      "pageIndex" : 3,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        }
+      ],
+      "sourceRef" : "17v28:template-162",
+      "sourceTemplate" : "template-162",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.032098769444444446,
+            "width" : 0.08236883745659723,
+            "x" : 0.09316234053096073,
+            "y" : 0.11815493009259259
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.111112
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.032098769444444446,
+            "width" : 0.07050541004774306,
+            "x" : 0.8395243320131649,
+            "y" : 0.11818208194444445
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.111112
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.032098769444444446,
+            "width" : 0.10379695227502894,
+            "x" : 0.09510754238100372,
+            "y" : 0.8439256152777779
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.111112
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.032098769444444446,
+            "width" : 0.04984890026403357,
+            "x" : 0.8627801794976131,
+            "y" : 0.8434098745370371
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.111112
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.032098769444444446,
+            "width" : 0.08391204752604166,
+            "x" : 0.3933252262369793,
+            "y" : 0.4175310967592593
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.111112
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.0012052031359204394,
+      "family" : "3",
+      "id" : "17v28-t162-p4",
+      "pageIndex" : 4,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.4,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.4,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        }
+      ],
+      "sourceRef" : "17v28:template-162",
+      "sourceTemplate" : "template-162",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.029209881999999996,
+            "width" : 0.112257929921875,
+            "x" : 0.0942559887427663,
+            "y" : 0.04796013307407407
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.47111232
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.029209881999999996,
+            "width" : 0.10985888111979165,
+            "x" : 0.44907287425491926,
+            "y" : 0.04796013307407407
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.47111232
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.029209881999999996,
+            "width" : 0.0777204041796875,
+            "x" : 0.8301203534657127,
+            "y" : 0.04796013307407407
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.47111232
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-pinyonscript",
+          "frame" : {
+            "height" : 0.09150703703703703,
+            "width" : 0.27090193630642356,
+            "x" : 0.06880782814308528,
+            "y" : 0.5223641851851852
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 19.76552
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-ballet",
+          "frame" : {
+            "height" : 0.22592592592592592,
+            "width" : 0.18666668518518517,
+            "x" : 0.2650789259259261,
+            "y" : 0.6645718148148149
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "accent",
+          "rotation" : 0,
+          "size" : 32
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-pinyonscript",
+          "frame" : {
+            "height" : 0.09150703703703703,
+            "width" : 0.30110640751591433,
+            "x" : 0.4384852221679685,
+            "y" : 0.7373150370370369
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 19.76552
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "3",
       "id" : "17v28-t162-p5",
@@ -3681,7 +5549,7 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : false,
-      "decorCoverage" : 0.007939814166666675,
+      "decorCoverage" : 0.007939814166666668,
       "family" : "3",
       "id" : "17v28-t163-p5-6",
       "pageIndex" : 5,
@@ -3932,6 +5800,93 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 58.820499420166016
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.10406096776326479,
+      "family" : "3",
+      "id" : "17v28-t180-p4",
+      "pageIndex" : 4,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        }
+      ],
+      "sourceRef" : "17v28:template-180",
+      "sourceTemplate" : "template-180",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.027708415976829,
+            "width" : 0.2932052682124701,
+            "x" : 0.10924798121856227,
+            "y" : 0.40419833289666307
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.469826206859807
         }
       ],
       "version" : 2
@@ -5047,6 +7002,54 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : true,
+      "decorCoverage" : 0.06377205984888522,
+      "family" : "9",
+      "id" : "17v28-t192-p10",
+      "pageIndex" : 10,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 20
+        }
+      ],
+      "sourceRef" : "17v28:template-192",
+      "sourceTemplate" : "template-192",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.05387456528842449,
+            "width" : 0.12248405441641808,
+            "x" : 0.46668946874086537,
+            "y" : 0.25791400350216365
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.365487098693848
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "9",
       "id" : "17v28-t192-p11",
@@ -5087,6 +7090,84 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 6.365487098693848
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.012434202088715209,
+      "family" : "9",
+      "id" : "17v28-t192-p13",
+      "pageIndex" : 13,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        }
+      ],
+      "sourceRef" : "17v28:template-192",
+      "sourceTemplate" : "template-192",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.12570731900632381,
+            "width" : 0.269833292812109,
+            "x" : 0.02763127749440919,
+            "y" : 0.5219093905761838
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : -3.1141088,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.365487098693848
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.0884077972215083,
+            "width" : 0.20483555203234707,
+            "x" : 0.3975822239838269,
+            "y" : 0.4445761760386328
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 13.356823921203613
         }
       ],
       "version" : 2
@@ -5165,6 +7246,121 @@
           "role" : "accent",
           "rotation" : 12.891550064086914,
           "size" : 8.63644790649414
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.008332338843784093,
+      "family" : "9",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8541666666666666,
+            "width" : 0.4537037037037037,
+            "x" : 0.7345547146267357,
+            "y" : 0.08057859208848742
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : -3.990740740740741,
+            "y" : 0.006944444444444444
+          },
+          "z" : 134
+        }
+      ],
+      "id" : "17v28-t192-p4-5",
+      "pageIndex" : 4,
+      "pageRole" : "strip",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
+        },
+        {
+          "aspect" : 0.5625,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.75,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 17
+        }
+      ],
+      "sourceRef" : "17v28:template-192",
+      "sourceTemplate" : "template-192",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.09042513722346888,
+            "width" : 0.10508119921993327,
+            "x" : 0.4498442926064685,
+            "y" : 0.7298844306626253
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : -3.9549205,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.645486831665039
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#F3DFA6",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.056959060227705374,
+            "width" : 0.31498671557616303,
+            "x" : 0.0674802501582441,
+            "y" : 0.7217480271744231
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 8.605486869812012
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.06543128068248431,
+            "width" : 0.15017015238602957,
+            "x" : 1.3568765485176337,
+            "y" : 0.2528799091362291
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 9.885486602783203
         }
       ],
       "version" : 2
@@ -5759,7 +7955,7 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : false,
-      "decorCoverage" : 0,
+      "decorCoverage" : 7.064254248234647e-08,
       "family" : "7",
       "id" : "17v28-t194-p8",
       "pageIndex" : 8,
@@ -7069,6 +9265,156 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : true,
+      "decorCoverage" : 0.09694422577230066,
+      "family" : "7",
+      "id" : "17v28-t196-p1",
+      "pageIndex" : 1,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 2
+        }
+      ],
+      "sourceRef" : "17v28:template-196",
+      "sourceTemplate" : "template-196",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.026562417443427775,
+            "width" : 0.07989316254302307,
+            "x" : 0.1608771672817293,
+            "y" : 0.28577876510098577
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.693005561828613
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.026562417443427775,
+            "width" : 0.15896268423508714,
+            "x" : 0.05439574098973354,
+            "y" : 0.5576769287904931
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.693005561828613
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.026562417443427775,
+            "width" : 0.1111915148794651,
+            "x" : 0.7346179334239826,
+            "y" : 0.8553703932815956
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.693005561828613
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.07542339642853309,
+      "family" : "7",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8333333333333334,
+            "width" : 0.9351851851851852,
+            "x" : 0.014105902777777679,
+            "y" : 0.08333333333333333
+          },
+          "frameAssetID" : "frame-preview-02-dark",
+          "photoWindowAspect" : 0.8333333333333334,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.20833333333333334,
+            "width" : 0.23148148148148148,
+            "x" : -2.962962962962963,
+            "y" : 0.06597222222222222
+          },
+          "z" : 117
+        }
+      ],
+      "id" : "17v28-t196-p3",
+      "pageIndex" : 3,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        }
+      ],
+      "sourceRef" : "17v28:template-196",
+      "sourceTemplate" : "template-196",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.037351640665696725,
+            "width" : 0.037062093063637065,
+            "x" : 0.9124463862842984,
+            "y" : 0.40209686461215216
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "accent",
+          "rotation" : 8.939001083374023,
+          "size" : 8.005412101745605
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "7",
       "frames" : [
@@ -8040,6 +10386,475 @@
       "version" : 2
     },
     {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.07489711934156378,
+      "family" : "3",
+      "id" : "17v28-t21-p0",
+      "pageIndex" : 0,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.33796296296296297,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.6759259259259259,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0,
+            "y" : 0.337037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.33796296296296297,
+            "y" : 0.337037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.6759259259259259,
+            "y" : 0.337037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0,
+            "y" : 0.674074074074074
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.33796296296296297,
+            "y" : 0.674074074074074
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.6759259259259259,
+            "y" : 0.674074074074074
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        }
+      ],
+      "sourceRef" : "17v28:template-21",
+      "sourceTemplate" : "template-21",
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.06735534348704149,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 0.7247882419162326,
+            "y" : -0.24141860008239746
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.013888888888888888
+          },
+          "z" : 119
+        },
+        {
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 1,
+            "y" : -0.24141860008239746
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.013888888888888888
+          },
+          "z" : 120
+        },
+        {
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 1.2770452146176938,
+            "y" : -0.2453311284383138
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.013888888888888888
+          },
+          "z" : 121
+        }
+      ],
+      "id" : "17v28-t212-p0-2",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 2,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.013888888888888888
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 14
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0.006944444444444444
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 17
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : 0.004629629629629629,
+            "y" : 0.006944444444444444
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 18
+        },
+        {
+          "aspect" : 0.6742424242424242,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.8240740740740741,
+            "x" : 0.009259259259259259,
+            "y" : 0.013888888888888888
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 15
+        },
+        {
+          "aspect" : 1.5731707317073171,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5694444444444444,
+            "width" : 1.1944444444444444,
+            "x" : 0.046296296296296294,
+            "y" : 0.04861111111111111
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 19
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5555555555555556,
+            "width" : 0.5555555555555556,
+            "x" : 0.041666666666666664,
+            "y" : 0.0625
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        }
+      ],
+      "sourceRef" : "17v28:template-212",
+      "sourceTemplate" : "template-212",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.03300156801318129,
+            "width" : 0.08913244010397682,
+            "x" : 1.1697265181207546,
+            "y" : 0.08265185384597215
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.798524379730225
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.03718314040452242,
+            "width" : 0.2211920147140821,
+            "x" : 0.3041991617668558,
+            "y" : 0.4814084297977388
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 8.786662101745605
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.03300156801318129,
+            "width" : 0.09703025125243046,
+            "x" : 1.4514848743737847,
+            "y" : 0.08265185384597215
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.798524379730225
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.03300156801318129,
+            "width" : 0.1602127404400596,
+            "x" : 1.6957978260599904,
+            "y" : 0.08265185384597215
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.798524379730225
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.06600313602636258,
+            "width" : 0.1602127404400596,
+            "x" : 2.1634155673975193,
+            "y" : 0.12827890506014228
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.798524379730225
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.06600313602636258,
+            "width" : 0.1252367196397649,
+            "x" : 2.75877949219473,
+            "y" : 0.12827890506014228
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.798524379730225
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FDFBDC",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.05406843964010477,
+            "width" : 0.13617236650100462,
+            "x" : 0.5518546804647755,
+            "y" : 0.4729657801799476
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 11.073216438293457
+        }
+      ],
+      "version" : 2
+    },
+    {
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : false,
@@ -8270,6 +11085,161 @@
       ],
       "sourceRef" : "17v28:template-22",
       "sourceTemplate" : "template-22",
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.02727855162488093,
+      "family" : "5",
+      "id" : "17v28-t220-p1",
+      "pageIndex" : 1,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        }
+      ],
+      "sourceRef" : "17v28:template-220",
+      "sourceTemplate" : "template-220",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.03538086555070347,
+            "width" : 0.19424788929797984,
+            "x" : 0.40287605535101,
+            "y" : 0.4321658485051658
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 8.388132221863202
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04576383841534456,
+            "width" : 0.10724455062989835,
+            "x" : 0.5730994247176029,
+            "y" : 0.9236506481344501
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.589259059526455
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.031896008592512876,
+            "width" : 0.17935726570862312,
+            "x" : 0.680889508376519,
+            "y" : 0.37961006154202753
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.589259059526455
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.023575310698813863,
+            "width" : 0.2792056404330112,
+            "x" : 0.11884475623567892,
+            "y" : 0.5665415899000235
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.589259059526455
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04576383841534456,
+            "width" : 0.14607447413382707,
+            "x" : 0.026274874116535507,
+            "y" : 0.344118422207733
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.589259059526455
+        }
+      ],
       "version" : 2
     },
     {
@@ -9086,6 +12056,432 @@
     {
       "aspect" : "3:4",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.029021404202571374,
+      "family" : "1",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.75,
+            "width" : 1.287037037037037,
+            "x" : 0.8564814814814815,
+            "y" : 0.39551803800794816
+          },
+          "frameAssetID" : "frame-polaroid-06",
+          "photoWindowAspect" : 1.5731707317073171,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5694444444444444,
+            "width" : 1.1944444444444444,
+            "x" : 0.046296296296296294,
+            "y" : 0.04861111111111111
+          },
+          "z" : 107
+        },
+        {
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 2.7432081434461804,
+            "y" : -0.25234047571818036
+          },
+          "frameAssetID" : "frame-film-border-21",
+          "photoWindowAspect" : 0.8,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "z" : 108
+        },
+        {
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 3.113167656792535,
+            "y" : -0.08365037706163195
+          },
+          "frameAssetID" : "frame-film-border-21",
+          "photoWindowAspect" : 0.8,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "z" : 109
+        },
+        {
+          "frame" : {
+            "height" : 0.6736111111111112,
+            "width" : 1.25,
+            "x" : 4.875,
+            "y" : -0.10466358396742079
+          },
+          "frameAssetID" : "frame-paper-frame-15",
+          "photoWindowAspect" : 1.4,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.6597222222222222,
+            "width" : 1.2314814814814814,
+            "x" : 0.009259259259259259,
+            "y" : 0.010416666666666666
+          },
+          "z" : 110
+        }
+      ],
+      "id" : "17v28-t222-p0-6",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 7,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 2,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 4,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 6,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 1.4,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.6597222222222222,
+            "width" : 1.2314814814814814,
+            "x" : 0.009259259259259259,
+            "y" : 0.010416666666666666
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        },
+        {
+          "aspect" : 1.5731707317073171,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5694444444444444,
+            "width" : 1.1944444444444444,
+            "x" : 0.046296296296296294,
+            "y" : 0.04861111111111111
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 1.3999999406602672,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.535714308420817,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.3999999406602672,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.535714308420817,
+            "width" : 1,
+            "x" : 5,
+            "y" : 0.4642857180701362
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 1.3999999868133923,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4017857180701362,
+            "width" : 0.75,
+            "x" : 3.125,
+            "y" : 0.5312500132454766
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        }
+      ],
+      "sourceRef" : "17v28:template-222",
+      "sourceTemplate" : "template-222",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-delagothicone",
+          "frame" : {
+            "height" : 0.06594862116293775,
+            "width" : 0.22263506151459836,
+            "x" : 0.24475266984491437,
+            "y" : 0.6298608105733163
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 12.93154239654541
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-delagothicone",
+          "frame" : {
+            "height" : 0.06594862116293775,
+            "width" : 0.351725979535668,
+            "x" : 0.1880594825855008,
+            "y" : 0.6701287019273473
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 12.93154239654541
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-delagothicone",
+          "frame" : {
+            "height" : 0.06594862116293775,
+            "width" : 0.1908300527267986,
+            "x" : 0.22512275270289844,
+            "y" : 0.7095079277642071
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 12.93154239654541
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.054943276569247246,
+            "width" : 0.25116926431655884,
+            "x" : 1.3124266785603982,
+            "y" : 0.09983997554000881
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 8.288585722446442
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.023503850524624188,
+            "width" : 0.2910000541143947,
+            "x" : 1.0823063468215641,
+            "y" : 0.4171240773672859
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04532885458320379,
+            "width" : 0.2507077389293247,
+            "x" : 2.271868861383862,
+            "y" : 0.2821013004932966
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04532885458320379,
+            "width" : 0.26637697261240745,
+            "x" : 2.1812530533169157,
+            "y" : 0.6368303436061574
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.023503850524624188,
+            "width" : 0.14102310314774513,
+            "x" : 2.444547177809808,
+            "y" : 0.7215854770814379
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04532885458320379,
+            "width" : 0.13878464119301903,
+            "x" : 2.694129227074208,
+            "y" : 0.7042719130404294
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04532885458320379,
+            "width" : 0.17203694981051537,
+            "x" : 5.4139815250947425,
+            "y" : 0.08141715043327874
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.037828853353857994,
+            "width" : 0.2521923556923866,
+            "x" : 4.561719170461099,
+            "y" : 0.17138326964858505
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.438585460186005
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.09065770916640759,
+            "width" : 0.3536769888467259,
+            "x" : 6.323161505576637,
+            "y" : 0.4286452143763502
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.318585604429245
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "5",
@@ -9595,6 +12991,84 @@
     {
       "aspect" : "3:4",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.022845988648965133,
+      "family" : "5",
+      "id" : "17v28-t224-p2",
+      "pageIndex" : 2,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        }
+      ],
+      "sourceRef" : "17v28:template-224",
+      "sourceTemplate" : "template-224",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FDF69F",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.05206362375368675,
+            "width" : 0.1824451772565091,
+            "x" : 0.0670788707901484,
+            "y" : 0.37872725078422165
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.151517391204834
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#FDF69F",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04233974497765303,
+            "width" : 0.3324454050097201,
+            "x" : 0.07397861178550436,
+            "y" : 0.46961069298494196
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.954222556512718
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "5",
@@ -9663,6 +13137,93 @@
             "width" : 0.11560070321515754,
             "x" : 0.6067877289045738,
             "y" : 0.8840917258833846
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.469826206859807
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.1157178909807859,
+      "family" : "5",
+      "id" : "17v28-t224-p5",
+      "pageIndex" : 5,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 10
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 11
+        }
+      ],
+      "sourceRef" : "17v28:template-224",
+      "sourceTemplate" : "template-224",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FDF69E",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.027708415976829,
+            "width" : 0.2764882798548098,
+            "x" : 0.07839732148029199,
+            "y" : 0.5754137876340084
           },
           "letterSpacing" : 0,
           "lineSpacing" : 0,
@@ -10003,6 +13564,152 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : false,
+      "decorCoverage" : 0.046221676280846474,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8541666666666666,
+            "width" : 0.4537037037037037,
+            "x" : 0.7614299632884838,
+            "y" : 0.26139873928493923
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : 1,
+          "slotFrame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : -0.9907407407407407,
+            "y" : 0.006944444444444444
+          },
+          "z" : 130
+        }
+      ],
+      "id" : "17v28-t225-p1-2",
+      "pageIndex" : 1,
+      "pageRole" : "strip",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        }
+      ],
+      "sourceRef" : "17v28:template-225",
+      "sourceTemplate" : "template-225",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.06102599995210767,
+            "width" : 0.19194502549038994,
+            "x" : 0.5797358341515064,
+            "y" : 0.8636367802973837
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 3,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.806971073150635
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.018532307508091133,
+            "width" : 0.14509054425138015,
+            "x" : 1.5730925226515091,
+            "y" : 0.16065435696186292
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.379326820373535
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.060856652356069095,
+      "family" : "5",
+      "id" : "17v28-t225-p11",
+      "pageIndex" : 11,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
+        }
+      ],
+      "sourceRef" : "17v28:template-225",
+      "sourceTemplate" : "template-225",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.026937282644212246,
+            "width" : 0.3066706024110317,
+            "x" : 0.3248548029611502,
+            "y" : 0.4018948823730979
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.365487098693848
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "5",
       "id" : "17v28-t225-p13",
@@ -10073,6 +13780,294 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 11.066534996032715
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.06782372572856697,
+      "family" : "5",
+      "id" : "17v28-t225-p3",
+      "pageIndex" : 3,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        }
+      ],
+      "sourceRef" : "17v28:template-225",
+      "sourceTemplate" : "template-225",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04937576223164797,
+            "width" : 0.09453137384520637,
+            "x" : 0.17524984313382053,
+            "y" : 0.21455975885813436
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.8339362144470215
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-pinyonscript",
+          "frame" : {
+            "height" : 0.04029592664705382,
+            "width" : 0.03998355512265806,
+            "x" : 0.2356576478039778,
+            "y" : 0.16211648388869232
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "accent",
+          "rotation" : 12.891550064086914,
+          "size" : 8.63644790649414
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.07665465037362346,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8541666666666666,
+            "width" : 0.4537037037037037,
+            "x" : 0.7931965015552658,
+            "y" : 0.08636564678615993
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : -3.990740740740741,
+            "y" : 0.006944444444444444
+          },
+          "z" : 132
+        }
+      ],
+      "id" : "17v28-t225-p4-5",
+      "pageIndex" : 4,
+      "pageRole" : "strip",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        }
+      ],
+      "sourceRef" : "17v28:template-225",
+      "sourceTemplate" : "template-225",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.09042513722346888,
+            "width" : 0.14821979679443217,
+            "x" : 0.42827499381921896,
+            "y" : 0.7298844306626253
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : -3.9549205,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.645486831665039
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#F3DFA6",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.056959060227705374,
+            "width" : 0.31498671557616303,
+            "x" : 0.06747996758807595,
+            "y" : 0.7217480271744231
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 8.605486869812012
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.06543128068248431,
+            "width" : 0.15017015238602957,
+            "x" : 1.3568765485176337,
+            "y" : 0.2528799091362291
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 9.885486602783203
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#323232",
+          "fontID" : "font-mansalva",
+          "frame" : {
+            "height" : 0.1224985038344231,
+            "width" : 0.12354964611155016,
+            "x" : 1.625591803825012,
+            "y" : 0.5475124825154327
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 10,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 2.235537052154541
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-shantellsans",
+          "frame" : {
+            "height" : 0.04056827762785057,
+            "width" : 0.15011310998212407,
+            "x" : 1.6400075997398407,
+            "y" : 0.44811808795202523
+          },
+          "letterSpacing" : -4.799999,
+          "lineSpacing" : 0,
+          "numberOfLines" : 3,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 2.898273229598999
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.04082877731595138,
+      "family" : "5",
+      "id" : "17v28-t225-p6",
+      "pageIndex" : 6,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        }
+      ],
+      "sourceRef" : "17v28:template-225",
+      "sourceTemplate" : "template-225",
+      "texts" : [
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.026937282644212246,
+            "width" : 0.18787027895450592,
+            "x" : 0.32459422973570984,
+            "y" : 0.456208700986786
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.365487098693848
         }
       ],
       "version" : 2
@@ -10568,6 +14563,181 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : false,
+      "decorCoverage" : 0.009569829823180958,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8541666666666666,
+            "width" : 0.4537037037037037,
+            "x" : 0.8536902533637152,
+            "y" : 0.2508144908481174
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : 3.838202714920044,
+          "slotFrame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : -0.9907407407407407,
+            "y" : 0.006944444444444444
+          },
+          "z" : 123
+        }
+      ],
+      "id" : "17v28-t228-p1-2",
+      "pageIndex" : 1,
+      "pageRole" : "grid",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        }
+      ],
+      "sourceRef" : "17v28:template-228",
+      "sourceTemplate" : "template-228",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#F8D2DF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.08245811549325784,
+            "width" : 0.31291797674364513,
+            "x" : 0.3435410116281774,
+            "y" : 0.4547916302043531
+          },
+          "letterSpacing" : -1.8150082,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 19.48548698425293
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-pinyonscript",
+          "frame" : {
+            "height" : 0.08596131371127234,
+            "width" : 0.1719226274225447,
+            "x" : 0.5340614953526743,
+            "y" : 0.485174722969532
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 19.80548667907715
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.10788298853569561,
+            "width" : 0.24101518715421358,
+            "x" : 0.3737042391051848,
+            "y" : 0.6234835723621978
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 5,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.288561820983887
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#F8D2DF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.08245811549325784,
+            "width" : 0.2114310653673278,
+            "x" : 1.6196262641913362,
+            "y" : 0.45877094225337106
+          },
+          "letterSpacing" : -1.8150082,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 19.48548698425293
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.05617921602808767,
+            "width" : 0.18162955978402384,
+            "x" : 1.5595111365395562,
+            "y" : 0.6177400165858368
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 3,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.5818376541137695
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "5",
       "id" : "17v28-t228-p10",
@@ -10664,6 +14834,93 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 5.185876846313477
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.02136206264970891,
+      "family" : "5",
+      "id" : "17v28-t228-p12",
+      "pageIndex" : 12,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 24
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 25
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 26
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 27
+        }
+      ],
+      "sourceRef" : "17v28:template-228",
+      "sourceTemplate" : "template-228",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.08470080668727557,
+            "width" : 0.2642239001062181,
+            "x" : 0.5188573786505941,
+            "y" : 0.4014686161859168
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.909450531005859
         }
       ],
       "version" : 2
@@ -10936,6 +15193,256 @@
     {
       "aspect" : "3:4",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.005514683723443462,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8506944444444444,
+            "width" : 0.4398148148148148,
+            "x" : 0.9347477665653932,
+            "y" : 0.19495810402764213
+          },
+          "frameAssetID" : "frame-photo-booth-02",
+          "photoWindowAspect" : 0.7796610169491526,
+          "rotation" : -6.556389331817627,
+          "slotFrame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.42592592592592593,
+            "x" : -5.99537037037037,
+            "y" : 0.006944444444444444
+          },
+          "z" : 138
+        },
+        {
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 1.3221831145109952,
+            "y" : 0.21893533070882162
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5,
+            "width" : 0.9814814814814815,
+            "x" : -5.9907407407407405,
+            "y" : 0
+          },
+          "z" : 141
+        },
+        {
+          "frame" : {
+            "height" : 0.8541666666666666,
+            "width" : 0.4537037037037037,
+            "x" : 2.732808430989584,
+            "y" : 0.0893719991048177
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : -5.9907407407407405,
+            "y" : 0.006944444444444444
+          },
+          "z" : 146
+        }
+      ],
+      "id" : "17v28-t228-p6-9",
+      "pageIndex" : 6,
+      "pageRole" : "grid",
+      "slideCount" : 4,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 15
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 2,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 3,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 17
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 11
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 12
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 14
+        }
+      ],
+      "sourceRef" : "17v28:template-228",
+      "sourceTemplate" : "template-228",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04715208647151788,
+            "width" : 0.2853305745455954,
+            "x" : 0.1901481169517396,
+            "y" : 0.49989679569585455
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.571200370788574
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#F8D2DF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.0735987654576699,
+            "width" : 0.14593943236050783,
+            "x" : 1.2148110455384957,
+            "y" : 0.27153965675582487
+          },
+          "letterSpacing" : -1.8150082,
+          "lineSpacing" : -15.487499,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 17.39195442199707
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.13399571366608143,
+            "width" : 0.2118145301938057,
+            "x" : 1.456697285865192,
+            "y" : 0.18898191954940557
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 5,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.365487098693848
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.09042513722346888,
+            "width" : 0.2599377033335191,
+            "x" : 2.3363448283462613,
+            "y" : 0.7963569080457091
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : -3.9549205,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.645486831665039
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.05352360186063581,
+            "width" : 0.19111252189786346,
+            "x" : 3.5782628218056978,
+            "y" : 0.39743494568392634
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 3,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 4.180284023284912
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "5",
@@ -11110,6 +15617,291 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : false,
+      "decorCoverage" : 0.015525172834165789,
+      "family" : "5",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.9375,
+            "width" : 1,
+            "x" : 0.7452765570746527,
+            "y" : -0.23831378089057076
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : -6.764678955078125,
+          "slotFrame" : {
+            "height" : 0.9166666666666666,
+            "width" : 0.9814814814814815,
+            "x" : -1.9907407407407407,
+            "y" : 0.006944444444444444
+          },
+          "z" : 127
+        }
+      ],
+      "id" : "17v28-t229-p2-3",
+      "pageIndex" : 2,
+      "pageRole" : "grid",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        }
+      ],
+      "sourceRef" : "17v28:template-229",
+      "sourceTemplate" : "template-229",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.12564776848173803,
+            "width" : 0.46354264462435685,
+            "x" : 0.26822867768782155,
+            "y" : 0.33692576565469307
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 5,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.975011319597456
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.1970251633061303,
+            "width" : 0.5003185051458853,
+            "x" : 1.2498407474270574,
+            "y" : 0.539376962516043
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 7,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.673097497037816
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.11781657266692917,
+      "family" : "5",
+      "id" : "17v28-t229-p4",
+      "pageIndex" : 4,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        }
+      ],
+      "sourceRef" : "17v28:template-229",
+      "sourceTemplate" : "template-229",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.14060957253807121,
+            "width" : 0.41355756628844476,
+            "x" : 0.29322121685577773,
+            "y" : 0.32528782377226484
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 6,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.574742565063275
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.005147431281120589,
+      "family" : "5",
+      "id" : "17v28-t229-p5",
+      "pageIndex" : 5,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 10
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 11
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 12
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        }
+      ],
+      "sourceRef" : "17v28:template-229",
+      "sourceTemplate" : "template-229",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.0942911251137654,
+            "width" : 0.29665862755091105,
+            "x" : 0.3516706862245442,
+            "y" : 0.37160626002069974
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.574742565063275
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "5",
       "id" : "17v28-t229-p6",
@@ -11197,6 +15989,115 @@
           "role" : "accent",
           "rotation" : 0,
           "size" : 18.793535232543945
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.07904028268661417,
+      "family" : "5",
+      "id" : "17v28-t229-p7",
+      "pageIndex" : 7,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
+        }
+      ],
+      "sourceRef" : "17v28:template-229",
+      "sourceTemplate" : "template-229",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.0942911251137654,
+            "width" : 0.3881927022227534,
+            "x" : 0.30590364888862354,
+            "y" : 0.6812953049730923
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.574742565063275
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.08429303581178556,
+      "family" : "5",
+      "id" : "17v28-t229-p8",
+      "pageIndex" : 8,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 17
+        },
+        {
+          "aspect" : 1.5,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.5
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 18
+        }
+      ],
+      "sourceRef" : "17v28:template-229",
+      "sourceTemplate" : "template-229",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.1174503488259183,
+            "width" : 0.4201744873490598,
+            "x" : 0.28991275632547087,
+            "y" : 0.3668299223192864
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 5,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.574742565063275
         }
       ],
       "version" : 2
@@ -11652,6 +16553,54 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 4.8848078110565325
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "3:4",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.06377205984888505,
+      "family" : "5",
+      "id" : "17v28-t230-p6",
+      "pageIndex" : 6,
+      "pageRole" : "statement",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        }
+      ],
+      "sourceRef" : "17v28:template-230",
+      "sourceTemplate" : "template-230",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.08081184793263674,
+            "width" : 0.3361404500901699,
+            "x" : 0.35986127090398945,
+            "y" : 0.2444453621800575
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 3,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.365487098693848
         }
       ],
       "version" : 2
@@ -13778,6 +18727,191 @@
       "version" : 2
     },
     {
+      "aspect" : "1:1",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.02314814814814814,
+      "family" : "3",
+      "id" : "17v28-t24-p0-1",
+      "pageIndex" : 0,
+      "pageRole" : "strip",
+      "slideCount" : 2,
+      "slots" : [
+        {
+          "aspect" : 1.1944444444444444,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 1.1944444444444444,
+            "x" : 0.8055555555555556,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.8055555555555556,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.8055555555555556,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        }
+      ],
+      "sourceRef" : "17v28:template-24",
+      "sourceTemplate" : "template-24",
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.1060973936899863,
+      "family" : "1",
+      "id" : "17v28-t39-p0-4",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 5,
+      "slots" : [
+        {
+          "aspect" : 1.0075757575757576,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 1.2314814814814814,
+            "x" : 0,
+            "y" : 0.011111111111111112
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.8712121212121212,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 1.0648148148148149,
+            "x" : 2.162037037037037,
+            "y" : 0.011111111111111112
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.7348484848484849,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.8981481481481481,
+            "x" : 4.101851851851852,
+            "y" : 0.011111111111111112
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 1.380281690140845,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5259259259259259,
+            "width" : 0.9074074074074074,
+            "x" : 1.2546296296296295,
+            "y" : 0.46296296296296297
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 1.1066666666666667,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5555555555555556,
+            "width" : 0.7685185185185185,
+            "x" : 3.2962962962962963,
+            "y" : 0.011111111111111112
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 1.6065573770491803,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.45185185185185184,
+            "width" : 0.9074074074074074,
+            "x" : 1.2546296296296295,
+            "y" : 0.011111111111111112
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.537037037037037,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4,
+            "width" : 0.7685185185185185,
+            "x" : 3.300925925925926,
+            "y" : 0.5888888888888889
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        }
+      ],
+      "sourceRef" : "17v28:template-39",
+      "sourceTemplate" : "template-39",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#E22400",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.06488890007690147,
+            "width" : 0.07946150085608131,
+            "x" : 0.891781940928477,
+            "y" : 0.7724380233773479
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 5.007216863334179
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#E22400",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04995556341277228,
+            "width" : 0.14344672459504043,
+            "x" : 1.0101161638436111,
+            "y" : 0.7799046917094125
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 3.854871006309986
+        }
+      ],
+      "version" : 2
+    },
+    {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : true,
@@ -14448,6 +19582,790 @@
     {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.028969478737997253,
+      "family" : "3",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8,
+            "width" : 0.6574074074074074,
+            "x" : 0.7071561574074074,
+            "y" : 0.40671111111111113
+          },
+          "frameAssetID" : "frame-polaroid-01",
+          "photoWindowAspect" : 0.775,
+          "rotation" : 4.67,
+          "slotFrame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5740740740740741,
+            "x" : 0.05555555555555555,
+            "y" : 0.06666666666666667
+          },
+          "z" : 104
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1.4587275000000002,
+            "y" : -0.29263385185185187
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.014814814814814815
+          },
+          "z" : 105
+        }
+      ],
+      "id" : "17v28-t74-p0-3",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 4,
+      "slots" : [
+        {
+          "aspect" : 0.8074074074074075,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 1.0092592592592593,
+            "x" : 2.0694444444444446,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.8,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.014814814814814815
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.8055555555555556,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.8,
+            "width" : 0.8055555555555556,
+            "x" : 1.0972222222222223,
+            "y" : 0.1
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.8068181818181818,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.6518518518518519,
+            "width" : 0.6574074074074074,
+            "x" : 3.2083333333333335,
+            "y" : 0.17777777777777778
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.775,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5740740740740741,
+            "x" : 0.05555555555555555,
+            "y" : 0.06666666666666667
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        }
+      ],
+      "sourceRef" : "17v28:template-74",
+      "sourceTemplate" : "template-74",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-outfit",
+          "frame" : {
+            "height" : 0.11027026666666666,
+            "width" : 0.5850243518518519,
+            "x" : 0.20882824074074072,
+            "y" : 0.06050379629629629
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 15.762162
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.11045169795675445,
+            "width" : 0.4606230857658333,
+            "x" : 0.27102887378375,
+            "y" : 0.10416855842903018
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 9.716972215503601
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#323232",
+          "fontID" : "font-outfit",
+          "frame" : {
+            "height" : 0.06598046768161334,
+            "width" : 0.14036957691094723,
+            "x" : 1.4298152115445264,
+            "y" : 0.9140942106036377
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.65879553140356
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FEFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.09371819564430554,
+            "width" : 0.3728770119148148,
+            "x" : 2.262311494042592,
+            "y" : 0.2297776058815509
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 9.7950630511825
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-outfit",
+          "frame" : {
+            "height" : 0.11622848093110817,
+            "width" : 0.3507878022622871,
+            "x" : 2.262311654424412,
+            "y" : 0.28431631509000144
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.53794514389012
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-outfit",
+          "frame" : {
+            "height" : 0.04728285380616,
+            "width" : 0.12331438590175833,
+            "x" : 3.475590492234306,
+            "y" : 0.21188400272654964
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.7586669012772
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.06461849196701666,
+            "width" : 0.29908239112408336,
+            "x" : 3.3877064896231435,
+            "y" : 0.22216219846093613
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.7536746598441
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.05304572599955555,
+            "width" : 0.17215129999444445,
+            "x" : 3.2673016648175928,
+            "y" : 0.7531052481113334
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.544133955944
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.05327361253183778,
+            "width" : 0.11813873136645275,
+            "x" : 3.2943079491315888,
+            "y" : 0.7684714900303774
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.5679517742115605
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.09937177988383768,
+      "family" : "4",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.5370370370370371,
+            "width" : 1,
+            "x" : 0.4308585185185185,
+            "y" : 0.231387
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "z" : 100
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 2.711710324074074,
+            "y" : -9.44814814814705e-05
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.004629629629629629,
+            "y" : 0.007407407407407408
+          },
+          "z" : 101
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1.8565159722222222,
+            "y" : -9.44814814814705e-05
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.014814814814814815
+          },
+          "z" : 102
+        },
+        {
+          "frame" : {
+            "height" : 0.5370370370370371,
+            "width" : 1,
+            "x" : 3.978212962962963,
+            "y" : 0.231387
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "z" : 103
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 0.8379629629629629,
+            "x" : 5.1614097222222215,
+            "y" : -9.44814814814705e-05
+          },
+          "frameAssetID" : "frame-film-border-01",
+          "photoWindowAspect" : 0.6742424242424242,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.8240740740740741,
+            "x" : 0.009259259259259259,
+            "y" : 0.014814814814814815
+          },
+          "z" : 104
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 0.4308585185185185,
+            "y" : -0.20476188888888888
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0.007407407407407408
+          },
+          "z" : 109
+        },
+        {
+          "frame" : {
+            "height" : 0.9111111111111111,
+            "width" : 0.4537037037037037,
+            "x" : 0.5465200925925926,
+            "y" : -0.10080786666666668
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : -2.37,
+          "slotFrame" : {
+            "height" : 0.43703703703703706,
+            "width" : 0.4351851851851852,
+            "x" : 0.009259259259259259,
+            "y" : 0.007407407407407408
+          },
+          "z" : 111
+        },
+        {
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 1,
+            "x" : 0.8155453703703704,
+            "y" : 0.30250999999999995
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "z" : 114
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1.4427407407407407,
+            "y" : -0.29039777777777775
+          },
+          "frameAssetID" : "frame-film-border-09",
+          "photoWindowAspect" : 0.803030303030303,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0.007407407407407408
+          },
+          "z" : 116
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 1,
+            "x" : 1.7160408796296296,
+            "y" : 0.23451459259259258
+          },
+          "frameAssetID" : "frame-film-border-12",
+          "photoWindowAspect" : 0.7969924812030075,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9851851851851852,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0.003703703703703704
+          },
+          "z" : 117
+        },
+        {
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 1,
+            "x" : 3.605494166666667,
+            "y" : 0.32540248148148143
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "z" : 121
+        },
+        {
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 1,
+            "x" : 3.605494166666667,
+            "y" : 0.4883731851851852
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "z" : 122
+        },
+        {
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 1,
+            "x" : 4.623312037037037,
+            "y" : 0.012248555555555535
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "z" : 123
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 0.8379629629629629,
+            "x" : 4.766113888888889,
+            "y" : 0.032791925925925974
+          },
+          "frameAssetID" : "frame-film-border-01",
+          "photoWindowAspect" : 0.6742424242424242,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.8240740740740741,
+            "x" : 0.009259259259259259,
+            "y" : 0.014814814814814815
+          },
+          "z" : 125
+        }
+      ],
+      "id" : "17v28-t75-p0-5",
+      "pageIndex" : 0,
+      "pageRole" : "grid",
+      "slideCount" : 6,
+      "slots" : [
+        {
+          "aspect" : 0.7969924812030075,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9851851851851852,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0.003703703703703704
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.004629629629629629,
+            "y" : 0.007407407407407408
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.013888888888888888,
+            "y" : 0.014814814814814815
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 0.803030303030303,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0.007407407407407408
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.6742424242424242,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9777777777777777,
+            "width" : 0.8240740740740741,
+            "x" : 0.009259259259259259,
+            "y" : 0.014814814814814815
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.43703703703703706,
+            "width" : 0.4351851851851852,
+            "x" : 0.009259259259259259,
+            "y" : 0.007407407407407408
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.43703703703703706,
+            "width" : 0.4351851851851852,
+            "x" : 0.009259259259259259,
+            "y" : 0.45555555555555555
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        }
+      ],
+      "sourceRef" : "17v28:template-75",
+      "sourceTemplate" : "template-75",
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.05971158436213943,
+      "family" : "1",
+      "id" : "17v28-t76-p5",
+      "pageIndex" : 5,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0.4962962962962963
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        },
+        {
+          "aspect" : 0.7941176470588235,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0.4962962962962963
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 10
+        },
+        {
+          "aspect" : 0.8059701492537313,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.5,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.8059701492537313,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 0.5,
+            "x" : 0.5,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        }
+      ],
+      "sourceRef" : "17v28:template-76",
+      "sourceTemplate" : "template-76",
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : true,
+      "decorCoverage" : 0.11906721536351166,
+      "family" : "6",
+      "id" : "17v28-t81-p0",
+      "pageIndex" : 0,
+      "pageRole" : "strip",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.7829457364341085,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9555555555555556,
+            "width" : 0.9351851851851852,
+            "x" : 0.032407407407407406,
+            "y" : 0.018518518518518517
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.6691729323308271,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9851851851851852,
+            "width" : 0.8240740740740741,
+            "x" : 0.004629629629629629,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.009259259259259259,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        }
+      ],
+      "sourceRef" : "17v28:template-81",
+      "sourceTemplate" : "template-81",
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "3",
@@ -14574,6 +20492,387 @@
     {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.03520804755372652,
+      "family" : "3",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.9111111111111111,
+            "width" : 0.4537037037037037,
+            "x" : 0.8884290277777778,
+            "y" : 0.16694862962962964
+          },
+          "frameAssetID" : "frame-photo-booth-03",
+          "photoWindowAspect" : 0.7966101694915254,
+          "rotation" : -3.66,
+          "slotFrame" : {
+            "height" : 0.43703703703703706,
+            "width" : 0.4351851851851852,
+            "x" : -0.9907407407407407,
+            "y" : 0.007407407407407408
+          },
+          "z" : 117
+        }
+      ],
+      "id" : "17v28-t83-p1-3",
+      "pageIndex" : 1,
+      "pageRole" : "cover",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 0.8814814814814815,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 1.1018518518518519,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.7185185185185186,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.8981481481481481,
+            "x" : 2.1018518518518516,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 1.588235294117647,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5037037037037037,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0.4962962962962963
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 1.6119402985074627,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.4962962962962963,
+            "width" : 1,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        }
+      ],
+      "sourceRef" : "17v28:template-83",
+      "sourceTemplate" : "template-83",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.12139340071104446,
+            "width" : 0.22067182564533333,
+            "x" : 1.1090438093995556,
+            "y" : 0.043494310755588884
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 12.6875683615916
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.13345534278382964,
+            "width" : 0.27653139675006483,
+            "x" : 1.3508409219953381,
+            "y" : 0.062025328608085184
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.6835297730719
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.11062745296296296,
+            "width" : 0.25651252731481483,
+            "x" : 2.3729813752314812,
+            "y" : 0.5152101994444445
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 11.56235262
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.12156862962962962,
+            "width" : 0.24708407407407407,
+            "x" : 2.397619074074074,
+            "y" : 0.5906827962962963
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 4,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.0882355
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.09420715901599408,
+      "family" : "3",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 1,
+            "x" : 0.34970370370370407,
+            "y" : 0.022609999999999977
+          },
+          "frameAssetID" : "frame-film-border-05",
+          "photoWindowAspect" : 1.4722222222222223,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : -3.990740740740741,
+            "y" : 0
+          },
+          "z" : 124
+        },
+        {
+          "frame" : {
+            "height" : 1,
+            "width" : 0.33796296296296297,
+            "x" : 2.699356018518518,
+            "y" : 0
+          },
+          "frameAssetID" : "frame-photo-booth-05",
+          "photoWindowAspect" : 0.7954545454545453,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : -3.9953703703703702,
+            "y" : 0.007407407407407408
+          },
+          "z" : 128
+        }
+      ],
+      "id" : "17v28-t83-p4-8",
+      "pageIndex" : 4,
+      "pageRole" : "grid",
+      "slideCount" : 5,
+      "slots" : [
+        {
+          "aspect" : 0.8296296296296296,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 1.037037037037037,
+            "x" : 3.962962962962963,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 9
+        },
+        {
+          "aspect" : 0.7481481481481481,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.9351851851851852,
+            "x" : 0,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.7481481481481481,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.9351851851851852,
+            "x" : 1.7685185185185182,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.7481481481481481,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.9351851851851852,
+            "x" : 3.0277777777777777,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 0.6666666666666666,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 0.8333333333333334,
+            "x" : 0.9351851851851851,
+            "y" : 0
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        }
+      ],
+      "sourceRef" : "17v28:template-83",
+      "sourceTemplate" : "template-83",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.13297296544466666,
+            "width" : 0.4203740322623333,
+            "x" : 1.1432296505355,
+            "y" : 0.8158526654258148
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.9783778634084
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.07350517719965,
+            "width" : 0.2450789995941875,
+            "x" : 3.584121611314017,
+            "y" : 0.12824709658536018
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.6824762336567005
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#FFFFFF",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.07076269069529555,
+            "width" : 0.15357848264594626,
+            "x" : 3.613385758677027,
+            "y" : 0.15059911761531522
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 7.39584252840724
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-cedarvillecursive",
+          "frame" : {
+            "height" : 0.11062745296296296,
+            "width" : 0.4682778268518519,
+            "x" : 4.069992105092593,
+            "y" : 0.27770827351851857
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 11.56235262
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#000000",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04168507033307378,
+            "width" : 0.2057119325783111,
+            "x" : 4.63733384852566,
+            "y" : 0.6722398722408706
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.0200998647547195
+        },
+        {
+          "alignment" : "left",
+          "colour" : "#000000",
+          "fontID" : "font-inter",
+          "frame" : {
+            "height" : 0.04168507033307378,
+            "width" : 0.20422857312814224,
+            "x" : 4.637333861584077,
+            "y" : 0.702264353722352
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 6.0200998647547195
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "3",
@@ -14604,7 +20903,7 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : false,
-      "decorCoverage" : 0.020289855185185182,
+      "decorCoverage" : 0.020289855185185165,
       "family" : "6",
       "id" : "17v28-t94-p5",
       "pageIndex" : 5,
