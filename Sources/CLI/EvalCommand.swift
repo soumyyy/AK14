@@ -91,7 +91,8 @@ enum EvalCommand {
         try JSONCoding.encoder.encode(set).write(to: out.appending(path: "evalset.json"), options: .atomic)
     }
 
-    static func compare(runDirectories: [URL], source: URL, out: URL, seed: UInt64 = 14) throws {
+    static func compare(runDirectories: [URL], source: URL, out: URL, seed: UInt64 = 14,
+                        loadDesignedPages: (() throws -> DesignedSetLibrary)? = nil) throws {
         let fm = FileManager.default
         var pairs: [EvalPair] = [], strips: [String: String] = [:]
         var skippedOptions = 0
@@ -109,14 +110,15 @@ enum EvalCommand {
             guard let spine = session.concepts.spine else { throw EvalError.noDirections(run.lastPathComponent) }
             let directions = session.concepts.plans.filter { !$0.isBaseline }.compactMap(\.direction)
             guard !directions.isEmpty else { throw EvalError.noDirections(run.lastPathComponent) }
-            let context = session.compositionContext()
+            var context = session.compositionContext()
+            if let loadDesignedPages { context.pages = try loadDesignedPages().vocabulary(for: context.aspect) }
             let newSet = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: session.runID)
             let runID = run.lastPathComponent
             let options = newSet.plans.filter { plan in
                 guard !plan.isBaseline else { return false }
                 guard !plan.slides.isEmpty, plan.slides.allSatisfy({ $0.placement != nil }) else {
                     skippedOptions += 1
-                    print("warning: \(runID)/\(plan.id): skipped option: template-first unavailable")
+                    FileHandle.standardError.write(Data("warning: \(runID)/\(plan.id): skipped option: template-first unavailable\n".utf8))
                     return false
                 }
                 return true
@@ -185,8 +187,8 @@ enum EvalCommand {
         for ref in options {
             let root = evalDirectory.appending(path: "runs/\(ref.runID)")
             let plan = try JSONCoding.decoder.decode(CarouselPlan.self, from: Data(contentsOf: root.appending(path: "plans/\(ref.carouselID).json")))
-            slides["\(ref.runID)/\(ref.carouselID)"] = try plan.slides.indices.map { index in
-                "data:image/png;base64," + (try Data(contentsOf: root.appending(path: String(format: "slides/%@/slide-%02d.png", ref.carouselID, index + 1)))).base64EncodedString()
+            slides["\(ref.runID)/\(ref.carouselID)"] = plan.slides.indices.map { index in
+                String(format: "runs/%@/slides/%@/slide-%02d.png", ref.runID, ref.carouselID, index + 1)
             }
         }
         let existing = try readRatings(evalDirectory).filter { $0.rater == rater }
@@ -209,10 +211,7 @@ enum EvalCommand {
     static func label(evalDirectory: URL, rater: String) throws {
         let set = try readSet(evalDirectory)
         let pairsJSON = try embeddedJSON(set.pairs)
-        let embeddedStrips = try set.strips.mapValues { path in
-            "data:image/jpeg;base64," + (try Data(contentsOf: evalDirectory.appending(path: path))).base64EncodedString()
-        }
-        let stripsJSON = try embeddedJSON(embeddedStrips)
+        let stripsJSON = try embeddedJSON(set.strips)
         let versionsJSON = try embeddedJSON(set.versions)
         let html = #"""
         <!doctype html><meta charset="utf-8"><title>AK14 Eval</title><style>body{font:16px system-ui;max-width:1200px;margin:2rem auto;background:#f5f3ee;color:#222}main{display:flex;gap:1rem;align-items:center}figure{margin:0;flex:1}img{width:100%;height:auto}button{padding:.8rem 1.2rem;font:inherit;margin:.5rem}#status{margin:1rem 0}</style>
@@ -369,6 +368,13 @@ enum EvalCommand {
         let ratings = try readRatings(directory).filter { rating in
             rating.engine == "pages" && refs.contains { $0.runID == rating.runID && $0.carouselID == rating.optionID }
         }
+        let byRun = Dictionary(grouping: ratings, by: \.runID)
+        let severity = ["yes": 0, "almost": 1, "no": 2]
+        let noPostable = byRun.values.filter { !$0.contains { $0.rating == "yes" } }.count
+        let worst = byRun.keys.sorted().map { run in
+            let rating = byRun[run, default: []].max { severity[$0.rating, default: 0] < severity[$1.rating, default: 0] }?.rating ?? "no"
+            return "worst option per run: \(run): \(rating)"
+        }.joined(separator: "\n")
         var slides: [ResolvedSlide] = [], nonWhiteSlides: [ResolvedSlide] = []
         var whiteCards = 0
         for ref in refs {
@@ -389,6 +395,8 @@ enum EvalCommand {
             + "rated yes: \(percent(ratings.filter { $0.rating == "yes" }.count, ratings.count))%, "
             + "almost: \(percent(ratings.filter { $0.rating == "almost" }.count, ratings.count))%, "
             + "no: \(percent(ratings.filter { $0.rating == "no" }.count, ratings.count))%\n"
+            + "runs with no postable option: \(noPostable) of \(byRun.count)\n"
+            + (worst.isEmpty ? "" : worst + "\n")
             + "white cards: \(percent(whiteCards, slides.count))% of slides\n"
             + String(format: "median crop kept: %.2f", median)
     }

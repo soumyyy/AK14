@@ -192,6 +192,8 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     let report = try EvalCommand.score(evalDirectory: out, stage: .engine)
     #expect(report.contains("new engine preferred: 100%"))
     #expect(report.contains("rated yes: 100%"))
+    #expect(report.contains("runs with no postable option: 0 of 1"))
+    #expect(report.contains("worst option per run: \(run.root.lastPathComponent): yes"))
     let whiteRate = Int((100 * Double(whiteCards) / Double(pageSlides.count)).rounded())
     #expect(report.contains("white cards: \(whiteRate)% of slides"))
     let crops = nonWhiteSlides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.crop).map { $0.width * $0.height }.sorted()
@@ -199,6 +201,14 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     let median = crops.count % 2 == 0 ? (crops[middle - 1] + crops[middle]) / 2 : crops[middle]
     #expect(report.contains(String(format: "median crop kept: %.2f", median)))
     print(report)
+    let almostRatings = ratings.map { rating in
+        EvalRating(runID: rating.runID, optionID: rating.optionID, engine: rating.engine, rating: "almost", rater: rating.rater)
+    }
+    try JSONSerialization.data(withJSONObject: ["labels": [], "ratings": JSONSerialization.jsonObject(with: JSONCoding.encoder.encode(almostRatings))]).write(to: file)
+    try EvalCommand.importLabels(evalDirectory: out, file: file)
+    let almostReport = try EvalCommand.score(evalDirectory: out, stage: .engine)
+    #expect(almostReport.contains("runs with no postable option: 1 of 1"))
+    #expect(almostReport.contains("worst option per run: \(run.root.lastPathComponent): almost"))
     let tieLabels = pairs.map { pair in
         EvalLabel(pairID: pair.pairID, rater: "o", choice: .tie, shownLeft: pair.left,
                   decidedAt: Date(timeIntervalSince1970: 2), versions: set.versions)
@@ -215,6 +225,8 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     let tiedReport = try EvalCommand.score(evalDirectory: out, stage: .engine)
     #expect(tiedReport.contains("new engine preferred: 0%") && tiedReport.contains("neither/tie: \(pairs.count)"))
     #expect(tiedReport.contains("rated yes: 0%"))
+    #expect(tiedReport.contains("runs with no postable option: 1 of 1"))
+    #expect(tiedReport.contains("worst option per run: \(run.root.lastPathComponent): no"))
     let bad = EvalRating(runID: ratings[0].runID, optionID: ratings[0].optionID, engine: "legacy", rating: "maybe", rater: "o")
     try JSONSerialization.data(withJSONObject: ["labels": [], "ratings": JSONSerialization.jsonObject(with: JSONCoding.encoder.encode([bad]))]).write(to: file)
     #expect(throws: EvalCommand.EvalError.invalidLabels) { try EvalCommand.importLabels(evalDirectory: out, file: file) }
@@ -222,6 +234,11 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     try EvalCommand.label(evalDirectory: out, rater: "o")
     let labelHTML = try String(contentsOf: out.appending(path: "label.html"), encoding: .utf8)
     #expect(labelHTML.contains("Which carousel layout is better?"))
+    #expect(!labelHTML.contains("data:image"))
+    for path in set.strips.values {
+        #expect(labelHTML.contains(path))
+        #expect(FileManager.default.fileExists(atPath: out.appending(path: path).path))
+    }
     #expect(labelHTML.contains("const key='ak14-eval-'+rater;"))
     #expect(try String(contentsOf: out.appending(path: "index.html"), encoding: .utf8) == labelHTML)
     if case .evalRate(let dir, let rater) = try Arguments.parse(["eval", "rate", out.path, "--rater", "o"], cwd: tmp.url) {
@@ -231,15 +248,27 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     #expect(try String(contentsOf: out.appending(path: "index.html"), encoding: .utf8) == labelHTML)
     let html = try String(contentsOf: out.appending(path: "rate.html"), encoding: .utf8)
     #expect(html.contains("Would you post this option?"))
-    #expect(html.contains("ratings.json") && html.contains("almost") && html.contains("data:image/png;base64,"))
+    #expect(html.contains("ratings.json") && html.contains("almost"))
+    #expect(!html.contains("data:image"))
+    for pair in pairs {
+        let ref = pair.left.carouselID.hasPrefix("pages-") ? pair.left : pair.right
+        let plan = try JSONCoding.decoder.decode(CarouselPlan.self, from: Data(contentsOf: out.appending(path: "runs/\(ref.runID)/plans/\(ref.carouselID).json")))
+        for index in plan.slides.indices {
+            let path = String(format: "runs/%@/slides/%@/slide-%02d.png", ref.runID, ref.carouselID, index + 1)
+            #expect(html.contains(path))
+            #expect(FileManager.default.fileExists(atPath: out.appending(path: path).path))
+        }
+    }
     try EvalCommand.label(evalDirectory: out, rater: "o")
     #expect(try String(contentsOf: out.appending(path: "rate.html"), encoding: .utf8) == html)
-    try Data("changed".utf8).write(to: folder.appending(path: "IMG_0000.jpg"))
+    let changedID = try #require(pairs.first?.left.assetIDs.first)
+    let changedPath = try #require(try run.read(IngestResult.self, from: "input-index.json").photos.first { $0.assetID == changedID }?.sourceRelativePaths.first)
+    try Data("changed".utf8).write(to: folder.appending(path: changedPath))
     #expect {
         try EvalCommand.compare(runDirectories: [run.root], source: folder, out: out)
     } throws: { error in
-        guard case RerenderCommand.Failure.changed("IMG_0000.jpg") = error else { return false }
-        return true
+        guard case RerenderCommand.Failure.changed(let path) = error else { return false }
+        return path == changedPath
     }
 }
 
@@ -262,14 +291,17 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     process.arguments = ["eval", "compare", run.root.path, "--source", folder.path, "--out", out.path]
     let output = Pipe()
     process.standardOutput = output
-    process.standardError = output
+    let errors = Pipe()
+    process.standardError = errors
     try process.run()
     let data = output.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
     #expect(process.terminationStatus == 0)
     let text = String(decoding: data, as: UTF8.self)
+    let errorText = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
     for option in options {
-        #expect(text.contains("warning: \(run.root.lastPathComponent)/\(option.id): skipped option: template-first unavailable"))
+        #expect(errorText.contains("warning: \(run.root.lastPathComponent)/\(option.id): skipped option: template-first unavailable"))
+        #expect(!text.contains("warning:"))
     }
     #expect(text.contains("\(run.root.lastPathComponent): no template-first options available"))
     let set = try JSONCoding.decoder.decode(EvalSet.self, from: Data(contentsOf: out.appending(path: "evalset.json")))
