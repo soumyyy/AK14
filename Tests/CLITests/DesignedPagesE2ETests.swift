@@ -31,8 +31,8 @@ import Testing
     @Test func catalogueHasEnoughUsablePagesAndNoSampleText() throws {
         let pages = try StylePackLoader.loadDesignedPages().sets
         let portrait = pages.filter { $0.aspect == .portrait4x5 }
-        // Regression guard at the measured yield (86); the spec's 150 target needs decorative layers (phase B).
-        #expect(portrait.count >= 80, "only \(portrait.count) usable 4:5 pages")
+        // Regression guard at the measured yield (73) after correct frame geometry; the spec's 150 target needs decorative layers (phase B).
+        #expect(portrait.count >= 70, "only \(portrait.count) usable 4:5 pages")
         let portrait3x4 = pages.filter { $0.aspect == .portrait3x4 }
         #expect(portrait3x4.count >= 100, "only \(portrait3x4.count) usable 3:4 pages")
         for aspect in [CarouselAspect.portrait4x5, .portrait3x4] {
@@ -40,6 +40,37 @@ import Testing
         }
         #expect(pages.allSatisfy { ($0.decorCoverage ?? 0) <= 0.12 })
         #expect(pages.allSatisfy { ($0.texts ?? []).allSatisfy { ["title", "caption", "accent"].contains($0.role) } })
+    }
+
+    @Test func frameWindowsStayInsideTheirFramesAndRenderDistinctPhotos() throws {
+        let pages = try StylePackLoader.loadDesignedPages().sets
+        let style = try StylePackLoader.load()
+        #expect(pages.contains { !($0.frames ?? []).isEmpty })
+        for page in pages where !(page.frames ?? []).isEmpty {
+            let frames = try #require(page.frames)
+            for frame in frames {
+                let window = try #require(frame.slotFrame)
+                let x = window.x + window.width / 2, y = window.y + window.height / 2
+                #expect(x >= frame.frame.x - 0.01 && x <= frame.frame.x + frame.frame.width + 0.01, "\(page.id): window x outside frame")
+                #expect(y >= frame.frame.y - 0.01 && y <= frame.frame.y + frame.frame.height + 0.01, "\(page.id): window y outside frame")
+            }
+            let photos = page.expandedSlots.enumerated().map { index, slot in
+                let aspect = frames.first { $0.slotFrame == slot.frame }?.photoWindowAspect ?? slot.aspect
+                return PhotoRecord(assetID: AssetID(rawValue: "p\(index)"), contentSHA256: "p\(index)",
+                    sourceRelativePaths: [], byteCount: 1, fileType: "public.jpeg",
+                    pixelWidth: Int((aspect * 10000).rounded()), pixelHeight: 10000, exifOrientation: 1, metadata: CaptureMetadata())
+            }
+            // A stale placement invokes assignment and rendering through the public resolver.
+            let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [
+                SlidePlan(primitive: .overlapCluster, mood: "", density: "dense", photos: photos.map { .plain($0.assetID) },
+                    decorations: [], stamps: [], placement: SlidePlacement(catalogueVersion: 2, pageID: page.id,
+                        runOffset: 0, runLength: 1, placed: [], slide: nil))])
+            let layout = LayoutResolver.resolve(plan, context: LayoutContext(aspect: page.aspect,
+                photos: Dictionary(uniqueKeysWithValues: photos.map { ($0.assetID, $0) }), features: [:], stylePack: style, seed: 1, pages: [page]))
+            let rendered = layout.slides.flatMap(\.elements).filter { $0.kind == .frame }
+            #expect(Set(rendered.compactMap(\.assetID)).count == frames.count, "\(page.id): frames reuse a photo window")
+            #expect(Set(rendered.compactMap(\.assetID)).isSubset(of: Set(photos.map(\.assetID))))
+        }
     }
 
     @Test func linkedRunsStayWhole() throws {

@@ -4,6 +4,197 @@
     {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.08232167352537721,
+      "family" : "2",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.7481481481481481,
+            "width" : 0.7222222222222222,
+            "x" : 0.1388888888888889,
+            "y" : 0.1259259259259259
+          },
+          "frameAssetID" : "frame-preview-02-dark",
+          "photoWindowAspect" : 0.8333333333333334,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.562962962962963,
+            "width" : 0.5925925925925926,
+            "x" : 0.20370370370370372,
+            "y" : 0.22592592592592592
+          },
+          "z" : 100
+        },
+        {
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 1,
+            "x" : 0.7870370370370371,
+            "y" : 0.014814814814814815
+          },
+          "frameAssetID" : "frame-paper-frame-16",
+          "photoWindowAspect" : 1.3951215366309704,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 0.8564814814814815,
+            "y" : 0.05555555555555556
+          },
+          "z" : 107
+        },
+        {
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 1,
+            "x" : 1.2037037037037037,
+            "y" : 0.3925925925925926
+          },
+          "frameAssetID" : "frame-paper-frame-16",
+          "photoWindowAspect" : 1.3951215366309704,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 1.2731481481481481,
+            "y" : 0.43333333333333335
+          },
+          "z" : 108
+        },
+        {
+          "frame" : {
+            "height" : 0.8,
+            "width" : 0.6388888888888888,
+            "x" : 2.1805555555555554,
+            "y" : 0.1
+          },
+          "frameAssetID" : "frame-polaroid-02",
+          "photoWindowAspect" : 0.75,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5555555555555556,
+            "x" : 2.222222222222222,
+            "y" : 0.16666666666666669
+          },
+          "z" : 109
+        }
+      ],
+      "id" : "17v28-t100-p0-2",
+      "pageIndex" : 0,
+      "pageRole" : "cover",
+      "slideCount" : 3,
+      "slots" : [
+        {
+          "aspect" : 1.6,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 1,
+            "width" : 2,
+            "x" : 1,
+            "y" : 0
+          },
+          "roleHint" : "hero",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.3623188405797102,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 0.8564814814814815,
+            "y" : 0.05555555555555555
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 2
+        },
+        {
+          "aspect" : 1.3623188405797102,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5111111111111111,
+            "width" : 0.8703703703703703,
+            "x" : 1.2731481481481481,
+            "y" : 0.43333333333333335
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 0.8421052631578947,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.562962962962963,
+            "width" : 0.5925925925925926,
+            "x" : 0.2037037037037037,
+            "y" : 0.22592592592592592
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 0
+        },
+        {
+          "aspect" : 0.75,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.5925925925925926,
+            "width" : 0.5555555555555556,
+            "x" : 2.2222222222222223,
+            "y" : 0.16666666666666666
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        }
+      ],
+      "sourceRef" : "17v28:template-100",
+      "sourceTemplate" : "template-100",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.02994686412210741,
+            "width" : 0.2308514259191204,
+            "x" : 0.3845742870404398,
+            "y" : 0.04368704571672407
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "title",
+          "rotation" : 0,
+          "size" : 3.9568093086810006
+        },
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.03874626296296296,
+            "width" : 0.17588680194694448,
+            "x" : 0.4120565990265278,
+            "y" : 0.932133424074074
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 2,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 3.9568093086810006
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0.1099965706447188,
       "family" : "7",
@@ -1581,7 +1772,7 @@
       "family" : "7",
       "id" : "17v28-t119-p0",
       "pageIndex" : 0,
-      "pageRole" : "grid",
+      "pageRole" : "statement",
       "slideCount" : 1,
       "slots" : [
         {
@@ -1596,58 +1787,6 @@
           "roleHint" : "hero",
           "rotation" : 0,
           "z" : 0
-        },
-        {
-          "aspect" : 0.6267281105990783,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.8037037037037037,
-            "width" : 0.6296296296296297,
-            "x" : 0.2916666666666667,
-            "y" : 0.06296296296296296
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 8
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.2222222222222222,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.07037037037037037
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 5
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.2222222222222222,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.34074074074074073
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 6
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.2222222222222222,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.6074074074074074
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 7
         }
       ],
       "sourceRef" : "17v28:template-119",
@@ -1884,12 +2023,119 @@
     {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
+      "coverCapable" : false,
+      "decorCoverage" : 0.03434537037037037,
+      "family" : "7",
+      "frames" : [
+        {
+          "frame" : {
+            "height" : 0.8888888888888888,
+            "width" : 0.9351851851851852,
+            "x" : 0.03240740740740744,
+            "y" : 0.12105403703703699
+          },
+          "frameAssetID" : "frame-preview-02-dark",
+          "photoWindowAspect" : 0.8333333333333334,
+          "rotation" : 0,
+          "slotFrame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.06944444444444464,
+            "y" : 0.19142440740740735
+          },
+          "z" : 131
+        }
+      ],
+      "id" : "17v28-t119-p3",
+      "pageIndex" : 3,
+      "pageRole" : "grid",
+      "slideCount" : 1,
+      "slots" : [
+        {
+          "aspect" : 0.6267281105990783,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.8037037037037037,
+            "width" : 0.6296296296296297,
+            "x" : 0.32407407407407396,
+            "y" : 0.18401699999999996
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.06944444444444464,
+            "y" : 0.19142440740740735
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 5
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.06944444444444464,
+            "y" : 0.4617947777777777
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.2222222222222222,
+            "width" : 0.23148148148148148,
+            "x" : 0.06944444444444464,
+            "y" : 0.7284614444444444
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        }
+      ],
+      "sourceRef" : "17v28:template-119",
+      "sourceTemplate" : "template-119",
+      "texts" : [
+        {
+          "alignment" : "center",
+          "colour" : "#000000",
+          "fontID" : "font-jetbrainsmono",
+          "frame" : {
+            "height" : 0.04248040571269963,
+            "width" : 0.18712499341430092,
+            "x" : 0.40643750329284956,
+            "y" : 0.07055927862513166
+          },
+          "letterSpacing" : 0,
+          "lineSpacing" : 0,
+          "numberOfLines" : 1,
+          "role" : "caption",
+          "rotation" : 0,
+          "size" : 5.6128369259361
+        }
+      ],
+      "version" : 2
+    },
+    {
+      "aspect" : "4:5",
+      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0.1103037715793369,
       "family" : "7",
       "id" : "17v28-t120-p0",
       "pageIndex" : 0,
-      "pageRole" : "strip",
+      "pageRole" : "statement",
       "slideCount" : 1,
       "slots" : [
         {
@@ -1904,19 +2150,6 @@
           "roleHint" : "hero",
           "rotation" : 0,
           "z" : 0
-        },
-        {
-          "aspect" : 0.9032258064516129,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.8037037037037037,
-            "width" : 0.9074074074074074,
-            "x" : 0.013888888888888888,
-            "y" : 0.06296296296296296
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
         }
       ],
       "sourceRef" : "17v28:template-120",
@@ -1938,126 +2171,6 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 4.90776810960099
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.008030554907407396,
-      "family" : "7",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8888888888888888,
-            "width" : 0.9351851851851852,
-            "x" : 0.7935453703703703,
-            "y" : 0.2706251481481482
-          },
-          "frameAssetID" : "frame-preview-01-dark",
-          "photoWindowAspect" : 0.9032258064516129,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.8037037037037037,
-            "width" : 0.9074074074074074,
-            "x" : -0.9861111111111112,
-            "y" : 0.06296296296296296
-          },
-          "z" : 119
-        }
-      ],
-      "id" : "17v28-t120-p1-2",
-      "pageIndex" : 1,
-      "pageRole" : "cover",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 5
-        },
-        {
-          "aspect" : 0.7941176470588235,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5037037037037037,
-            "width" : 0.5,
-            "x" : 0,
-            "y" : 0.4962962962962963
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        },
-        {
-          "aspect" : 0.7941176470588235,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5037037037037037,
-            "width" : 0.5,
-            "x" : 0.5,
-            "y" : 0.4962962962962963
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        },
-        {
-          "aspect" : 0.8059701492537313,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4962962962962963,
-            "width" : 0.5,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 0.8059701492537313,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4962962962962963,
-            "width" : 0.5,
-            "x" : 0.5,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        }
-      ],
-      "sourceRef" : "17v28:template-120",
-      "sourceTemplate" : "template-120",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.06235696328455555,
-            "width" : 0.38451359143258335,
-            "x" : 0.30774320428370827,
-            "y" : 0.4522982961355
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "title",
-          "rotation" : 0,
-          "size" : 5.531953682986201
         }
       ],
       "version" : 2
@@ -2127,231 +2240,6 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : false,
-      "decorCoverage" : 0.04502582357472066,
-      "family" : "7",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.6370370370370371,
-            "width" : 1,
-            "x" : 1.0417949074074073,
-            "y" : -0.006623274074074091
-          },
-          "frameAssetID" : "frame-photo-booth-dark",
-          "photoWindowAspect" : 1.5217391304347827,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5111111111111111,
-            "width" : 0.9722222222222222,
-            "x" : 0.013888888888888888,
-            "y" : 0.040740740740740744
-          },
-          "z" : 108
-        },
-        {
-          "frame" : {
-            "height" : 1,
-            "width" : 0.8564814814814815,
-            "x" : 1.6192405092592592,
-            "y" : 0.25850022222222224
-          },
-          "frameAssetID" : "frame-call",
-          "photoWindowAspect" : 1,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.6851851851851852,
-            "width" : 0.8564814814814815,
-            "x" : 0,
-            "y" : 0.2037037037037037
-          },
-          "z" : 109
-        },
-        {
-          "frame" : {
-            "height" : 0.8888888888888888,
-            "width" : 0.9351851851851852,
-            "x" : 0.6642683333333332,
-            "y" : 0.1534135185185185
-          },
-          "frameAssetID" : "frame-preview-01-dark",
-          "photoWindowAspect" : 0.9032258064516129,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.8037037037037037,
-            "width" : 0.9074074074074074,
-            "x" : 0.013888888888888888,
-            "y" : 0.06296296296296296
-          },
-          "z" : 110
-        }
-      ],
-      "id" : "17v28-t121-p0-2",
-      "pageIndex" : 0,
-      "pageRole" : "cover",
-      "slideCount" : 3,
-      "slots" : [
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 0
-        },
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 2,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 0.9032258064516129,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.8037037037037037,
-            "width" : 0.9074074074074074,
-            "x" : 0.013888888888888888,
-            "y" : 0.06296296296296296
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        },
-        {
-          "aspect" : 1,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.6851851851851852,
-            "width" : 0.8564814814814815,
-            "x" : 0,
-            "y" : 0.2037037037037037
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        },
-        {
-          "aspect" : 0.6267281105990783,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.8037037037037037,
-            "width" : 0.6296296296296297,
-            "x" : 0.2916666666666667,
-            "y" : 0.06296296296296296
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 17
-        },
-        {
-          "aspect" : 1.5217391304347827,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5111111111111111,
-            "width" : 0.9722222222222222,
-            "x" : 0.013888888888888888,
-            "y" : 0.040740740740740744
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.2222222222222222,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.07037037037037037
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.2222222222222222,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.34074074074074073
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 15
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.2222222222222222,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.6074074074074074
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 16
-        }
-      ],
-      "sourceRef" : "17v28:template-121",
-      "sourceTemplate" : "template-121",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.07918403759095,
-            "width" : 0.20078256103172498,
-            "x" : 0.3996087194841375,
-            "y" : 0.41211746268600646
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "title",
-          "rotation" : 0,
-          "size" : 8.551876059822598
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#000000",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.038869515029395556,
-            "width" : 0.20723415947628332,
-            "x" : 0.30094185544704355,
-            "y" : 0.48820109433715414
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.61348150648012
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "5",
       "frames" : [
@@ -2386,8 +2274,8 @@
           "slotFrame" : {
             "height" : 0.5333333333333333,
             "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
+            "x" : 0.7986325925925926,
+            "y" : -0.02148148148148147
           },
           "z" : 101
         },
@@ -2404,8 +2292,8 @@
           "slotFrame" : {
             "height" : 0.5333333333333333,
             "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
+            "x" : 0.7986325925925926,
+            "y" : 0.47851851851851845
           },
           "z" : 102
         },
@@ -2422,7 +2310,7 @@
           "slotFrame" : {
             "height" : 0.9481481481481482,
             "width" : 0.8055555555555556,
-            "x" : 0.013888888888888888,
+            "x" : 1.7632621296296296,
             "y" : 0.044444444444444446
           },
           "z" : 103
@@ -2440,7 +2328,7 @@
           "slotFrame" : {
             "height" : 0.9629629629629629,
             "width" : 0.8055555555555556,
-            "x" : 0.018518518518518517,
+            "x" : 2.6058546296296297,
             "y" : 0.018518518518518517
           },
           "z" : 104
@@ -2458,8 +2346,8 @@
           "slotFrame" : {
             "height" : 0.5333333333333333,
             "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
+            "x" : 3.3945583333333333,
+            "y" : -0.02148148148148147
           },
           "z" : 105
         },
@@ -2476,8 +2364,8 @@
           "slotFrame" : {
             "height" : 0.5333333333333333,
             "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
+            "x" : 3.3945583333333333,
+            "y" : 0.47259259259259256
           },
           "z" : 106
         },
@@ -2494,7 +2382,7 @@
           "slotFrame" : {
             "height" : 0.9629629629629629,
             "width" : 0.8055555555555556,
-            "x" : 0.018518518518518517,
+            "x" : 4.363817592592592,
             "y" : 0.018518518518518517
           },
           "z" : 107
@@ -2512,7 +2400,7 @@
           "slotFrame" : {
             "height" : 0.9629629629629629,
             "width" : 0.8055555555555556,
-            "x" : 0.018518518518518517,
+            "x" : 5.187894907407407,
             "y" : 0.018518518518518517
           },
           "z" : 108
@@ -2520,7 +2408,7 @@
       ],
       "id" : "17v28-t126-p0-5",
       "pageIndex" : 0,
-      "pageRole" : "strip",
+      "pageRole" : "grid",
       "slideCount" : 6,
       "slots" : [
         {
@@ -2537,13 +2425,78 @@
           "z" : 0
         },
         {
-          "aspect" : 0.6796875,
+          "aspect" : 0.6692307692307692,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.9629629629629629,
+            "width" : 0.8055555555555556,
+            "x" : 2.6058546296296297,
+            "y" : 0.018518518518518517
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 4
+        },
+        {
+          "aspect" : 0.6692307692307692,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.9629629629629629,
+            "width" : 0.8055555555555556,
+            "x" : 4.363817592592592,
+            "y" : 0.018518518518518517
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 7
+        },
+        {
+          "aspect" : 0.6692307692307692,
           "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.9629629629629629,
+            "width" : 0.8055555555555556,
+            "x" : 5.187894907407407,
+            "y" : 0.018518518518518517
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 8
+        },
+        {
+          "aspect" : 0.6796875,
+          "crossesSeam" : true,
           "frame" : {
             "height" : 0.9481481481481482,
             "width" : 0.8055555555555556,
-            "x" : 0.013888888888888888,
+            "x" : 1.7632621296296296,
             "y" : 0.044444444444444446
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 3
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.7986325925925926,
+            "y" : -0.02148148148148147
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 1
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 0.7986325925925926,
+            "y" : 0.47851851851851845
           },
           "roleHint" : "support",
           "rotation" : 0,
@@ -2551,16 +2504,29 @@
         },
         {
           "aspect" : 1.4722222222222223,
-          "crossesSeam" : false,
+          "crossesSeam" : true,
           "frame" : {
             "height" : 0.5333333333333333,
             "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
+            "x" : 3.3945583333333333,
+            "y" : -0.02148148148148147
           },
           "roleHint" : "support",
           "rotation" : 0,
-          "z" : 1
+          "z" : 5
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5333333333333333,
+            "width" : 0.9814814814814815,
+            "x" : 3.3945583333333333,
+            "y" : 0.47259259259259256
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 6
         }
       ],
       "sourceRef" : "17v28:template-126",
@@ -3192,33 +3158,13 @@
     {
       "aspect" : "4:5",
       "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.11157689346250564,
+      "coverCapable" : true,
+      "decorCoverage" : 0.0645066872427983,
       "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8,
-            "width" : 1.2685185185185186,
-            "x" : 1.646956111111111,
-            "y" : 0.05215833333333335
-          },
-          "frameAssetID" : "frame-polaroid-05",
-          "photoWindowAspect" : 1.5609756097560976,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.6074074074074074,
-            "width" : 1.1851851851851851,
-            "x" : 0.046296296296296294,
-            "y" : 0.05555555555555555
-          },
-          "z" : 111
-        }
-      ],
-      "id" : "17v28-t146-p0-2",
+      "id" : "17v28-t146-p0",
       "pageIndex" : 0,
-      "pageRole" : "grid",
-      "slideCount" : 3,
+      "pageRole" : "statement",
+      "slideCount" : 1,
       "slots" : [
         {
           "aspect" : 0.8,
@@ -3232,45 +3178,6 @@
           "roleHint" : "hero",
           "rotation" : 0,
           "z" : 0
-        },
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 2,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 1.5609756097560976,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 0.6074074074074074,
-            "width" : 1.1851851851851851,
-            "x" : 0.046296296296296294,
-            "y" : 0.05555555555555555
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
         }
       ],
       "sourceRef" : "17v28:template-146",
@@ -3288,45 +3195,6 @@
       "pageRole" : "cover",
       "slideCount" : 1,
       "slots" : [
-        {
-          "aspect" : 1.4722222222222223,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5333333333333333,
-            "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 34
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.43703703703703706,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.007407407407407408
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 35
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.43703703703703706,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.45555555555555555
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 36
-        },
         {
           "aspect" : 1.2,
           "crossesSeam" : false,
@@ -3404,45 +3272,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 5
-        },
-        {
-          "aspect" : 0.7954545454545454,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.32592592592592595,
-            "width" : 0.32407407407407407,
-            "x" : 0.004629629629629629,
-            "y" : 0.007407407407407408
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 31
-        },
-        {
-          "aspect" : 0.7954545454545454,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.32592592592592595,
-            "width" : 0.32407407407407407,
-            "x" : 0.004629629629629629,
-            "y" : 0.337037037037037
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 32
-        },
-        {
-          "aspect" : 0.7954545454545454,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.32592592592592595,
-            "width" : 0.32407407407407407,
-            "x" : 0.004629629629629629,
-            "y" : 0.6666666666666666
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 33
         }
       ],
       "sourceRef" : "17v28:template-147",
@@ -3875,7 +3704,7 @@
           "slotFrame" : {
             "height" : 0.32592592592592595,
             "width" : 0.32407407407407407,
-            "x" : -1.9953703703703705,
+            "x" : 0.943974814814815,
             "y" : 0.007407407407407408
           },
           "z" : 131
@@ -3924,6 +3753,45 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 8
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.9439748148148146,
+            "y" : 0.007407407407407408
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 31
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.9439748148148146,
+            "y" : 0.337037037037037
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 32
+        },
+        {
+          "aspect" : 0.7954545454545454,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.32592592592592595,
+            "width" : 0.32407407407407407,
+            "x" : 0.9439748148148146,
+            "y" : 0.6666666666666666
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 33
         }
       ],
       "sourceRef" : "17v28:template-147",
@@ -3962,143 +3830,6 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 5.75999968
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "3",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.5370370370370371,
-            "width" : 1,
-            "x" : 0.31944444444444464,
-            "y" : -0.06296294814814817
-          },
-          "frameAssetID" : "frame-film-border-05",
-          "photoWindowAspect" : 1.4722222222222223,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5333333333333333,
-            "width" : 0.9814814814814815,
-            "x" : -3.990740740740741,
-            "y" : 0
-          },
-          "z" : 132
-        }
-      ],
-      "id" : "17v28-t147-p4-5",
-      "pageIndex" : 4,
-      "pageRole" : "grid",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 11
-        },
-        {
-          "aspect" : 0.7941176470588235,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5037037037037037,
-            "width" : 0.5,
-            "x" : 1,
-            "y" : 0.4962962962962963
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
-        },
-        {
-          "aspect" : 0.7941176470588235,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5037037037037037,
-            "width" : 0.5,
-            "x" : 1.5,
-            "y" : 0.4962962962962963
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 15
-        },
-        {
-          "aspect" : 0.8059701492537313,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4962962962962963,
-            "width" : 0.5,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 12
-        },
-        {
-          "aspect" : 0.8059701492537313,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4962962962962963,
-            "width" : 0.5,
-            "x" : 1.5,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 13
-        }
-      ],
-      "sourceRef" : "17v28:template-147",
-      "sourceTemplate" : "template-147",
-      "texts" : [
-        {
-          "alignment" : "left",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.049999997222222224,
-            "width" : 0.2653645685908565,
-            "x" : 0.18810012311197877,
-            "y" : 0.2807975791666667
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.75999968
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.050666663851851854,
-            "width" : 0.05333333037037037,
-            "x" : 1.5808203718518525,
-            "y" : 0.44644172362962964
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "accent",
-          "rotation" : 0,
-          "size" : 11.51999936
         }
       ],
       "version" : 2
@@ -4238,361 +3969,6 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 5.75999968
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "3",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.9111111111111111,
-            "width" : 0.4537037037037037,
-            "x" : 0.6345448148148147,
-            "y" : 0.29140114814814816
-          },
-          "frameAssetID" : "frame-photo-booth-03",
-          "photoWindowAspect" : 0.7966101694915254,
-          "rotation" : 4.77,
-          "slotFrame" : {
-            "height" : 0.43703703703703706,
-            "width" : 0.4351851851851852,
-            "x" : -7.9907407407407405,
-            "y" : 0.007407407407407408
-          },
-          "z" : 133
-        }
-      ],
-      "id" : "17v28-t147-p8-9",
-      "pageIndex" : 8,
-      "pageRole" : "strip",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.8444444444444444,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 1,
-            "width" : 1.0555555555555556,
-            "x" : 0.9444444444444446,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 21
-        },
-        {
-          "aspect" : 0.7555555555555555,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 0.9444444444444444,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 20
-        }
-      ],
-      "sourceRef" : "17v28:template-147",
-      "sourceTemplate" : "template-147",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.06777777325925925,
-            "width" : 0.36302080913194446,
-            "x" : 1.5507895954340274,
-            "y" : 0.21447255781481483
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 9.59999936
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.07555555177777777,
-            "width" : 0.3276080206566352,
-            "x" : 1.5715533970790911,
-            "y" : 0.2734786907777778
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 3,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.77659851117006
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.10587790672962942,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.7037037037037037,
-            "width" : 1.25,
-            "x" : 0.8743757870370369,
-            "y" : 0.34203399999999995
-          },
-          "frameAssetID" : "frame-paper-frame-13",
-          "photoWindowAspect" : 1.3978494623655915,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.6888888888888889,
-            "width" : 1.2037037037037037,
-            "x" : 0.032407407407407406,
-            "y" : 0.007407407407407408
-          },
-          "z" : 119
-        },
-        {
-          "frame" : {
-            "height" : 0.8,
-            "width" : 0.6388888888888888,
-            "x" : 1.2058496759259258,
-            "y" : -0.04915933333333334
-          },
-          "frameAssetID" : "frame-polaroid-02",
-          "photoWindowAspect" : 0.75,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5925925925925926,
-            "width" : 0.5555555555555556,
-            "x" : 0.041666666666666664,
-            "y" : 0.06666666666666667
-          },
-          "z" : 120
-        }
-      ],
-      "id" : "17v28-t158-p0-2",
-      "pageIndex" : 0,
-      "pageRole" : "cover",
-      "slideCount" : 3,
-      "slots" : [
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 0
-        },
-        {
-          "aspect" : 0.7142857142857143,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.9851851851851852,
-            "width" : 0.8796296296296297,
-            "x" : 0.009259259259259259,
-            "y" : 0.007407407407407408
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
-        },
-        {
-          "aspect" : 1.3978494623655915,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 0.6888888888888889,
-            "width" : 1.2037037037037037,
-            "x" : 0.032407407407407406,
-            "y" : 0.007407407407407408
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 12
-        },
-        {
-          "aspect" : 1.3333333333333333,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.6,
-            "width" : 1,
-            "x" : 2,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5925925925925926,
-            "width" : 0.5555555555555556,
-            "x" : 0.041666666666666664,
-            "y" : 0.06666666666666667
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 13
-        }
-      ],
-      "sourceRef" : "17v28:template-158",
-      "sourceTemplate" : "template-158",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-instrumentserif",
-          "frame" : {
-            "height" : 0.19538193111111113,
-            "width" : 0.23148106885925926,
-            "x" : 0.10561541464444445,
-            "y" : 0.4819355159259259
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "title",
-          "rotation" : 0,
-          "size" : 40.1928544
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-instrumentserif",
-          "frame" : {
-            "height" : 0.19227083555555555,
-            "width" : 0.361286055762963,
-            "x" : 0.5239987313777777,
-            "y" : 0.4850465822222222
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 39.5528576
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.02871680211111111,
-            "width" : 0.07412179391059028,
-            "x" : 0.7662128993410012,
-            "y" : 0.35891676190740746
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.36187616
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#333333",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.028763726333333333,
-            "width" : 0.10495418172309028,
-            "x" : 1.039458557286603,
-            "y" : 0.02129552387037037
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.37227168
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#333333",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.028763726333333333,
-            "width" : 0.1083537407248264,
-            "x" : 1.445823129637587,
-            "y" : 0.02129552387037037
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.37227168
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#333333",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.028763726333333333,
-            "width" : 0.14799605586371528,
-            "x" : 1.809675027623698,
-            "y" : 0.02129552387037037
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.37227168
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#333333",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.057527452666666666,
-            "width" : 0.08758185902777778,
-            "x" : 1.456209070486111,
-            "y" : 0.9261628292222223
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.37227168
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.028763726333333333,
-            "width" : 0.19786585782986113,
-            "x" : 2.259689154418403,
-            "y" : 0.5210919516481483
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.37227168
         }
       ],
       "version" : 2
@@ -5121,156 +4497,6 @@
       "version" : 2
     },
     {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.007939814166666668,
-      "family" : "3",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8,
-            "width" : 1.287037037037037,
-            "x" : 0.8564814814814818,
-            "y" : 0.31963270370370367
-          },
-          "frameAssetID" : "frame-polaroid-06",
-          "photoWindowAspect" : 1.5731707317073171,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.6074074074074074,
-            "width" : 1.1944444444444444,
-            "x" : -4.953703703703703,
-            "y" : 0.05185185185185185
-          },
-          "z" : 131
-        }
-      ],
-      "id" : "17v28-t163-p5-6",
-      "pageIndex" : 5,
-      "pageRole" : "grid",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 1.588235294117647,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5037037037037037,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0.4962962962962963
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 15
-        },
-        {
-          "aspect" : 1.6119402985074627,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4962962962962963,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
-        },
-        {
-          "aspect" : 1,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.34074074074074073,
-            "width" : 0.42592592592592593,
-            "x" : 0.06018518518518512,
-            "y" : 0.12222222222222222
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 10
-        },
-        {
-          "aspect" : 1,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.34074074074074073,
-            "width" : 0.42592592592592593,
-            "x" : 0.5231481481481479,
-            "y" : 0.12222222222222222
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 11
-        },
-        {
-          "aspect" : 1,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.34074074074074073,
-            "width" : 0.42592592592592593,
-            "x" : 0.06018518518518512,
-            "y" : 0.5481481481481482
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 12
-        },
-        {
-          "aspect" : 1,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.34074074074074073,
-            "width" : 0.42592592592592593,
-            "x" : 0.5231481481481479,
-            "y" : 0.5481481481481482
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 13
-        }
-      ],
-      "sourceRef" : "17v28:template-163",
-      "sourceTemplate" : "template-163",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#5C5C5C",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.02761786877777778,
-            "width" : 0.1921826399764324,
-            "x" : 0.3563989577895619,
-            "y" : 0.48619106561111114
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.11842016
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.029636263703703702,
-            "width" : 0.6253768423829814,
-            "x" : 1.1873115788085098,
-            "y" : 0.8930402755555555
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.30508499251904
-        }
-      ],
-      "version" : 2
-    },
-    {
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : true,
@@ -5293,19 +4519,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 10
-        },
-        {
-          "aspect" : 0.9801980198019802,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.7013888888888888,
-            "width" : 0.9166666666666666,
-            "x" : 0.05555555555555555,
-            "y" : 0.052083333333333336
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 11
         }
       ],
       "sourceRef" : "17v28:template-180",
@@ -6340,32 +5553,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 13
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.006944444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 21
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.4270833333333333
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 22
         }
       ],
       "sourceRef" : "17v28:template-192",
@@ -6404,104 +5591,6 @@
           "role" : "title",
           "rotation" : 0,
           "size" : 19.80548667907715
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "9",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8541666666666666,
-            "width" : 0.4537037037037037,
-            "x" : 0.735234295880353,
-            "y" : 0.3296334478590224
-          },
-          "frameAssetID" : "frame-photo-booth-03",
-          "photoWindowAspect" : 0.7966101694915254,
-          "rotation" : 1,
-          "slotFrame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : -0.9907407407407407,
-            "y" : 0.006944444444444444
-          },
-          "z" : 133
-        }
-      ],
-      "id" : "17v28-t192-p1-2",
-      "pageIndex" : 1,
-      "pageRole" : "strip",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 14
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 15
-        }
-      ],
-      "sourceRef" : "17v28:template-192",
-      "sourceTemplate" : "template-192",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.05387456528842449,
-            "width" : 0.21826105937361717,
-            "x" : 0.5644519005522683,
-            "y" : 0.8355493447225955
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.365487098693848
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.026937282644212246,
-            "width" : 0.21089359745383263,
-            "x" : 1.4688236616137953,
-            "y" : 0.1543765548720128
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.365487098693848
         }
       ],
       "version" : 2
@@ -6778,15 +5867,15 @@
           "slotFrame" : {
             "height" : 0.4097222222222222,
             "width" : 0.4351851851851852,
-            "x" : -3.990740740740741,
-            "y" : 0.006944444444444444
+            "x" : 0.7438139738859952,
+            "y" : 0.08752303653293186
           },
           "z" : 134
         }
       ],
       "id" : "17v28-t192-p4-5",
       "pageIndex" : 4,
-      "pageRole" : "strip",
+      "pageRole" : "grid",
       "slideCount" : 2,
       "slots" : [
         {
@@ -6814,6 +5903,32 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 17
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 0.7438139738859952,
+            "y" : 0.08752303653293186
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 23
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 0.7438139738859952,
+            "y" : 0.5076619254218208
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 24
         }
       ],
       "sourceRef" : "17v28:template-192",
@@ -7112,7 +6227,7 @@
       "family" : "7",
       "id" : "17v28-t194-p0",
       "pageIndex" : 0,
-      "pageRole" : "grid",
+      "pageRole" : "strip",
       "slideCount" : 1,
       "slots" : [
         {
@@ -7140,32 +6255,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 1
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.006944444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 18
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.4270833333333333
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 19
         }
       ],
       "sourceRef" : "17v28:template-194",
@@ -8614,29 +7703,16 @@
             "height" : 0.4791666666666667,
             "width" : 0.9722222222222222,
             "x" : 0.013888888888888888,
-            "y" : 0.03819444444444445
+            "y" : 0.1326342953575982
           },
           "z" : 108
         }
       ],
       "id" : "17v28-t196-p0",
       "pageIndex" : 0,
-      "pageRole" : "grid",
+      "pageRole" : "strip",
       "slideCount" : 1,
       "slots" : [
-        {
-          "aspect" : 1,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.6423611111111112,
-            "width" : 0.8564814814814815,
-            "x" : 0,
-            "y" : 0.1909722222222222
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 16
-        },
         {
           "aspect" : 1.5,
           "crossesSeam" : false,
@@ -8664,69 +7740,17 @@
           "z" : 1
         },
         {
-          "aspect" : 0.6267281105990783,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.7534722222222222,
-            "width" : 0.6296296296296297,
-            "x" : 0.2916666666666667,
-            "y" : 0.059027777777777776
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 15
-        },
-        {
           "aspect" : 1.5217391304347827,
           "crossesSeam" : false,
           "frame" : {
             "height" : 0.4791666666666667,
             "width" : 0.9722222222222222,
             "x" : 0.013888888888888888,
-            "y" : 0.03819444444444445
+            "y" : 0.1326342953575982
           },
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 11
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.20833333333333334,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.06597222222222222
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 12
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.20833333333333334,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.3194444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 13
-        },
-        {
-          "aspect" : 0.8333333333333334,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.20833333333333334,
-            "width" : 0.23148148148148148,
-            "x" : 0.037037037037037035,
-            "y" : 0.5694444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
         }
       ],
       "sourceRef" : "17v28:template-196",
@@ -8871,15 +7895,15 @@
           "slotFrame" : {
             "height" : 0.20833333333333334,
             "width" : 0.23148148148148148,
-            "x" : -2.962962962962963,
-            "y" : 0.06597222222222222
+            "x" : 0.05114293981481488,
+            "y" : 0.14930555555555555
           },
           "z" : 117
         }
       ],
       "id" : "17v28-t196-p3",
       "pageIndex" : 3,
-      "pageRole" : "statement",
+      "pageRole" : "grid",
       "slideCount" : 1,
       "slots" : [
         {
@@ -8894,6 +7918,58 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 5
+        },
+        {
+          "aspect" : 0.6267281105990783,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.7534722222222222,
+            "width" : 0.6296296296296297,
+            "x" : 0.30577256944444464,
+            "y" : 0.1423611111111111
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 15
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.20833333333333334,
+            "width" : 0.23148148148148148,
+            "x" : 0.05114293981481488,
+            "y" : 0.14930555555555555
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 12
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.20833333333333334,
+            "width" : 0.23148148148148148,
+            "x" : 0.05114293981481488,
+            "y" : 0.4027777777777778
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 13
+        },
+        {
+          "aspect" : 0.8333333333333334,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.20833333333333334,
+            "width" : 0.23148148148148148,
+            "x" : 0.05114293981481488,
+            "y" : 0.6527777777777778
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 14
         }
       ],
       "sourceRef" : "17v28:template-196",
@@ -8939,15 +8015,15 @@
           "slotFrame" : {
             "height" : 0.6423611111111112,
             "width" : 0.8564814814814815,
-            "x" : -5,
-            "y" : 0.1909722222222222
+            "x" : 0.07175925925925952,
+            "y" : 0.2222222222222222
           },
           "z" : 120
         }
       ],
       "id" : "17v28-t196-p5",
       "pageIndex" : 5,
-      "pageRole" : "statement",
+      "pageRole" : "grid",
       "slideCount" : 1,
       "slots" : [
         {
@@ -8962,6 +8038,19 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 7
+        },
+        {
+          "aspect" : 1,
+          "crossesSeam" : false,
+          "frame" : {
+            "height" : 0.6423611111111112,
+            "width" : 0.8564814814814815,
+            "x" : 0.07175925925925952,
+            "y" : 0.2222222222222222
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
         }
       ],
       "sourceRef" : "17v28:template-196",
@@ -9889,274 +8978,6 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 7.679999828338623
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 0.8379629629629629,
-            "x" : 0.995747884114583,
-            "y" : 0.23225164413452148
-          },
-          "frameAssetID" : "frame-film-border-01",
-          "photoWindowAspect" : 0.6742424242424242,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9166666666666666,
-            "width" : 0.8240740740740741,
-            "x" : -5.9907407407407405,
-            "y" : 0.013888888888888888
-          },
-          "z" : 122
-        },
-        {
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 1.2345468026620372,
-            "y" : -0.14006233877605861
-          },
-          "frameAssetID" : "frame-film-border-05",
-          "photoWindowAspect" : 1.4722222222222223,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0
-          },
-          "z" : 123
-        },
-        {
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 1.2345468026620372,
-            "y" : -0.14006233877605861
-          },
-          "frameAssetID" : "frame-film-border-05",
-          "photoWindowAspect" : 1.4722222222222223,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0
-          },
-          "z" : 124
-        },
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 0.7182481553819446,
-            "y" : -0.2377182642618815
-          },
-          "frameAssetID" : "frame-film-border-09",
-          "photoWindowAspect" : 0.803030303030303,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9166666666666666,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0.006944444444444444
-          },
-          "z" : 125
-        },
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 1.226066871925637,
-            "y" : 0.028829945458306208
-          },
-          "frameAssetID" : "frame-film-border-09",
-          "photoWindowAspect" : 0.803030303030303,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9166666666666666,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0.006944444444444444
-          },
-          "z" : 126
-        },
-        {
-          "frame" : {
-            "height" : 0.5034722222222222,
-            "width" : 1,
-            "x" : 1.053192138671875,
-            "y" : 0.052553786171807185
-          },
-          "frameAssetID" : "frame-film-border-05",
-          "photoWindowAspect" : 1.4722222222222223,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0
-          },
-          "z" : 127
-        },
-        {
-          "frame" : {
-            "height" : 0.5034722222222222,
-            "width" : 1,
-            "x" : 1.2362580475983798,
-            "y" : 0.6003011597527398
-          },
-          "frameAssetID" : "frame-film-border-05",
-          "photoWindowAspect" : 1.4722222222222223,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0
-          },
-          "z" : 128
-        },
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 0.6478898790147571,
-            "y" : 0.3284102545844184
-          },
-          "frameAssetID" : "frame-film-border-09",
-          "photoWindowAspect" : 0.803030303030303,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9166666666666666,
-            "width" : 0.9814814814814815,
-            "x" : -5.99537037037037,
-            "y" : 0.006944444444444444
-          },
-          "z" : 129
-        },
-        {
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 0.8186713324652777,
-            "y" : 0.24395937389797634
-          },
-          "frameAssetID" : "frame-film-border-05",
-          "photoWindowAspect" : 1.4722222222222223,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5,
-            "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0
-          },
-          "z" : 130
-        }
-      ],
-      "id" : "17v28-t212-p6-7",
-      "pageIndex" : 6,
-      "pageRole" : "grid",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 12
-        },
-        {
-          "aspect" : 2.4999999006589295,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 9
-        },
-        {
-          "aspect" : 2.4999999006589295,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0.30000001192092896
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 10
-        },
-        {
-          "aspect" : 2.4999999006589295,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0.6000000238418579
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 11
-        }
-      ],
-      "sourceRef" : "17v28:template-212",
-      "sourceTemplate" : "template-212",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FDFBDC",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.03300156801318129,
-            "width" : 0.1455453768786457,
-            "x" : 0.18283350369030682,
-            "y" : 0.48349921599340934
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 7.798524379730225
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FDFBDC",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.03300156801318129,
-            "width" : 0.18390617388542052,
-            "x" : 0.596564165661456,
-            "y" : 0.48349921599340934
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 7.798524379730225
         }
       ],
       "version" : 2
@@ -11185,432 +10006,6 @@
     {
       "aspect" : "3:4",
       "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.029021404202571374,
-      "family" : "1",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.75,
-            "width" : 1.287037037037037,
-            "x" : 0.8564814814814815,
-            "y" : 0.39551803800794816
-          },
-          "frameAssetID" : "frame-polaroid-06",
-          "photoWindowAspect" : 1.5731707317073171,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.5694444444444444,
-            "width" : 1.1944444444444444,
-            "x" : 0.046296296296296294,
-            "y" : 0.04861111111111111
-          },
-          "z" : 107
-        },
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 2.7432081434461804,
-            "y" : -0.25234047571818036
-          },
-          "frameAssetID" : "frame-film-border-21",
-          "photoWindowAspect" : 0.8,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "z" : 108
-        },
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 3.113167656792535,
-            "y" : -0.08365037706163195
-          },
-          "frameAssetID" : "frame-film-border-21",
-          "photoWindowAspect" : 0.8,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "z" : 109
-        },
-        {
-          "frame" : {
-            "height" : 0.6736111111111112,
-            "width" : 1.25,
-            "x" : 4.875,
-            "y" : -0.10466358396742079
-          },
-          "frameAssetID" : "frame-paper-frame-15",
-          "photoWindowAspect" : 1.4,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.6597222222222222,
-            "width" : 1.2314814814814814,
-            "x" : 0.009259259259259259,
-            "y" : 0.010416666666666666
-          },
-          "z" : 110
-        }
-      ],
-      "id" : "17v28-t222-p0-6",
-      "pageIndex" : 0,
-      "pageRole" : "cover",
-      "slideCount" : 7,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 0
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 2,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 4,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 6,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 6
-        },
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 8
-        },
-        {
-          "aspect" : 1.4,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 0.6597222222222222,
-            "width" : 1.2314814814814814,
-            "x" : 0.009259259259259259,
-            "y" : 0.010416666666666666
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 9
-        },
-        {
-          "aspect" : 1.5731707317073171,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 0.5694444444444444,
-            "width" : 1.1944444444444444,
-            "x" : 0.046296296296296294,
-            "y" : 0.04861111111111111
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 7
-        },
-        {
-          "aspect" : 1.3999999406602672,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.535714308420817,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 1.3999999406602672,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.535714308420817,
-            "width" : 1,
-            "x" : 5,
-            "y" : 0.4642857180701362
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 5
-        },
-        {
-          "aspect" : 1.3999999868133923,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4017857180701362,
-            "width" : 0.75,
-            "x" : 3.125,
-            "y" : 0.5312500132454766
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        }
-      ],
-      "sourceRef" : "17v28:template-222",
-      "sourceTemplate" : "template-222",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-delagothicone",
-          "frame" : {
-            "height" : 0.06594862116293775,
-            "width" : 0.22263506151459836,
-            "x" : 0.24475266984491437,
-            "y" : 0.6298608105733163
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "title",
-          "rotation" : 0,
-          "size" : 12.93154239654541
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-delagothicone",
-          "frame" : {
-            "height" : 0.06594862116293775,
-            "width" : 0.351725979535668,
-            "x" : 0.1880594825855008,
-            "y" : 0.6701287019273473
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 12.93154239654541
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-delagothicone",
-          "frame" : {
-            "height" : 0.06594862116293775,
-            "width" : 0.1908300527267986,
-            "x" : 0.22512275270289844,
-            "y" : 0.7095079277642071
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 12.93154239654541
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.054943276569247246,
-            "width" : 0.25116926431655884,
-            "x" : 1.3124266785603982,
-            "y" : 0.09983997554000881
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 8.288585722446442
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.023503850524624188,
-            "width" : 0.2910000541143947,
-            "x" : 1.0823063468215641,
-            "y" : 0.4171240773672859
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.04532885458320379,
-            "width" : 0.2507077389293247,
-            "x" : 2.271868861383862,
-            "y" : 0.2821013004932966
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.04532885458320379,
-            "width" : 0.26637697261240745,
-            "x" : 2.1812530533169157,
-            "y" : 0.6368303436061574
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.023503850524624188,
-            "width" : 0.14102310314774513,
-            "x" : 2.444547177809808,
-            "y" : 0.7215854770814379
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.04532885458320379,
-            "width" : 0.13878464119301903,
-            "x" : 2.694129227074208,
-            "y" : 0.7042719130404294
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.04532885458320379,
-            "width" : 0.17203694981051537,
-            "x" : 5.4139815250947425,
-            "y" : 0.08141715043327874
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.037828853353857994,
-            "width" : 0.2521923556923866,
-            "x" : 4.561719170461099,
-            "y" : 0.17138326964858505
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 4.438585460186005
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.09065770916640759,
-            "width" : 0.3536769888467259,
-            "x" : 6.323161505576637,
-            "y" : 0.4286452143763502
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 4,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.318585604429245
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
       "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "5",
@@ -12621,32 +11016,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 1
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.006944444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 21
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.4270833333333333
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 22
         }
       ],
       "sourceRef" : "17v28:template-225",
@@ -12685,104 +11054,6 @@
           "role" : "title",
           "rotation" : 0,
           "size" : 19.80548667907715
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.046221676280846474,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8541666666666666,
-            "width" : 0.4537037037037037,
-            "x" : 0.7614299632884838,
-            "y" : 0.26139873928493923
-          },
-          "frameAssetID" : "frame-photo-booth-03",
-          "photoWindowAspect" : 0.7966101694915254,
-          "rotation" : 1,
-          "slotFrame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : -0.9907407407407407,
-            "y" : 0.006944444444444444
-          },
-          "z" : 130
-        }
-      ],
-      "id" : "17v28-t225-p1-2",
-      "pageIndex" : 1,
-      "pageRole" : "strip",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        }
-      ],
-      "sourceRef" : "17v28:template-225",
-      "sourceTemplate" : "template-225",
-      "texts" : [
-        {
-          "alignment" : "left",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.06102599995210767,
-            "width" : 0.19194502549038994,
-            "x" : 0.5797358341515064,
-            "y" : 0.8636367802973837
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 3,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 4.806971073150635
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.018532307508091133,
-            "width" : 0.14509054425138015,
-            "x" : 1.5730925226515091,
-            "y" : 0.16065435696186292
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 4.379326820373535
         }
       ],
       "version" : 2
@@ -13011,15 +11282,15 @@
           "slotFrame" : {
             "height" : 0.4097222222222222,
             "width" : 0.4351851851851852,
-            "x" : -3.990740740740741,
-            "y" : 0.006944444444444444
+            "x" : 0.8024557608145253,
+            "y" : 0.09331009123060438
           },
           "z" : 132
         }
       ],
       "id" : "17v28-t225-p4-5",
       "pageIndex" : 4,
-      "pageRole" : "strip",
+      "pageRole" : "grid",
       "slideCount" : 2,
       "slots" : [
         {
@@ -13047,6 +11318,32 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 7
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 0.8024557608145253,
+            "y" : 0.09331009123060438
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 23
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 0.8024557608145253,
+            "y" : 0.5134489801194932
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 24
         }
       ],
       "sourceRef" : "17v28:template-225",
@@ -13692,181 +11989,6 @@
       "aspect" : "3:4",
       "background" : "#FFFFFF",
       "coverCapable" : false,
-      "decorCoverage" : 0.009569829823180958,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8541666666666666,
-            "width" : 0.4537037037037037,
-            "x" : 0.8536902533637152,
-            "y" : 0.2508144908481174
-          },
-          "frameAssetID" : "frame-photo-booth-03",
-          "photoWindowAspect" : 0.7966101694915254,
-          "rotation" : 3.838202714920044,
-          "slotFrame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : -0.9907407407407407,
-            "y" : 0.006944444444444444
-          },
-          "z" : 123
-        }
-      ],
-      "id" : "17v28-t228-p1-2",
-      "pageIndex" : 1,
-      "pageRole" : "grid",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 1.5,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 1.5,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 1.5,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        },
-        {
-          "aspect" : 1.5,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        }
-      ],
-      "sourceRef" : "17v28:template-228",
-      "sourceTemplate" : "template-228",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#F8D2DF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.08245811549325784,
-            "width" : 0.31291797674364513,
-            "x" : 0.3435410116281774,
-            "y" : 0.4547916302043531
-          },
-          "letterSpacing" : -1.8150082,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 19.48548698425293
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-pinyonscript",
-          "frame" : {
-            "height" : 0.08596131371127234,
-            "width" : 0.1719226274225447,
-            "x" : 0.5340614953526743,
-            "y" : 0.485174722969532
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 19.80548667907715
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.10788298853569561,
-            "width" : 0.24101518715421358,
-            "x" : 0.3737042391051848,
-            "y" : 0.6234835723621978
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 5,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.288561820983887
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#F8D2DF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.08245811549325784,
-            "width" : 0.2114310653673278,
-            "x" : 1.6196262641913362,
-            "y" : 0.45877094225337106
-          },
-          "letterSpacing" : -1.8150082,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 19.48548698425293
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.05617921602808767,
-            "width" : 0.18162955978402384,
-            "x" : 1.5595111365395562,
-            "y" : 0.6177400165858368
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 3,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 4.5818376541137695
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
       "decorCoverage" : 0,
       "family" : "5",
       "id" : "17v28-t228-p10",
@@ -14339,8 +12461,8 @@
           "slotFrame" : {
             "height" : 0.4097222222222222,
             "width" : 0.42592592592592593,
-            "x" : -5.99537037037037,
-            "y" : 0.006944444444444444
+            "x" : 0.9393773961950229,
+            "y" : 0.20190254847208658
           },
           "z" : 138
         },
@@ -14357,8 +12479,8 @@
           "slotFrame" : {
             "height" : 0.5,
             "width" : 0.9814814814814815,
-            "x" : -5.9907407407407405,
-            "y" : 0
+            "x" : 1.3314423737702548,
+            "y" : 0.21893533070882162
           },
           "z" : 141
         },
@@ -14375,8 +12497,8 @@
           "slotFrame" : {
             "height" : 0.4097222222222222,
             "width" : 0.4351851851851852,
-            "x" : -5.9907407407407405,
-            "y" : 0.006944444444444444
+            "x" : 2.7420676902488434,
+            "y" : 0.09631644354926215
           },
           "z" : 146
         }
@@ -14424,6 +12546,19 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 17
+        },
+        {
+          "aspect" : 1.4722222222222223,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.5,
+            "width" : 0.9814814814814815,
+            "x" : 1.3314423737702548,
+            "y" : 0.21893533070882162
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 33
         },
         {
           "aspect" : 0.75,
@@ -14476,6 +12611,58 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 14
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 2.7420676902488434,
+            "y" : 0.09631644354926215
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 34
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 2.7420676902488434,
+            "y" : 0.516455332438151
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 35
+        },
+        {
+          "aspect" : 0.7796610169491526,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.42592592592592593,
+            "x" : 0.9393773961950229,
+            "y" : 0.20190254847208658
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 31
+        },
+        {
+          "aspect" : 0.7796610169491526,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.42592592592592593,
+            "x" : 0.9393773961950229,
+            "y" : 0.6185692151387533
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 32
         }
       ],
       "sourceRef" : "17v28:template-228",
@@ -14592,19 +12779,6 @@
           "roleHint" : "hero",
           "rotation" : 0,
           "z" : 0
-        },
-        {
-          "aspect" : 0.803030303030303,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.9166666666666666,
-            "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0.006944444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 24
         }
       ],
       "sourceRef" : "17v28:template-229",
@@ -14738,143 +12912,6 @@
           "role" : "accent",
           "rotation" : 0,
           "size" : 17.64710807800293
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.015525172834165789,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1,
-            "x" : 0.7452765570746527,
-            "y" : -0.23831378089057076
-          },
-          "frameAssetID" : "frame-film-border-09",
-          "photoWindowAspect" : 0.803030303030303,
-          "rotation" : -6.764678955078125,
-          "slotFrame" : {
-            "height" : 0.9166666666666666,
-            "width" : 0.9814814814814815,
-            "x" : -1.9907407407407407,
-            "y" : 0.006944444444444444
-          },
-          "z" : 127
-        }
-      ],
-      "id" : "17v28-t229-p2-3",
-      "pageIndex" : 2,
-      "pageRole" : "grid",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 7
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.5,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.5,
-            "x" : 0.5,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.5,
-            "x" : 0,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 5
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.5,
-            "x" : 0.5,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 6
-        }
-      ],
-      "sourceRef" : "17v28:template-229",
-      "sourceTemplate" : "template-229",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.12564776848173803,
-            "width" : 0.46354264462435685,
-            "x" : 0.26822867768782155,
-            "y" : 0.33692576565469307
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 5,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.975011319597456
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.1970251633061303,
-            "width" : 0.5003185051458853,
-            "x" : 1.2498407474270574,
-            "y" : 0.539376962516043
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 7,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.673097497037816
         }
       ],
       "version" : 2
@@ -15306,32 +13343,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 1
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.006944444444444444
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 13
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.4270833333333333
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
         }
       ],
       "sourceRef" : "17v28:template-230",
@@ -15370,104 +13381,6 @@
           "role" : "title",
           "rotation" : 0,
           "size" : 19.80548667907715
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8541666666666666,
-            "width" : 0.4537037037037037,
-            "x" : 0.735234295880353,
-            "y" : 0.3296334478590224
-          },
-          "frameAssetID" : "frame-photo-booth-03",
-          "photoWindowAspect" : 0.7966101694915254,
-          "rotation" : 1,
-          "slotFrame" : {
-            "height" : 0.4097222222222222,
-            "width" : 0.4351851851851852,
-            "x" : -0.9907407407407407,
-            "y" : 0.006944444444444444
-          },
-          "z" : 121
-        }
-      ],
-      "id" : "17v28-t230-p1-2",
-      "pageIndex" : 1,
-      "pageRole" : "strip",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        }
-      ],
-      "sourceRef" : "17v28:template-230",
-      "sourceTemplate" : "template-230",
-      "texts" : [
-        {
-          "alignment" : "right",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.0566373635083437,
-            "width" : 0.3389032483100891,
-            "x" : 0.45887578085616787,
-            "y" : 0.8363257397173179
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 3,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 4.440143835226024
-        },
-        {
-          "alignment" : "left",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.04006057418882847,
-            "width" : 0.350875373929739,
-            "x" : 1.5534619508932033,
-            "y" : 0.4726137050117056
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 4.712679698021304
         }
       ],
       "version" : 2
@@ -15534,15 +13447,15 @@
           "slotFrame" : {
             "height" : 0.4097222222222222,
             "width" : 0.4351851851851852,
-            "x" : -3.990740740740741,
-            "y" : 0.006944444444444444
+            "x" : 0.7438139738859952,
+            "y" : 0.08752303653293186
           },
           "z" : 122
         }
       ],
       "id" : "17v28-t230-p4-5",
       "pageIndex" : 4,
-      "pageRole" : "strip",
+      "pageRole" : "grid",
       "slideCount" : 2,
       "slots" : [
         {
@@ -15583,6 +13496,32 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 8
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 0.7438139738859952,
+            "y" : 0.08752303653293186
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 15
+        },
+        {
+          "aspect" : 0.7966101694915254,
+          "crossesSeam" : true,
+          "frame" : {
+            "height" : 0.4097222222222222,
+            "width" : 0.4351851851851852,
+            "x" : 0.7438139738859952,
+            "y" : 0.5076619254218208
+          },
+          "roleHint" : "support",
+          "rotation" : 0,
+          "z" : 16
         }
       ],
       "sourceRef" : "17v28:template-230",
@@ -15793,32 +13732,6 @@
       "pageRole" : "cover",
       "slideCount" : 1,
       "slots" : [
-        {
-          "aspect" : 1.00990099009901,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.7013888888888888,
-            "width" : 0.9444444444444444,
-            "x" : 0.023148148148148147,
-            "y" : 0.024305555555555556
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 67
-        },
-        {
-          "aspect" : 0.9801980198019802,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.7013888888888888,
-            "width" : 0.9166666666666666,
-            "x" : 0.05555555555555555,
-            "y" : 0.052083333333333336
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 66
-        },
         {
           "aspect" : 1.2499999503294648,
           "crossesSeam" : false,
@@ -16476,173 +14389,6 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 7.208031300476648
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.75,
-            "width" : 1,
-            "x" : 0.7668807418258119,
-            "y" : 0.47441238827175564
-          },
-          "frameAssetID" : "frame-paper-frame-03",
-          "photoWindowAspect" : 1.00990099009901,
-          "rotation" : -10.01661205291748,
-          "slotFrame" : {
-            "height" : 0.7013888888888888,
-            "width" : 0.9444444444444444,
-            "x" : -15.976851851851851,
-            "y" : 0.024305555555555556
-          },
-          "z" : 186
-        }
-      ],
-      "id" : "17v28-t232-p16-17",
-      "pageIndex" : 16,
-      "pageRole" : "grid",
-      "slideCount" : 2,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 58
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.5,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 53
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.5,
-            "x" : 0.5,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 54
-        },
-        {
-          "aspect" : 0.45000001788139343,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.30000001192092896,
-            "x" : 0,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 55
-        },
-        {
-          "aspect" : 0.45000001788139343,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.30000001192092896,
-            "x" : 0.30000001192092896,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 56
-        },
-        {
-          "aspect" : 0.45000001788139343,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5,
-            "width" : 0.30000001192092896,
-            "x" : 0.6000000238418579,
-            "y" : 0.5
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 57
-        }
-      ],
-      "sourceRef" : "17v28:template-232",
-      "sourceTemplate" : "template-232",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.032502271234989166,
-            "width" : 0.17602053063887138,
-            "x" : 0.45823855918866485,
-            "y" : 0.6120603395005068
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0.4757399559020996,
-          "size" : 3.6980361938476562
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.022478748112916946,
-            "width" : 0.1659406771262487,
-            "x" : 0.8058925538703257,
-            "y" : 0.9465876641786761
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.052783966064453
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.036957010005911194,
-            "width" : 0.286041248175833,
-            "x" : 1.3447825171881256,
-            "y" : 0.7884212015196681
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 8.307214736938477
         }
       ],
       "version" : 2
@@ -17348,323 +15094,6 @@
           "role" : "caption",
           "rotation" : 0,
           "size" : 24.397626876831055
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "3:4",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0,
-      "family" : "5",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.9375,
-            "width" : 1.0277777777777777,
-            "x" : 0.2909319842303244,
-            "y" : -0.29179269737667507
-          },
-          "frameAssetID" : "frame-polaroid-03",
-          "photoWindowAspect" : 0.9801980198019802,
-          "rotation" : 20.469833374023438,
-          "slotFrame" : {
-            "height" : 0.7013888888888888,
-            "width" : 0.9166666666666666,
-            "x" : -5.944444444444445,
-            "y" : 0.052083333333333336
-          },
-          "z" : 157
-        }
-      ],
-      "id" : "17v28-t232-p6-8",
-      "pageIndex" : 6,
-      "pageRole" : "grid",
-      "slideCount" : 3,
-      "slots" : [
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 25
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 26
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 27
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2.300000011920929,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 28
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2.600000023841858,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 29
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2,
-            "y" : 0.30000001192092896
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 30
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2.300000011920929,
-            "y" : 0.30000001192092896
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 31
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2.600000023841858,
-            "y" : 0.30000001192092896
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 32
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2,
-            "y" : 0.6000000238418579
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 33
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2.300000011920929,
-            "y" : 0.6000000238418579
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 34
-        },
-        {
-          "aspect" : 0.75,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.30000001192092896,
-            "width" : 0.30000001192092896,
-            "x" : 2.600000023841858,
-            "y" : 0.6000000238418579
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 35
-        }
-      ],
-      "sourceRef" : "17v28:template-232",
-      "sourceTemplate" : "template-232",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-pinyonscript",
-          "frame" : {
-            "height" : 0.10289246009455787,
-            "width" : 0.25723115023639465,
-            "x" : 2.3713844248818035,
-            "y" : 0.2770487426055802
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 23.706422805786133
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-pinyonscript",
-          "frame" : {
-            "height" : 0.10289246009455787,
-            "width" : 0.17491718216074836,
-            "x" : 2.412541408919626,
-            "y" : 0.6110821258690622
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 23.706422805786133
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.03462599880165524,
-            "width" : 0.17228545745213827,
-            "x" : 2.4147931436697636,
-            "y" : 0.8770879151092635
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 7.7832489013671875
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.05934116482320759,
-            "width" : 0.6013238035418369,
-            "x" : 2.199338098229081,
-            "y" : 0.9114529561354883
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.756622220362715
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#F7000B",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.03386009536269638,
-            "width" : 0.19269972970640217,
-            "x" : 1.8397045061682107,
-            "y" : 0.4830699523186518
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 90,
-          "size" : 7.611088752746582
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-pinyonscript",
-          "frame" : {
-            "height" : 0.04712645378377703,
-            "width" : 0.20892727844141148,
-            "x" : 0.3955363607792943,
-            "y" : 0.16578498068783018
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 10.857934951782227
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.029500352011786565,
-            "width" : 0.3760695280852141,
-            "x" : 0.311965235957393,
-            "y" : 0.2568107048670451
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.631103515625
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.02675966437285145,
-            "width" : 0.3037113127195173,
-            "x" : 0.34814434364024116,
-            "y" : 0.2917998432336996
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.015050411224365
         }
       ],
       "version" : 2
@@ -18651,293 +16080,6 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : false,
-      "decorCoverage" : 0.028969478737997253,
-      "family" : "3",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.8,
-            "width" : 0.6574074074074074,
-            "x" : 0.7071561574074074,
-            "y" : 0.40671111111111113
-          },
-          "frameAssetID" : "frame-polaroid-01",
-          "photoWindowAspect" : 0.775,
-          "rotation" : 4.67,
-          "slotFrame" : {
-            "height" : 0.5925925925925926,
-            "width" : 0.5740740740740741,
-            "x" : 0.05555555555555555,
-            "y" : 0.06666666666666667
-          },
-          "z" : 104
-        },
-        {
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 1.4587275000000002,
-            "y" : -0.29263385185185187
-          },
-          "frameAssetID" : "frame-film-border-09",
-          "photoWindowAspect" : 0.803030303030303,
-          "rotation" : 0,
-          "slotFrame" : {
-            "height" : 0.9777777777777777,
-            "width" : 0.9814814814814815,
-            "x" : 0.013888888888888888,
-            "y" : 0.014814814814814815
-          },
-          "z" : 105
-        }
-      ],
-      "id" : "17v28-t74-p0-3",
-      "pageIndex" : 0,
-      "pageRole" : "cover",
-      "slideCount" : 4,
-      "slots" : [
-        {
-          "aspect" : 0.8074074074074075,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 1,
-            "width" : 1.0092592592592593,
-            "x" : 2.0694444444444446,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 0.8,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 0
-        },
-        {
-          "aspect" : 0.803030303030303,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.9777777777777777,
-            "width" : 0.9814814814814815,
-            "x" : 0.013888888888888888,
-            "y" : 0.014814814814814815
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 5
-        },
-        {
-          "aspect" : 0.8055555555555556,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.8,
-            "width" : 0.8055555555555556,
-            "x" : 1.0972222222222223,
-            "y" : 0.1
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 0.8068181818181818,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.6518518518518519,
-            "width" : 0.6574074074074074,
-            "x" : 3.2083333333333335,
-            "y" : 0.17777777777777778
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 3
-        },
-        {
-          "aspect" : 0.775,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5925925925925926,
-            "width" : 0.5740740740740741,
-            "x" : 0.05555555555555555,
-            "y" : 0.06666666666666667
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        }
-      ],
-      "sourceRef" : "17v28:template-74",
-      "sourceTemplate" : "template-74",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.11027026666666666,
-            "width" : 0.5850243518518519,
-            "x" : 0.20882824074074072,
-            "y" : 0.06050379629629629
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "title",
-          "rotation" : 0,
-          "size" : 15.762162
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.11045169795675445,
-            "width" : 0.4606230857658333,
-            "x" : 0.27102887378375,
-            "y" : 0.10416855842903018
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 9.716972215503601
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#323232",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.06598046768161334,
-            "width" : 0.14036957691094723,
-            "x" : 1.4298152115445264,
-            "y" : 0.9140942106036377
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 2,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.65879553140356
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FEFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.09371819564430554,
-            "width" : 0.3728770119148148,
-            "x" : 2.262311494042592,
-            "y" : 0.2297776058815509
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 9.7950630511825
-        },
-        {
-          "alignment" : "left",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.11622848093110817,
-            "width" : 0.3507878022622871,
-            "x" : 2.262311654424412,
-            "y" : 0.28431631509000144
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 4,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.53794514389012
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-outfit",
-          "frame" : {
-            "height" : 0.04728285380616,
-            "width" : 0.12331438590175833,
-            "x" : 3.475590492234306,
-            "y" : 0.21188400272654964
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.7586669012772
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.06461849196701666,
-            "width" : 0.29908239112408336,
-            "x" : 3.3877064896231435,
-            "y" : 0.22216219846093613
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.7536746598441
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.05304572599955555,
-            "width" : 0.17215129999444445,
-            "x" : 3.2673016648175928,
-            "y" : 0.7531052481113334
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.544133955944
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.05327361253183778,
-            "width" : 0.11813873136645275,
-            "x" : 3.2943079491315888,
-            "y" : 0.7684714900303774
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 5.5679517742115605
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
       "decorCoverage" : 0.05971158436213943,
       "family" : "1",
       "id" : "17v28-t76-p5",
@@ -19006,66 +16148,11 @@
       "aspect" : "4:5",
       "background" : "#FFFFFF",
       "coverCapable" : true,
-      "decorCoverage" : 0.11906721536351166,
-      "family" : "6",
-      "id" : "17v28-t81-p0",
-      "pageIndex" : 0,
-      "pageRole" : "strip",
-      "slideCount" : 1,
-      "slots" : [
-        {
-          "aspect" : 0.7829457364341085,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.9555555555555556,
-            "width" : 0.9351851851851852,
-            "x" : 0.032407407407407406,
-            "y" : 0.018518518518518517
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 0
-        },
-        {
-          "aspect" : 0.6691729323308271,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.9851851851851852,
-            "width" : 0.8240740740740741,
-            "x" : 0.004629629629629629,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        },
-        {
-          "aspect" : 1.4722222222222223,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5333333333333333,
-            "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        }
-      ],
-      "sourceRef" : "17v28:template-81",
-      "sourceTemplate" : "template-81",
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : true,
       "decorCoverage" : 0,
       "family" : "3",
       "id" : "17v28-t83-p0",
       "pageIndex" : 0,
-      "pageRole" : "grid",
+      "pageRole" : "statement",
       "slideCount" : 1,
       "slots" : [
         {
@@ -19080,84 +16167,6 @@
           "roleHint" : "support",
           "rotation" : 0,
           "z" : 0
-        },
-        {
-          "aspect" : 1.4722222222222223,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5333333333333333,
-            "width" : 0.9814814814814815,
-            "x" : 0.009259259259259259,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 13
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.43703703703703706,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.007407407407407408
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 11
-        },
-        {
-          "aspect" : 0.7966101694915254,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.43703703703703706,
-            "width" : 0.4351851851851852,
-            "x" : 0.009259259259259259,
-            "y" : 0.45555555555555555
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 12
-        },
-        {
-          "aspect" : 0.7954545454545454,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.32592592592592595,
-            "width" : 0.32407407407407407,
-            "x" : 0.004629629629629629,
-            "y" : 0.007407407407407408
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 14
-        },
-        {
-          "aspect" : 0.7954545454545454,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.32592592592592595,
-            "width" : 0.32407407407407407,
-            "x" : 0.004629629629629629,
-            "y" : 0.337037037037037
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 15
-        },
-        {
-          "aspect" : 0.7954545454545454,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.32592592592592595,
-            "width" : 0.32407407407407407,
-            "x" : 0.004629629629629629,
-            "y" : 0.6666666666666666
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 16
         }
       ],
       "sourceRef" : "17v28:template-83",
@@ -19179,164 +16188,6 @@
           "role" : "accent",
           "rotation" : 10.7,
           "size" : 6.87243168770572
-        }
-      ],
-      "version" : 2
-    },
-    {
-      "aspect" : "4:5",
-      "background" : "#FFFFFF",
-      "coverCapable" : false,
-      "decorCoverage" : 0.03520804755372652,
-      "family" : "3",
-      "frames" : [
-        {
-          "frame" : {
-            "height" : 0.9111111111111111,
-            "width" : 0.4537037037037037,
-            "x" : 0.8884290277777778,
-            "y" : 0.16694862962962964
-          },
-          "frameAssetID" : "frame-photo-booth-03",
-          "photoWindowAspect" : 0.7966101694915254,
-          "rotation" : -3.66,
-          "slotFrame" : {
-            "height" : 0.43703703703703706,
-            "width" : 0.4351851851851852,
-            "x" : -0.9907407407407407,
-            "y" : 0.007407407407407408
-          },
-          "z" : 117
-        }
-      ],
-      "id" : "17v28-t83-p1-3",
-      "pageIndex" : 1,
-      "pageRole" : "cover",
-      "slideCount" : 3,
-      "slots" : [
-        {
-          "aspect" : 0.8814814814814815,
-          "crossesSeam" : true,
-          "frame" : {
-            "height" : 1,
-            "width" : 1.1018518518518519,
-            "x" : 1,
-            "y" : 0
-          },
-          "roleHint" : "hero",
-          "rotation" : 0,
-          "z" : 3
-        },
-        {
-          "aspect" : 0.7185185185185186,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 1,
-            "width" : 0.8981481481481481,
-            "x" : 2.1018518518518516,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 4
-        },
-        {
-          "aspect" : 1.588235294117647,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.5037037037037037,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0.4962962962962963
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 2
-        },
-        {
-          "aspect" : 1.6119402985074627,
-          "crossesSeam" : false,
-          "frame" : {
-            "height" : 0.4962962962962963,
-            "width" : 1,
-            "x" : 0,
-            "y" : 0
-          },
-          "roleHint" : "support",
-          "rotation" : 0,
-          "z" : 1
-        }
-      ],
-      "sourceRef" : "17v28:template-83",
-      "sourceTemplate" : "template-83",
-      "texts" : [
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.12139340071104446,
-            "width" : 0.22067182564533333,
-            "x" : 1.1090438093995556,
-            "y" : 0.043494310755588884
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "title",
-          "rotation" : 0,
-          "size" : 12.6875683615916
-        },
-        {
-          "alignment" : "left",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.13345534278382964,
-            "width" : 0.27653139675006483,
-            "x" : 1.3508409219953381,
-            "y" : 0.062025328608085184
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 4,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.6835297730719
-        },
-        {
-          "alignment" : "center",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-cedarvillecursive",
-          "frame" : {
-            "height" : 0.11062745296296296,
-            "width" : 0.25651252731481483,
-            "x" : 2.3729813752314812,
-            "y" : 0.5152101994444445
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 1,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 11.56235262
-        },
-        {
-          "alignment" : "left",
-          "colour" : "#FFFFFF",
-          "fontID" : "font-inter",
-          "frame" : {
-            "height" : 0.12156862962962962,
-            "width" : 0.24708407407407407,
-            "x" : 2.397619074074074,
-            "y" : 0.5906827962962963
-          },
-          "letterSpacing" : 0,
-          "lineSpacing" : 0,
-          "numberOfLines" : 4,
-          "role" : "caption",
-          "rotation" : 0,
-          "size" : 6.0882355
         }
       ],
       "version" : 2
@@ -19392,7 +16243,7 @@
           },
           "roleHint" : "support",
           "rotation" : 0,
-          "z" : 16
+          "z" : 18
         },
         {
           "aspect" : 0.7313432835820896,
@@ -19405,7 +16256,7 @@
           },
           "roleHint" : "support",
           "rotation" : 0,
-          "z" : 17
+          "z" : 19
         },
         {
           "aspect" : 1.249996628410363,
@@ -19418,7 +16269,7 @@
           },
           "roleHint" : "support",
           "rotation" : 0,
-          "z" : 18
+          "z" : 20
         }
       ],
       "sourceRef" : "17v28:template-94",

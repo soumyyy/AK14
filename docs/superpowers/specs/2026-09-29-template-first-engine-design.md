@@ -158,4 +158,4 @@ A new `PageSearch` replaces group-then-fit for non-baseline options.
 - Compatibility groups across families beyond "same family". The owner curates them from the contact sheets later.
 
 ## Results
-Task 2 page catalogue (2026-09-29): 212 usable records (80 4:5: 67 single pages and 13 linked runs; 119 3:4: 106 single pages and 13 linked runs; 13 square: 12 single pages and 1 linked run). The 4:5 catalogue remains below its 150-record target; 3:4 exceeds its 100-record e2e threshold. Latency and evaluation results are pending later build steps.
+Page catalogue (2026-09-30, after mapping frame-local photo windows into page space): 196 usable records (73 4:5: 68 single pages and 5 linked runs; 110 3:4: 106 single pages and 4 linked runs; 13 square: 12 single pages and 1 linked run). The 4:5 e2e regression floor is 70. The 4:5 catalogue remains below its 150-record target; 3:4 exceeds its 100-record e2e threshold. Latency and evaluation results are pending later build steps.

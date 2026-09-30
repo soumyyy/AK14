@@ -416,7 +416,7 @@ struct ComposerE2ETests {
     @Test(arguments: [CarouselAspect.portrait4x5, .portrait3x4])
     func composeSetGivesTemplateFirstOptionsFromDifferentFamiliesAndCovers(aspect: CarouselAspect) throws {
         let pages = try StylePackLoader.loadDesignedPages().vocabulary(for: aspect)
-        #expect(pages.count == (aspect == .portrait4x5 ? 80 : 119))
+        #expect(pages.count == (aspect == .portrait4x5 ? 73 : 110))
         let (context, spine, directions) = try realisticRun(aspect: aspect, pages: pages)
         let set = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "r1")
         let options = set.plans.filter { !$0.isBaseline }

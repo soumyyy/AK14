@@ -130,7 +130,7 @@ func canvas(frameType: String) -> (Double, Double, String)? {
     }
 }
 
-func normalized(_ boxes: [Box], canvasWidth: Double, canvasHeight: Double, slideCount: Int, aspect: String, unitSpace: Bool = false) -> [Slot]? {
+func normalized(_ boxes: [Box], canvasWidth: Double, canvasHeight: Double, slideCount: Int, aspect: String, unitSpace: Bool = false, pageRescue: Bool = false) -> [Slot]? {
     guard !boxes.isEmpty else { return nil }
     let prepared = boxes.enumerated().map { index, b in
         let f = Rect(x: b.x / canvasWidth, y: b.y / canvasHeight,
@@ -138,7 +138,7 @@ func normalized(_ boxes: [Box], canvasWidth: Double, canvasHeight: Double, slide
         let ratio = (b.width / b.height) * (unitSpace ? (aspect == "4:5" ? 4.0 / 5.0 : aspect == "3:4" ? 3.0 / 4.0 : 1.0) : 1)
         return (index, f, ratio, f.width * f.height)
     }
-    guard prepared.allSatisfy({ _, f, _, _ in f.width > 0 && f.height > 0 && f.x >= -bleed && f.y >= -bleed && f.x + f.width <= Double(slideCount) + bleed && f.y + f.height <= 1 + bleed }) else { return nil }
+    guard prepared.allSatisfy({ _, f, _, _ in f.width > 0 && f.height > 0 && (pageRescue || (f.x >= -bleed && f.y >= -bleed && f.x + f.width <= Double(slideCount) + bleed && f.y + f.height <= 1 + bleed)) }) else { return nil }
     let order = prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }
     let roles = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element.0, $0.offset == 0 ? "hero" : "support") })
     return prepared.sorted { $0.3 == $1.3 ? $0.0 < $1.0 : $0.3 > $1.3 }.map { index, frame, ratio, _ in
@@ -188,12 +188,15 @@ func nestedBoxes(_ layer: RawLayer, canvasWidth: Double, canvasHeight: Double) -
     }
 }
 
-func placeholderBoxes(_ layer: RawLayer, canvasWidth: Double, canvasHeight: Double) -> [Box] {
+func placeholderBoxes(_ layer: RawLayer, canvasWidth: Double, canvasHeight: Double, pageSpaceFrames: Bool = false) -> [Box] {
     if let direct = directBox(layer.placeholderCenter, layer.placeholderSize) {
         return [direct]
     }
     if let frames = layer.framePlaceholders {
-        return frames.compactMap(rawBox)
+        guard pageSpaceFrames, let frame = directBox(layer.frameCenter, layer.frameSize) else { return frames.compactMap(rawBox) }
+        return frames.compactMap(rawBox).map { window in
+            Box(x: frame.x + window.x, y: frame.y + window.y, width: window.width, height: window.height)
+        }
     }
     return nestedBoxes(layer, canvasWidth: canvasWidth, canvasHeight: canvasHeight)
 }
@@ -329,6 +332,13 @@ func pages(templateID: Int, aspect: String, pageCount: Int, background: String, 
             return Slot(frame: rect, aspect: slot.aspect, z: slot.z, rotation: slot.rotation, crossesSeam: seam,
                         roleHint: slot.roleHint, components: slot.components, cornerRadius: slot.cornerRadius)
         }
+        guard selectedSlots.allSatisfy({ slot in
+            let f = slot.frame
+            return f.x >= -bleed && f.y >= -bleed && f.x + f.width <= length + bleed && f.y + f.height <= 1 + bleed
+        }) else {
+            rejectionCounts["\(aspect) photo window outside page", default: 0] += 1
+            return nil
+        }
         guard !selectedSlots.isEmpty else { rejectionCounts["\(aspect) no photo slots", default: 0] += 1; return nil }
         let selectedTexts = texts.filter {
             group.count > 1 ? belongsToGroup($0.frame.x, $0.frame.width) : inside($0.frame.x, $0.frame.width)
@@ -442,23 +452,26 @@ func main() throws {
         guard let slots = normalized(boxes, canvasWidth: width, canvasHeight: height, slideCount: t.numberOfFrames, aspect: aspect) else {
             rejected.append(("template-\(t.id)", "empty or degenerate/outside geometry")); continue
         }
-        let slotCorners: [(Box, Double)] = t.layers.flatMap { layer in
-            guard let radius = layer.cornerRadius else { return [(Box, Double)]() }
-            return placeholderBoxes(layer, canvasWidth: width, canvasHeight: height).map {
-                ($0, min(0.5, max(0, radius / min($0.width, $0.height))))
+        func enrich(_ slots: [Slot], pageSpaceFrames: Bool = false) -> [Slot] {
+            let slotCorners: [(Box, Double)] = t.layers.flatMap { layer in
+                guard let radius = layer.cornerRadius else { return [(Box, Double)]() }
+                return placeholderBoxes(layer, canvasWidth: width, canvasHeight: height, pageSpaceFrames: pageSpaceFrames).map {
+                    ($0, min(0.5, max(0, radius / min($0.width, $0.height))))
+                }
+            }
+            return slots.map { slot -> Slot in
+                let box = Box(x: slot.frame.x * width, y: slot.frame.y * height,
+                              width: slot.frame.width * width, height: slot.frame.height * height)
+                let radius = slotCorners.first(where: {
+                    abs($0.0.x - box.x) < 0.01 && abs($0.0.y - box.y) < 0.01 &&
+                    abs($0.0.width - box.width) < 0.01 && abs($0.0.height - box.height) < 0.01
+                })?.1
+                return Slot(frame: slot.frame, aspect: slot.aspect, z: slot.z, rotation: slot.rotation,
+                            crossesSeam: slot.crossesSeam, roleHint: slot.roleHint,
+                            components: slot.components, cornerRadius: radius)
             }
         }
-        let enrichedSlots = slots.map { slot -> Slot in
-            let box = Box(x: slot.frame.x * width, y: slot.frame.y * height,
-                          width: slot.frame.width * width, height: slot.frame.height * height)
-            let radius = slotCorners.first(where: {
-                abs($0.0.x - box.x) < 0.01 && abs($0.0.y - box.y) < 0.01 &&
-                abs($0.0.width - box.width) < 0.01 && abs($0.0.height - box.height) < 0.01
-            })?.1
-            return Slot(frame: slot.frame, aspect: slot.aspect, z: slot.z, rotation: slot.rotation,
-                        crossesSeam: slot.crossesSeam, roleHint: slot.roleHint,
-                        components: slot.components, cornerRadius: radius)
-        }
+        let enrichedSlots = enrich(slots)
         let textCandidates: [(RawLayer, RawText, Box)] = t.layers.compactMap { layer in
             guard let text = layer.text, let box = directBox(layer.center, layer.size) else { return nil }
             let scale = max(0.01, layer.scaling ?? 1)
@@ -504,9 +517,22 @@ func main() throws {
         }
         let templateBackground = "#" + (t.backgroundColor ?? "FFFFFF").trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         if ["4:5", "3:4", "1:1"].contains(aspect) {
+            // Correct frame-local windows for page rescue while keeping legacy sets byte-identical.
+            let pageBoxes = deduplicated(t.layers.flatMap {
+                placeholderBoxes($0, canvasWidth: width, canvasHeight: height, pageSpaceFrames: true)
+            })
+            let pageSlots = normalized(pageBoxes, canvasWidth: width, canvasHeight: height,
+                                       slideCount: t.numberOfFrames, aspect: aspect, pageRescue: true) ?? []
+            let pageFrames = frames.map { frame in
+                let window = frame.slotFrame.map {
+                    Rect(x: frame.frame.x + $0.x, y: frame.frame.y + $0.y, width: $0.width, height: $0.height)
+                }
+                return FrameLayer(frame: frame.frame, frameAssetID: frame.frameAssetID, slotFrame: window,
+                                  photoWindowAspect: frame.photoWindowAspect, z: frame.z, rotation: frame.rotation)
+            }
             pageRecords += pages(templateID: Int(t.id) ?? 0, aspect: aspect, pageCount: t.numberOfFrames,
                                  background: templateBackground, family: t.categoryId ?? "uncategorized",
-                                 slots: enrichedSlots, texts: texts, frames: frames,
+                                 slots: enrich(pageSlots, pageSpaceFrames: true), texts: texts, frames: pageFrames,
                                  decor: decorBoxes.map { normalizedRect($0, canvasWidth: width, canvasHeight: height) }.map {
                                      Box(x: $0.x, y: $0.y, width: $0.width, height: $0.height)
                                  }, rejectionCounts: &pageRejectionCounts)
