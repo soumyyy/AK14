@@ -158,4 +158,11 @@ A new `PageSearch` replaces group-then-fit for non-baseline options.
 - Compatibility groups across families beyond "same family". The owner curates them from the contact sheets later.
 
 ## Results
-Page catalogue (2026-09-30, after mapping frame-local photo windows into page space): 196 usable records (73 4:5: 68 single pages and 5 linked runs; 110 3:4: 106 single pages and 4 linked runs; 13 square: 12 single pages and 1 linked run). The 4:5 e2e regression floor is 70. The 4:5 catalogue remains below its 150-record target; 3:4 exceeds its 100-record e2e threshold. Latency and evaluation results are pending later build steps.
+Page catalogue (2026-09-30, after mapping frame-local photo windows into page space): 196 usable records (73 4:5: 68 single pages and 5 linked runs; 110 3:4: 106 single pages and 4 linked runs; 13 square: 12 single pages and 1 linked run). The 4:5 e2e regression floor is 70. The 4:5 catalogue remains below its 150-record target; 3:4 exceeds its 100-record e2e threshold.
+
+Real runs (2026-09-30, the 8 IMG events recomposed with `ak14 rerender --recompose`, stored directions without moments):
+- every slide is an authored page (0 legacy slides); each option uses one family; 17 options across families 3/5/7 = 7/2/8
+- white-card slides 15.7% (18 of 115), down from 46%; white-card covers 1 of 17 after the cover fix (11 of 17 before it)
+- no mandatory photo dropped; smallest crop kept 0.703
+- search time for a 60-photo pool: 0.28 s in the simulator-guard test
+Pending: owner blind comparison and would-post ratings (`ak14 eval compare` / `eval rate`), device p95 composition latency, first-response validity on fresh AI runs.

@@ -228,3 +228,24 @@ Spec: docs/superpowers/specs/2026-09-27-coherent-design-editing.md. Codex (Luna)
 - [x] Package tests: 110 pass (a brittle hard-coded "c1" test now follows the surviving direction)
 - [ ] Planner speed A/B on IMG (reasoning low / detail low): latency plus a visual review
 - [ ] iPhone screenshot review, then install on the phone
+
+## Template-first engine (2026-09-29/30)
+Spec: docs/superpowers/specs/2026-09-29-template-first-engine-design.md. Plan: docs/superpowers/plans/2026-09-29-template-first-engine.md.
+- [x] 1 Page fields and loaders
+- [x] 2 Importer: pages, linked runs, per-page rescue (73 4:5 / 110 3:4 / 13 1:1)
+- [x] 3 Best-pairing slot assignment, one 0.65 crop floor
+- [x] 4 Placement payload: replay, edits, document text
+- [x] 5 Planner moments, cover candidates, titles
+- [x] 6 PageSearch
+- [x] 7 Options from PageSearch on every path (CLI, rerender, Session incl. reroll, iOS)
+- [x] 8 Worker constitution line removed, ETag content revision (not deployed)
+- [x] 9 eval compare / rate
+- [x] Final review fix wave; cover fix (white-card covers 11/17 → 1/17)
+- [x] Installed on iPhone (2026-09-30)
+- [ ] Owner: blind old-vs-new comparison and would-post ratings on the 8 IMG runs
+- [ ] Device p95 composition latency (target ≤ 1.5 s)
+- [ ] Deploy the Worker (constitution + ETag) — needs owner go-ahead
+- [ ] Push main to GitHub — needs owner go-ahead
+### Review
+Implementers: Codex Luna High (Tasks 1-5), GPT-6.1 Sol (6-9 and most of the final fixes), Opus (finished the last fix wave and the cover fix after Codex ran out of quota). Reviews: Codex Luna, then Opus. 193 package tests, 13 Worker tests, 5 iOS UI tests pass.
+
