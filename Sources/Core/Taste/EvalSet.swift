@@ -47,8 +47,11 @@ public struct EvalSet: Codable, Sendable, Equatable {
     public var pairs: [EvalPair]
     public var strips: [String: String]
     public var versions: [String: String]
-    public init(seed: String, createdAt: Date, runs: [String], pairs: [EvalPair], strips: [String: String], versions: [String: String]) {
+    /// Absent in evaluation sets created before template-first availability was checked.
+    public var skippedOptions: Int?
+    public init(seed: String, createdAt: Date, runs: [String], pairs: [EvalPair], strips: [String: String], versions: [String: String], skippedOptions: Int? = nil) {
         self.seed = seed; self.createdAt = createdAt; self.runs = runs; self.pairs = pairs; self.strips = strips; self.versions = versions
+        self.skippedOptions = skippedOptions
     }
 }
 

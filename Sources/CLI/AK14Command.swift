@@ -48,10 +48,10 @@ struct AK14Command {
                 print(out.appending(path: "evalset.json").path)
             case .evalRate(let dir, let rater):
                 try EvalCommand.rate(evalDirectory: dir, rater: rater)
-                print(dir.appending(path: "index.html").path)
+                print(dir.appending(path: "rate.html").path)
             case .evalLabel(let dir, let rater):
                 try EvalCommand.label(evalDirectory: dir, rater: rater)
-                print(dir.appending(path: "index.html").path)
+                print(dir.appending(path: "label.html").path)
             case .evalImport(let dir, let labels):
                 try EvalCommand.importLabels(evalDirectory: dir, file: labels)
                 print("labels imported")

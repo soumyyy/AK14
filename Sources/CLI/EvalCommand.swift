@@ -94,6 +94,7 @@ enum EvalCommand {
     static func compare(runDirectories: [URL], source: URL, out: URL, seed: UInt64 = 14) throws {
         let fm = FileManager.default
         var pairs: [EvalPair] = [], strips: [String: String] = [:]
+        var skippedOptions = 0
         guard Set(runDirectories.map(\.lastPathComponent)).count == runDirectories.count else { throw EvalError.duplicateRuns }
         let inputPaths = runDirectories.map { $0.resolvingSymlinksInPath().path }
         let outputPath = out.resolvingSymlinksInPath().path
@@ -110,13 +111,23 @@ enum EvalCommand {
             guard !directions.isEmpty else { throw EvalError.noDirections(run.lastPathComponent) }
             let context = session.compositionContext()
             let newSet = ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: session.runID)
-            let folder = try RerenderCommand.verifiedSource(source, photos: context.photos,
-                assetIDs: newSet.plans.filter { !$0.isBaseline }.flatMap(\.photoAssetIDs))
             let runID = run.lastPathComponent
+            let options = newSet.plans.filter { plan in
+                guard !plan.isBaseline else { return false }
+                guard !plan.slides.isEmpty, plan.slides.allSatisfy({ $0.placement != nil }) else {
+                    skippedOptions += 1
+                    print("warning: \(runID)/\(plan.id): skipped option: template-first unavailable")
+                    return false
+                }
+                return true
+            }
+            if options.isEmpty { print("\(runID): no template-first options available") }
+            let folder = try RerenderCommand.verifiedSource(source, photos: context.photos,
+                assetIDs: options.flatMap(\.photoAssetIDs))
             let root = out.appending(path: "runs/\(runID)")
             // Rebuilding the comparison replaces its own artifacts, never the original run.
             if fm.fileExists(atPath: root.path) { try fm.removeItem(at: root) }
-            for newPlan in newSet.plans where !newPlan.isBaseline {
+            for newPlan in options {
                 guard let direction = newPlan.direction, let first = newPlan.photoAssetIDs.first else { continue }
                 var legacyContext = context
                 legacyContext.pages = []
@@ -160,7 +171,8 @@ enum EvalCommand {
         for i in pairs.indices where rng.next() & 1 == 1 { (pairs[i].left, pairs[i].right) = (pairs[i].right, pairs[i].left) }
         let set = EvalSet(seed: String(seed, radix: 16), createdAt: Date(timeIntervalSince1970: 0), runs: runDirectories.map(\.path),
             pairs: pairs, strips: strips, versions: ["composer": ComposerEngine.version, "layout": ResolvedCarousel.resolverVersion,
-                                                   "renderer": CarouselRenderer.version])
+                                                   "renderer": CarouselRenderer.version],
+            skippedOptions: skippedOptions > 0 ? skippedOptions : nil)
         try JSONCoding.encoder.encode(set).write(to: out.appending(path: "evalset.json"), options: .atomic)
     }
 
@@ -187,7 +199,7 @@ enum EvalCommand {
             .replacingOccurrences(of: "__SLIDES__", with: try embeddedJSON(slides))
             .replacingOccurrences(of: "__RATER__", with: try embeddedJSON(rater))
             .replacingOccurrences(of: "'__EMPTY__'", with: "JSON.stringify(\(try embeddedJSON(existing)))")
-        try Data(html.utf8).write(to: evalDirectory.appending(path: "index.html"), options: .atomic)
+        try Data(html.utf8).write(to: evalDirectory.appending(path: "rate.html"), options: .atomic)
     }
 
     private static func embeddedJSON<T: Encodable>(_ value: T) throws -> String {
@@ -206,9 +218,11 @@ enum EvalCommand {
         <!doctype html><meta charset="utf-8"><title>AK14 Eval</title><style>body{font:16px system-ui;max-width:1200px;margin:2rem auto;background:#f5f3ee;color:#222}main{display:flex;gap:1rem;align-items:center}figure{margin:0;flex:1}img{width:100%;height:auto}button{padding:.8rem 1.2rem;font:inherit;margin:.5rem}#status{margin:1rem 0}</style>
         <h1>Carousel preference</h1><div id="status"></div><main><figure><figcaption>Left</figcaption><img id="left"></figure><figure><figcaption>Right</figcaption><img id="right"></figure></main>
         <button onclick="choose('left')">Left ←</button><button onclick="choose('right')">Right →</button><button onclick="choose('tie')">Can't choose (space)</button><button onclick="choose('neither')">Neither is postable (n)</button><button onclick="exportLabels()">Export</button>
-        <script>const pairs=__PAIRS__,strips=__STRIPS__,versions=__VERSIONS__,rater=__RATER__;let i=0;const key='ak14-eval-'+JSON.stringify(pairs)+rater;let labels=JSON.parse(localStorage.getItem(key)||'[]');function sk(p,r){return strips[p.runID+'/'+p.stage+'/'+r.carouselID]||strips[p.runID+'/'+r.carouselID]}function question(s){return ({split:'Which grouping tells the better story?',selection:'Which photo set tells the better story?',cover:'Which cover is more compelling?',layout:'Which carousel layout is better?',engine:'Which carousel layout is better?'})[s]}function render(){while(i<pairs.length&&labels.some(x=>x.pairID===pairs[i].pairID))i++;if(i>=pairs.length){document.querySelector('#status').textContent='Complete';return}const p=pairs[i];document.querySelector('#status').textContent=`${p.stage} · ${question(p.stage)} · Pair ${i+1} of ${pairs.length}`;document.querySelector('#left').src=sk(p,p.left);document.querySelector('#right').src=sk(p,p.right)}function choose(choice){if(i>=pairs.length)return;const p=pairs[i];labels.push({pairID:p.pairID,rater,choice,shownLeft:p.left,decidedAt:new Date().toISOString(),versions});localStorage.setItem(key,JSON.stringify(labels));i++;render()}function exportLabels(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(labels,null,2)],{type:'application/json'}));a.download='labels-'+rater+'.json';a.click();URL.revokeObjectURL(a.href)}document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')choose('left');else if(e.key==='ArrowRight')choose('right');else if(e.key===' ')choose('tie');else if(e.key.toLowerCase()==='n')choose('neither')});render();</script>
+        <script>const pairs=__PAIRS__,strips=__STRIPS__,versions=__VERSIONS__,rater=__RATER__;let i=0;const key='ak14-eval-'+rater;let labels=JSON.parse(localStorage.getItem(key)||'[]');function sk(p,r){return strips[p.runID+'/'+p.stage+'/'+r.carouselID]||strips[p.runID+'/'+r.carouselID]}function question(s){return ({split:'Which grouping tells the better story?',selection:'Which photo set tells the better story?',cover:'Which cover is more compelling?',layout:'Which carousel layout is better?',engine:'Which carousel layout is better?'})[s]}function render(){while(i<pairs.length&&labels.some(x=>x.pairID===pairs[i].pairID))i++;if(i>=pairs.length){document.querySelector('#status').textContent='Complete';return}const p=pairs[i];document.querySelector('#status').textContent=`${p.stage} · ${question(p.stage)} · Pair ${i+1} of ${pairs.length}`;document.querySelector('#left').src=sk(p,p.left);document.querySelector('#right').src=sk(p,p.right)}function choose(choice){if(i>=pairs.length)return;const p=pairs[i];labels.push({pairID:p.pairID,rater,choice,shownLeft:p.left,decidedAt:new Date().toISOString(),versions});localStorage.setItem(key,JSON.stringify(labels));i++;render()}function exportLabels(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(labels,null,2)],{type:'application/json'}));a.download='labels-'+rater+'.json';a.click();URL.revokeObjectURL(a.href)}document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')choose('left');else if(e.key==='ArrowRight')choose('right');else if(e.key===' ')choose('tie');else if(e.key.toLowerCase()==='n')choose('neither')});render();</script>
         """#.replacingOccurrences(of: "__PAIRS__", with: pairsJSON).replacingOccurrences(of: "__STRIPS__", with: stripsJSON)
             .replacingOccurrences(of: "__VERSIONS__", with: versionsJSON).replacingOccurrences(of: "__RATER__", with: try embeddedJSON(rater))
+        try Data(html.utf8).write(to: evalDirectory.appending(path: "label.html"), options: .atomic)
+        // Keep the existing label entry point for saved links and older workflows.
         try Data(html.utf8).write(to: evalDirectory.appending(path: "index.html"), options: .atomic)
     }
 
@@ -336,7 +350,11 @@ enum EvalCommand {
 
     private static func engineScore(_ set: EvalSet, labels: [EvalLabel], directory: URL) throws -> String {
         let pairs = set.pairs.filter { $0.stage == .engine }
-        guard !pairs.isEmpty else { return "" }
+        let skipped = set.skippedOptions ?? 0
+        let availability = skipped > 0 ? "skipped \(skipped) options: template-first unavailable\n" : ""
+        guard !pairs.isEmpty else {
+            return skipped > 0 ? availability + "no template-first options available" : ""
+        }
         var preferred = 0, compared = 0, ties = 0
         for pair in pairs {
             let votes = labels.filter { $0.pairID == pair.pairID }
@@ -351,23 +369,27 @@ enum EvalCommand {
         let ratings = try readRatings(directory).filter { rating in
             rating.engine == "pages" && refs.contains { $0.runID == rating.runID && $0.carouselID == rating.optionID }
         }
-        var slides: [ResolvedSlide] = []
+        var slides: [ResolvedSlide] = [], nonWhiteSlides: [ResolvedSlide] = []
+        var whiteCards = 0
         for ref in refs {
             let root = directory.appending(path: "runs/\(ref.runID)")
             let plan = try JSONCoding.decoder.decode(CarouselPlan.self, from: Data(contentsOf: root.appending(path: "plans/\(ref.carouselID).json")))
             for index in plan.slides.indices {
-                slides.append(try JSONCoding.decoder.decode(ResolvedSlide.self, from: Data(contentsOf: root.appending(path: String(format: "layouts/%@/slide-%02d.json", ref.carouselID, index + 1)))))
+                let slide = try JSONCoding.decoder.decode(ResolvedSlide.self, from: Data(contentsOf: root.appending(path: String(format: "layouts/%@/slide-%02d.json", ref.carouselID, index + 1))))
+                slides.append(slide)
+                if plan.slides[index].placement?.pageID == "white-card" { whiteCards += 1 }
+                else { nonWhiteSlides.append(slide) }
             }
         }
-        let crops = slides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.crop).map { $0.width * $0.height }.sorted()
+        let crops = nonWhiteSlides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.crop).map { $0.width * $0.height }.sorted()
         let middle = crops.count / 2
         let median = crops.isEmpty ? 0 : crops.count % 2 == 0 ? (crops[middle - 1] + crops[middle]) / 2 : crops[middle]
         func percent(_ count: Int, _ total: Int) -> Int { total == 0 ? 0 : Int((100 * Double(count) / Double(total)).rounded()) }
-        return "new engine preferred: \(percent(preferred, compared))%\nneither/tie: \(ties)\n"
+        return availability + "new engine preferred: \(percent(preferred, compared))%\nneither/tie: \(ties)\n"
             + "rated yes: \(percent(ratings.filter { $0.rating == "yes" }.count, ratings.count))%, "
             + "almost: \(percent(ratings.filter { $0.rating == "almost" }.count, ratings.count))%, "
             + "no: \(percent(ratings.filter { $0.rating == "no" }.count, ratings.count))%\n"
-            + "white cards: \(percent(slides.filter { $0.variant == "hero.clean" }.count, slides.count))% of slides\n"
+            + "white cards: \(percent(whiteCards, slides.count))% of slides\n"
             + String(format: "median crop kept: %.2f", median)
     }
 

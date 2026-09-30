@@ -1306,7 +1306,7 @@ Expected: a compile failure. There is no `compare` and no `.engine`.
 
 Record engine versions in the pair's `CandidateRef.note` if that field exists; otherwise add `engine: String?` to `CandidateRef`, decoded with `decodeIfPresent`.
 
-`eval rate` writes `ratings.json` through the same interactive flow as `eval label`, asking yes/almost/no per `pages-*` option. `eval score --stage engine` prints:
+`eval rate` writes `rate.html`, asking yes/almost/no per `pages-*` option and exporting `ratings.json` through the same interactive flow as `eval label`. `eval label` writes `label.html` and keeps `index.html` as a backward-compatible copy. `eval score --stage engine` prints:
 - `new engine preferred: N%` over non-tied pairs
 - `neither/tie: N`
 - `rated yes: N%`, `almost: N%`, `no: N%`

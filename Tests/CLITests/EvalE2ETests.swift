@@ -1,5 +1,6 @@
 import Foundation
 import ImageIO
+import Session
 import Testing
 import TestSupport
 @testable import CLI
@@ -83,6 +84,7 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     let legacy = Data(#"{"seed":"e","createdAt":"1970-01-01T00:00:00Z","runs":[],"pairs":[{"pairID":"p","runID":"r","left":{"carouselID":"a","compositionSeed":"0","runID":"r"},"right":{"carouselID":"b","compositionSeed":"0","runID":"r"}}],"strips":{},"versions":{}}"#.utf8)
     let oldSet = try JSONCoding.decoder.decode(EvalSet.self, from: legacy)
     #expect(oldSet.pairs.first?.stage == .layout)
+    #expect(oldSet.skippedOptions == nil)
     let oldLabel = Data(#"{"pairID":"p","rater":"old","choice":"left","shownLeft":{"carouselID":"a","compositionSeed":"0","runID":"r"},"decidedAt":"1970-01-01T00:00:00Z","versions":{}}"#.utf8)
     #expect(try JSONCoding.decoder.decode(EvalLabel.self, from: oldLabel).choice == .left)
     #expect(try FileManager.default.contentsOfDirectory(atPath: out.appending(path: "eval").path).contains { $0.hasPrefix("report-") && $0.hasSuffix(".md") })
@@ -126,6 +128,8 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     let manifest = try run.read(RunManifest.self, from: "manifest.json")
     let features = Dictionary(uniqueKeysWithValues: try run.read([PhotoFeatures].self, from: "cache/features.json").map { ($0.assetID, $0) })
     var pageSlides: [ResolvedSlide] = []
+    var whiteCards = 0
+    var nonWhiteSlides: [ResolvedSlide] = []
     for pair in pairs {
         #expect(Set([pair.left.carouselID.hasPrefix("legacy-"), pair.right.carouselID.hasPrefix("legacy-")]) == [true, false])
         #expect(pair.left.assetIDs == pair.right.assetIDs)
@@ -143,7 +147,11 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
             }
             for index in plan.slides.indices {
                 let slide = try JSONCoding.decoder.decode(ResolvedSlide.self, from: Data(contentsOf: root.appending(path: String(format: "layouts/%@/slide-%02d.json", ref.carouselID, index + 1))))
-                if ref.carouselID.hasPrefix("pages-") { pageSlides.append(slide) }
+                if ref.carouselID.hasPrefix("pages-") {
+                    pageSlides.append(slide)
+                    if plan.slides[index].placement?.pageID == "white-card" { whiteCards += 1 }
+                    else { nonWhiteSlides.append(slide) }
+                }
                 for element in slide.elements where element.kind == .photo {
                     let crop = try #require(element.crop)
                     #expect(crop.width * crop.height >= SlotAssignment.cropFloor)
@@ -184,9 +192,9 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     let report = try EvalCommand.score(evalDirectory: out, stage: .engine)
     #expect(report.contains("new engine preferred: 100%"))
     #expect(report.contains("rated yes: 100%"))
-    let whiteRate = Int((100 * Double(pageSlides.filter { $0.variant == "hero.clean" }.count) / Double(pageSlides.count)).rounded())
+    let whiteRate = Int((100 * Double(whiteCards) / Double(pageSlides.count)).rounded())
     #expect(report.contains("white cards: \(whiteRate)% of slides"))
-    let crops = pageSlides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.crop).map { $0.width * $0.height }.sorted()
+    let crops = nonWhiteSlides.flatMap(\.elements).filter { $0.kind == .photo }.compactMap(\.crop).map { $0.width * $0.height }.sorted()
     let middle = crops.count / 2
     let median = crops.count % 2 == 0 ? (crops[middle - 1] + crops[middle]) / 2 : crops[middle]
     #expect(report.contains(String(format: "median crop kept: %.2f", median)))
@@ -212,13 +220,67 @@ private func evalRun(_ tmp: TempDirectory, folder: URL, aspect: CarouselAspect? 
     #expect(throws: EvalCommand.EvalError.invalidLabels) { try EvalCommand.importLabels(evalDirectory: out, file: file) }
     #expect(try JSONCoding.decoder.decode([EvalRating].self, from: Data(contentsOf: out.appending(path: "ratings.json"))) == changedRatings)
     try EvalCommand.label(evalDirectory: out, rater: "o")
-    #expect(try String(contentsOf: out.appending(path: "index.html"), encoding: .utf8).contains("Which carousel layout is better?"))
+    let labelHTML = try String(contentsOf: out.appending(path: "label.html"), encoding: .utf8)
+    #expect(labelHTML.contains("Which carousel layout is better?"))
+    #expect(labelHTML.contains("const key='ak14-eval-'+rater;"))
+    #expect(try String(contentsOf: out.appending(path: "index.html"), encoding: .utf8) == labelHTML)
     if case .evalRate(let dir, let rater) = try Arguments.parse(["eval", "rate", out.path, "--rater", "o"], cwd: tmp.url) {
         try EvalCommand.rate(evalDirectory: dir, rater: rater)
     } else { Issue.record("eval rate arguments did not parse") }
-    let html = try String(contentsOf: out.appending(path: "index.html"), encoding: .utf8)
+    #expect(try String(contentsOf: out.appending(path: "label.html"), encoding: .utf8) == labelHTML)
+    #expect(try String(contentsOf: out.appending(path: "index.html"), encoding: .utf8) == labelHTML)
+    let html = try String(contentsOf: out.appending(path: "rate.html"), encoding: .utf8)
     #expect(html.contains("Would you post this option?"))
     #expect(html.contains("ratings.json") && html.contains("almost") && html.contains("data:image/png;base64,"))
+    try EvalCommand.label(evalDirectory: out, rater: "o")
+    #expect(try String(contentsOf: out.appending(path: "rate.html"), encoding: .utf8) == html)
     try Data("changed".utf8).write(to: folder.appending(path: "IMG_0000.jpg"))
-    #expect(throws: (any Error).self) { try EvalCommand.compare(runDirectories: [run.root], source: folder, out: out) }
+    #expect {
+        try EvalCommand.compare(runDirectories: [run.root], source: folder, out: out)
+    } throws: { error in
+        guard case RerenderCommand.Failure.changed("IMG_0000.jpg") = error else { return false }
+        return true
+    }
+}
+
+@Test func compareSkipsLegacyFallbackForMostlyLandscapeSquareRun() async throws {
+    let tmp = try TempDirectory(); defer { tmp.remove() }
+    let folder = try evalScene(tmp, name: "landscapes")
+    let run = try await evalRun(tmp, folder: folder)
+    #expect(try run.read(RunManifest.self, from: "manifest.json").aspectRatio == .square)
+    let session = try RunSession(runDirectory: run.root)
+    let context = session.compositionContext()
+    let composed = ComposerEngine.composeSet(directions: session.concepts.plans.filter { !$0.isBaseline }.compactMap(\.direction),
+        spine: try #require(session.concepts.spine), context: context, runID: session.runID)
+    let options = composed.plans.filter { !$0.isBaseline }
+    #expect(!options.isEmpty)
+    #expect(options.allSatisfy { $0.slides.contains { $0.placement == nil } })
+    let out = tmp.url.appending(path: "eval")
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent().appending(path: ".build/debug/ak14")
+    process.arguments = ["eval", "compare", run.root.path, "--source", folder.path, "--out", out.path]
+    let output = Pipe()
+    process.standardOutput = output
+    process.standardError = output
+    try process.run()
+    let data = output.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    #expect(process.terminationStatus == 0)
+    let text = String(decoding: data, as: UTF8.self)
+    for option in options {
+        #expect(text.contains("warning: \(run.root.lastPathComponent)/\(option.id): skipped option: template-first unavailable"))
+    }
+    #expect(text.contains("\(run.root.lastPathComponent): no template-first options available"))
+    let set = try JSONCoding.decoder.decode(EvalSet.self, from: Data(contentsOf: out.appending(path: "evalset.json")))
+    #expect(set.pairs.isEmpty)
+    #expect(set.skippedOptions == options.count)
+    #expect(set.strips.isEmpty)
+    #expect(!FileManager.default.fileExists(atPath: out.appending(path: "runs/\(run.root.lastPathComponent)").path))
+    let summary = try EvalCommand.score(evalDirectory: out, stage: .engine)
+    #expect(summary.contains("skipped \(options.count) options: template-first unavailable"))
+    #expect(summary.contains("no template-first options available"))
+    let reports = try FileManager.default.contentsOfDirectory(at: out.appending(path: "eval"), includingPropertiesForKeys: nil)
+    let markdown = try String(contentsOf: #require(reports.first { $0.pathExtension == "md" }), encoding: .utf8)
+    #expect(markdown.contains("skipped \(options.count) options: template-first unavailable"))
 }
