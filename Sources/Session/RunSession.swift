@@ -155,7 +155,7 @@ public final class RunSession: @unchecked Sendable {
                                       context: context, seed: seed, excludedCovers: covers)
                 } : nil
                 warnings = result?.warnings ?? []
-                if let result, result.plan.coverAssetID.map({ !covers.contains($0) }) == true,
+                if let result, context.keepOrder || result.plan.coverAssetID.map({ !covers.contains($0) }) == true,
                    !context.keepOrder || result.plan.photoAssetIDs == current.photoAssetIDs {
                     next = result.plan
                 } else {
@@ -248,7 +248,7 @@ public final class RunSession: @unchecked Sendable {
         }
         var assigned = Set(moments.flatMap(\.photos))
         for slide in plan.slides {
-            let photos = slide.photos.map(\.assetID)
+            let photos = slide.photos.filter { $0.role != "reference" }.map(\.assetID)
             for id in photos where !assigned.contains(id) {
                 if let index = moments.firstIndex(where: { moment in moment.photos.contains { photos.contains($0) } }) {
                     moments[index].photos.append(id)

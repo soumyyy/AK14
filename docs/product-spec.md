@@ -57,7 +57,7 @@ Nothing else matters until this is proven.
 - *Design rule:* if the best carousel is just a great cover, great sequence and great photos, output exactly that.
 
 **Taste Constitution V1**
-Good composition requires hierarchy · Not every photo needs decoration · Density should vary across slides · Imperfection can carry emotional value · Repeated perfection feels artificial · A carousel responds to its particular photos · Surprise is valuable when coherent · Avoid template fingerprints · Don't optimize every image for generic beauty · Random images give rhythm and personality · Whitespace is active · A cover creates interest; it doesn't just maximize aesthetic score · Concepts must differ structurally · A plain photo can beat a designed slide · Design must earn its presence.
+Good composition requires hierarchy · Not every photo needs decoration · Density should vary across slides · Imperfection can carry emotional value · Repeated perfection feels artificial · A carousel responds to its particular photos · Surprise is valuable when coherent · Don't optimize every image for generic beauty · Random images give rhythm and personality · Whitespace is active · A cover creates interest; it doesn't just maximize aesthetic score · Concepts must differ structurally · A plain photo can beat a designed slide · Design must earn its presence.
 
 **Agent optimization priority (do not reverse):**
 1. Post-worthiness

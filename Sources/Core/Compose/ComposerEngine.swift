@@ -77,7 +77,8 @@ public enum ComposerEngine {
         let pages = context.pages.filter { $0.aspect == context.aspect }
         if pages.count >= minimumPagesPerAspect {
             var kept: [CarouselPlan] = []
-            var usedFamilies = Set<String>(), usedCovers = Set<AssetID>()
+            var usedFamilies = Set<String>()
+            var usedCovers = context.keepOrder ? Set<AssetID>() : Set([base.plan.coverAssetID].compactMap { $0 })
             let candidates: [Direction]
             if directions.isEmpty, let first = spine.orderedAssetIDs.first {
                 let safe = spine.orderedAssetIDs.filter { !context.flagged.contains($0) }
@@ -91,29 +92,35 @@ public enum ComposerEngine {
             }
             for (i, direction) in candidates.prefix(3).enumerated() {
                 let id = "c\(i + 1)", seed = layoutSeed(runID: runID, id: id)
-                let families = PageSearch.candidateFamilies(pages, photos: direction.orderedAssetIDs, context: context)
-                    .filter { !usedFamilies.contains($0) }
-                let results = families.compactMap {
-                    PageSearch.search(direction, id: id, family: $0, pages: pages, context: context,
-                                      seed: seed, excludedCovers: usedCovers)
-                }.filter { result in
-                    // Keep-order fixes the cover, and search may relax exclusions when no opening fits.
-                    // Such a result must fall back rather than duplicate a template-first cover.
-                    let coverIsDistinct = result.plan.coverAssetID.map { !usedCovers.contains($0) } ?? false
-                    return coverIsDistinct && (!context.keepOrder || result.plan.photoAssetIDs == direction.orderedAssetIDs)
-                }
-                guard let best = results.max(by: { $0.score != $1.score ? $0.score < $1.score : $0.family > $1.family }) else {
-                    var fallbackDirection = direction
-                    if !context.keepOrder {
-                        let available = direction.orderedAssetIDs.filter {
-                            context.photos[$0] != nil && !usedCovers.contains($0)
-                        }
-                        let safe = available.filter { !context.flagged.contains($0) }
-                        let choices = safe.isEmpty ? available : safe
-                        if !choices.contains(direction.coverAssetID), let cover = choices.max(by: { strengthOrder($0, $1, context) }) {
-                            fallbackDirection.coverAssetID = cover
-                        }
+                func bestSearch(_ direction: Direction) -> PageSearch.Result? {
+                    let families = PageSearch.candidateFamilies(pages, photos: direction.orderedAssetIDs, context: context)
+                        .filter { !usedFamilies.contains($0) }
+                    let results = families.compactMap {
+                        PageSearch.search(direction, id: id, family: $0, pages: pages, context: context,
+                                          seed: seed, excludedCovers: usedCovers)
+                    }.filter { result in
+                        // Keep-order fixes the opener; family diversity still applies.
+                        let coverIsDistinct = context.keepOrder || (result.plan.coverAssetID.map { !usedCovers.contains($0) } ?? false)
+                        return coverIsDistinct && (!context.keepOrder || result.plan.photoAssetIDs == direction.orderedAssetIDs)
                     }
+                    return results.max(by: { $0.score != $1.score ? $0.score < $1.score : $0.family > $1.family })
+                }
+                var fallbackDirection = direction
+                if !context.keepOrder {
+                    let available = direction.orderedAssetIDs.filter {
+                        context.photos[$0] != nil && !usedCovers.contains($0)
+                    }
+                    let safe = available.filter { !context.flagged.contains($0) }
+                    let choices = safe.isEmpty ? available : safe
+                    if !choices.contains(direction.coverAssetID), let cover = choices.max(by: { strengthOrder($0, $1, context) }) {
+                        fallbackDirection.coverAssetID = cover
+                    }
+                }
+                // A taken cover is replaced before giving up on authored pages, so the stored
+                // direction replays to the same template-first plan.
+                let found = bestSearch(direction)
+                    ?? (fallbackDirection.coverAssetID != direction.coverAssetID ? bestSearch(fallbackDirection) : nil)
+                guard let best = found else {
                     let fallback = compose(fallbackDirection, id: id, context: context, seed: seed)
                     warnings += fallback.warnings.map { "\(id): \($0)" }
                     warnings.append("\(id): no family fits; used the current engine")

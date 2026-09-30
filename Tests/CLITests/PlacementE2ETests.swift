@@ -72,6 +72,25 @@ import Testing
         #expect(resolved.slides[1] == stored)
     }
 
+    @Test func stalePagesUseTheCurrentRenderedSlideCount() throws {
+        let run = set("expanded-run", slides: 3, slots: (0..<3).map {
+            slot(x: Double($0), y: 0, w: 1, h: 1, aspect: 0.8, z: $0)
+        })
+        let single = pageSet("following", slots: [slot(x: 0, y: 0, w: 1, h: 1, aspect: 0.8, z: 0)])
+        let photos = (0..<4).map { photo("p\($0)", aspect: 0.8) }
+        let ctx = try context(photos: photos, vocabulary: [], pages: [run, single])
+        let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [
+            SlidePlan(primitive: .overlapCluster, mood: "", density: "dense", photos: photos.prefix(3).map { .plain($0.assetID) },
+                decorations: [], stamps: [], placement: SlidePlacement(catalogueVersion: 2, pageID: run.id,
+                    runOffset: 0, runLength: 1, placed: [], slide: nil)),
+            SlidePlan(primitive: .hero, mood: "", density: "quiet", photos: [.plain(photos[3].assetID)],
+                decorations: [], stamps: [], placement: SlidePlacement(catalogueVersion: 2, pageID: single.id,
+                    runOffset: 0, runLength: 1, placed: [], slide: nil))])
+        let resolved = LayoutResolver.resolve(plan, context: ctx)
+        #expect(resolved.slides.map(\.index) == [0, 1, 2, 3])
+        #expect(resolved.slides.flatMap(\.elements).compactMap(\.assetID) == photos.map(\.assetID))
+    }
+
     @Test func plansWithoutPlacementRenderTheSameAsBefore() throws {
         let a = photo("a", aspect: 0.8)
         let plan = CarouselPlan(id: "c1", brief: "", direction: nil, slides: [

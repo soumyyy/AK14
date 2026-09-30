@@ -26,8 +26,20 @@ public enum PlanEditor {
         case .reorder(let from, let to):
             guard p.slides.indices.contains(from) else { throw PlanEditError.slideOutOfRange(from) }
             guard p.slides.indices.contains(to) else { throw PlanEditError.slideOutOfRange(to) }
-            invalidateRun(in: &p.slides, at: from)
-            p.slides.insert(p.slides.remove(at: from), at: to)
+            let members = invalidateRun(in: &p.slides, at: from)
+            // Inserting beside a run member splits that run; a single destination page is left untouched.
+            let splitsRun = (p.slides[to].placement?.runLength ?? 1) > 1
+            let destinationMembers = members.contains(to) || !splitsRun ? members : invalidateRun(in: &p.slides, at: to)
+            let ranges = members == destinationMembers ? [members] : [members, destinationMembers]
+            let removed = ranges.sorted { $0.lowerBound > $1.lowerBound }.flatMap {
+                deduplicateRunMembers(in: &p.slides, members: $0)
+            }
+            // A removed reference member maps to its next surviving neighbour, or the last slide.
+            func remap(_ index: Int) -> Int {
+                min(p.slides.count - 1, index - removed.filter { $0 < index }.count)
+            }
+            let source = remap(from), destination = remap(to)
+            p.slides.insert(p.slides.remove(at: source), at: destination)
 
         case .swap(let s, let old, let new):
             guard p.slides.indices.contains(s) else { throw PlanEditError.slideOutOfRange(s) }
@@ -52,16 +64,18 @@ public enum PlanEditor {
         return p
     }
 
-    private static func deduplicateRunMembers(in slides: inout [SlidePlan], members: Range<Int>) {
+    @discardableResult
+    private static func deduplicateRunMembers(in slides: inout [SlidePlan], members: Range<Int>) -> [Int] {
+        var removed: [Int] = []
         var owners: [AssetID: (member: Int, photo: Int, isSupport: Bool)] = [:]
         for member in members {
-            for (photo, element) in slides[member].photos.enumerated() {
+            for (photo, element) in slides[member].photos.enumerated() where element.role != "reference" {
                 let isSupport = element.role == "support"
                 if let owner = owners[element.assetID], !owner.isSupport || isSupport { continue }
                 owners[element.assetID] = (member, photo, isSupport)
             }
         }
-        // Keep each distinct photo's first non-support occurrence, or its first support occurrence.
+        // Explicit references cannot own a photo; retain real hero/support occurrences.
         // Reference-only members then disappear; delete backwards so the run's indices stay valid.
         for member in members.reversed() {
             slides[member].photos = slides[member].photos.enumerated().compactMap { photo, element in
@@ -69,11 +83,13 @@ public enum PlanEditor {
                 return element
             }
             if slides[member].photos.isEmpty {
+                removed.append(member)
                 slides.remove(at: member)
             } else if !slides[member].primitive.photoRange.contains(slides[member].photos.count) {
                 slides[member].primitive = slides[member].photos.count == 1 ? .hero : .asymmetricPair
             }
         }
+        return removed
     }
 
     @discardableResult
@@ -98,7 +114,25 @@ public enum PlanEditor {
               current.runLength == placement.runLength,
               let next = slides[upper + 1].placement, next.pageID == pageID,
               next.runLength == placement.runLength, next.runOffset == current.runOffset + 1 { upper += 1 }
-        for member in lower...upper { slides[member].placement = nil }
+        // Old plans encoded references as support. Recover ownership from the photo's
+        // rendered window across the run before discarding its placement.
+        let members = lower...upper
+        for member in members {
+            for photo in slides[member].photos.indices where slides[member].photos[photo].role == "support" {
+                let id = slides[member].photos[photo].assetID
+                guard members.contains(where: { $0 != member && slides[$0].photos.contains { $0.assetID == id } }) else { continue }
+                let windows = members.flatMap { index in
+                    (slides[index].placement?.slide?.elements ?? []).filter { $0.kind == .photo && $0.assetID == id }.map {
+                        (left: Double(index - lower) + $0.frame.x, right: Double(index - lower) + $0.frame.x + $0.frame.width)
+                    }
+                }
+                if let left = windows.map(\.left).min(), let right = windows.map(\.right).max(),
+                   Int(floor((left + right) / 2)) != member - lower {
+                    slides[member].photos[photo].role = "reference"
+                }
+            }
+        }
+        for member in members { slides[member].placement = nil }
         return lower..<(upper + 1)
     }
 }

@@ -41,11 +41,11 @@ public enum LayoutResolver {
                     continue
                 }
                 if placement.runLength == 1, let page = context.pages.first(where: { $0.id == placement.pageID }) {
-                    let ids = plan.slides[index].photos.map(\.assetID)
+                    let ids = plan.slides[index].photos.filter { $0.role != "reference" }.map(\.assetID)
                     let hero = plan.slides[index].photos.first { $0.role == "hero" }?.assetID ?? ids.first
                     if let fresh = SlotAssignment.assign(ids, to: page, hero: hero, keepOrder: context.keepOrder,
                                                          records: context.photos, features: context.features) {
-                        slides += TemplateVocabulary.render(page: page, placed: fresh.placed, plan: plan, start: index,
+                        slides += TemplateVocabulary.render(page: page, placed: fresh.placed, plan: plan, start: slides.count,
                                                             context: context, titlePlaced: &titlePlaced, captionCount: &captionCount)
                         index += 1
                         continue

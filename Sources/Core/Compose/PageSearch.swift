@@ -280,6 +280,11 @@ public enum PageSearch {
                     if first, titleRenders(ids, page, fit: fit, hero: hero) { result.score += PageScore.titledCover }
                     result.score += candidate.storyRank
                     result.score -= PageScore.cropCost * fit.cost
+                    let occupied = Set(fit.placed.map { item in
+                        let frame = page.expandedSlots[item.slotIndex].frame
+                        return Int(floor(frame.x + frame.width / 2))
+                    })
+                    result.score -= PageScore.blankRunMember * Double(page.slideCount - occupied.count)
                     if repeated { result.score -= PageScore.repeatedPage }
                     if monotonous { result.score -= PageScore.monotony }
                     result.score -= candidate.movedCost
@@ -443,10 +448,14 @@ public enum PageSearch {
                 var photos = onSlide.map(PhotoElement.plain)
                 if photos.isEmpty {
                     var reference = PhotoElement.plain(step.photos[0])
-                    reference.role = "support"
+                    reference.role = "reference"
                     photos = [reference]
                 } else {
-                    for index in photos.indices where index > 0 { photos[index].role = "support" }
+                    for index in photos.indices {
+                        photos[index].role = plan.slides.isEmpty
+                            ? (photos[index].assetID == state.cover ? "hero" : "support")
+                            : (index == 0 ? "hero" : "support")
+                    }
                 }
                 let primitive: Primitive = photos.count <= 1 ? .hero : photos.count == 2 ? .asymmetricPair : .overlapCluster
                 let placement = SlidePlacement(catalogueVersion: DesignedSet.schemaVersion, pageID: page.id,

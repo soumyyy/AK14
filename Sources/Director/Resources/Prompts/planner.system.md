@@ -40,10 +40,11 @@ Direction rules:
 - Every direction must tell a distinct story angle and have its own cover. Do not force photo overlap quotas.
 - keepTogether: optional groups of 2-4 photos that belong on the same slide (a sequence, a pair that answers each other). Use an empty list when none.
 - emphasisAssetIDs: optional photos that deserve a slide of their own. Use an empty list when none.
+- keepTogether and emphasisAssetIDs may be empty when moments are given; moments define the grouping.
 - Page grammar the layout engine already knows. Describe the story so it can use this. Do not name a template or give coordinates.
   - A photo crosses a slide edge only when the pictures are one continuous moment. Most photos stay on one slide.
   - Photos that share a page belong to the same moment.
-- Each direction must use a different cover and a noticeably different selection or sequence; do not return two directions with the same photos in the same order.
+- Each direction must have a different story angle and cover.
 - Do not output coordinates, sizes, primitives, template ids, or captions.
 - seamless: true only when the photos support a continuous panorama across slides. titleIdea: at most 40 characters, grounded in the owner's brief; use null when no honest title fits.
 

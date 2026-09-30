@@ -92,7 +92,8 @@ func modelDecidesHowManyDirectionsAndEveryAxisIsHonoured(count: Int) async throw
         case "light": #expect(decorated <= plan.slides.count / 5, "\(plan.id): \(decorated) decorated slides")
         default: #expect(decorated <= plan.slides.count / 2, "\(plan.id): \(decorated) decorated slides")
         }
-        if style.grouping == "single" { #expect(plan.slides.allSatisfy { $0.photos.count == 1 }, "\(plan.id) grouped photos") }
+        // Authored pages decide their own grouping; the grouping axis binds the current engine's slides.
+        if style.grouping == "single" { #expect(plan.slides.allSatisfy { $0.placement != nil || $0.photos.count == 1 }, "\(plan.id) grouped photos") }
         if style.overlap == "none" {
             // A multi-photo slide is only allowed where an imported template page hosts it.
             for (i, slide) in plan.slides.enumerated() where slide.primitive == .inset || slide.primitive == .overlapCluster {
@@ -427,7 +428,7 @@ struct ComposerE2ETests {
         }).subtracting(["layouts"]) }
         #expect(families.allSatisfy { $0.count == 1 })
         #expect(Set(families).count == options.count)
-        #expect(Set(options.compactMap(\.coverAssetID)).count == options.count)
+        #expect(Set(set.plans.compactMap(\.coverAssetID)).count == set.plans.count)
         #expect(set.plans.contains { $0.isBaseline })
         #expect(set.plans == ComposerEngine.composeSet(directions: directions, spine: spine, context: context, runID: "r1").plans)
         for plan in options {
@@ -563,7 +564,8 @@ struct ComposerE2ETests {
         #expect(try paths.map { try Data(contentsOf: store.url($0)) } == beforeReplay)
         try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
         let report = try store.read(ConceptsReport.self, from: "plans/director.json")
-        #expect(report.warnings.contains { $0.contains("no family fits") })
+        #expect(!report.warnings.contains { $0.contains("no family fits") })
+        #expect(report.plans.filter { !$0.isBaseline }.allSatisfy { $0.slides.allSatisfy { $0.placement != nil } })
         try RerenderCommand.rerender(runDirectory: store.root, source: folder, recompose: true)
         let repeated = try store.read(ConceptsReport.self, from: "plans/director.json")
         #expect(repeated.warnings == report.warnings)
@@ -571,8 +573,14 @@ struct ComposerE2ETests {
         for plan in report.plans { #expect(plan.photoAssetIDs == expected, "\(plan.id)") }
         let placed = try #require(report.plans.first { !$0.isBaseline && $0.slides.contains { $0.placement != nil } })
         try session.setSource(folder)
+        try session.reroll(placed.id)
+        let rerolled = try #require(session.plan(placed.id))
+        #expect(rerolled.photoAssetIDs == expected)
+        #expect(rerolled.slides.allSatisfy { $0.placement != nil })
+        #expect(Set(rerolled.slides.compactMap(\.placement?.pageID).compactMap { id in session.compositionContext().pages.first { $0.id == id }?.familyID }) ==
+            Set(placed.slides.compactMap(\.placement?.pageID).compactMap { id in session.compositionContext().pages.first { $0.id == id }?.familyID }))
         // A no-op reorder invalidates a grouped page and exercises re-assignment with the stored order constraint.
-        let grouped = try #require(placed.slides.firstIndex { $0.photos.count > 1 && $0.placement?.runLength == 1 })
+        let grouped = try #require(rerolled.slides.firstIndex { $0.photos.count > 1 && $0.placement?.runLength == 1 })
         try session.apply(.reorder(from: grouped, to: grouped), to: placed.id)
         #expect(session.plan(placed.id)?.photoAssetIDs == expected)
         let edited = try store.read(CarouselPlan.self, from: "edits/\(placed.id)/plan.json")

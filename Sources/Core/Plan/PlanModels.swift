@@ -41,7 +41,7 @@ public struct SelectionSpine: Codable, Sendable, Equatable {
 
 public struct PhotoElement: Codable, Sendable, Equatable {
     public var assetID: AssetID
-    public var role: String            // hero | support | detail
+    public var role: String            // hero | support | detail | reference
     public var importance: Int         // 1...3
     public var cropIntent: String      // tight | balanced | loose
     public var anchorIntent: String    // center | top | bottom | left | right
@@ -136,9 +136,9 @@ public struct CarouselPlan: Codable, Sendable, Equatable {
     public var style: StyleVector? { direction?.style }
     /// The photos-only control (including the legacy Plain Dump).
     public var isBaseline: Bool { id == Self.baselineID || id == "plainDump" }
-    public var photoAssetIDs: [AssetID] { slides.flatMap { $0.photos.map(\.assetID) } }
+    public var photoAssetIDs: [AssetID] { slides.flatMap { $0.photos.filter { $0.role != "reference" }.map(\.assetID) } }
     public var coverAssetID: AssetID? {
-        slides.first.flatMap { s in (s.photos.first { $0.role == "hero" } ?? s.photos.first)?.assetID }
+        slides.first.flatMap { s in (s.photos.first { $0.role == "hero" } ?? s.photos.first { $0.role != "reference" })?.assetID }
     }
 
     enum CodingKeys: String, CodingKey { case id, brief, direction, compositionSeed, recipeID, slides, conceptType, conceptNote }

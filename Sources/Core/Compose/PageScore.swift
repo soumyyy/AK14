@@ -9,6 +9,7 @@ enum PageScore {
     static let monotony = 0.6
     static let movedPhoto = 0.4
     static let whiteCard = 5.0
+    static let blankRunMember = 0.3
     static let slideCountMiss = 0.5
     static let beamWidth = 48, pagesPerStep = 12, alternativesPerMoment = 6
 }

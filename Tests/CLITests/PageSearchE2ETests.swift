@@ -140,7 +140,7 @@ import Testing
         let d = direction(momentsOf: [["p0"], ["p1"]], cover: ["p0"], title: nil)
         let plan = try #require(PageSearch.search(d, id: "c1", family: "A", pages: pages, context: ctx, seed: 1)).plan
         #expect(plan.slides.count == 3)
-        #expect(plan.slides[1].photos.first?.role == "support")
+        #expect(plan.slides[1].photos.first?.role == "reference")
         let layout = LayoutResolver.resolve(plan, context: layoutContext(ctx))
         #expect(layout.slides[1].elements.contains { $0.assetID?.rawValue == "p1" })
         #expect(layout.slides[2].elements.contains { $0.assetID?.rawValue == "p1" })
@@ -320,7 +320,7 @@ import Testing
         #expect(layout.slides.count == 3)
         #expect(layout.slides[1].elements.isEmpty)
         #expect(layout.slides[2].elements.compactMap(\.assetID?.rawValue) == ["p1"])
-        #expect(result.plan.slides[1].photos.first?.role == "support")
+        #expect(result.plan.slides[1].photos.first?.role == "reference")
     }
 
     @Test func borrowingSatisfiesTheNextMomentsCount() throws {
@@ -418,7 +418,7 @@ import Testing
         #expect(plan.slides.count == 3)
         #expect(plan.slides[1].photos.map(\.assetID.rawValue) == ["p1", "p2"])
         #expect(plan.slides[2].photos.map(\.assetID.rawValue) == ["p1"])
-        #expect(plan.slides[2].photos.first?.role == "support")
+        #expect(plan.slides[2].photos.first?.role == "reference")
         let resolved = LayoutResolver.resolve(plan, context: layoutContext(ctx))
         #expect(resolved.slides[1].elements.contains { $0.assetID?.rawValue == "p1" })
         #expect(resolved.slides[2].elements.contains { $0.assetID?.rawValue == "p1" })

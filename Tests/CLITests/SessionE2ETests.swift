@@ -212,7 +212,8 @@ struct SessionE2ETests {
         let grouped = try #require(afterRemove.slides.firstIndex { $0.photos.count > 1 && $0.placement?.runLength == 1 })
         let old = try #require(afterRemove.slides[grouped].photos.last?.assetID)
         let companions = afterRemove.slides[grouped].photos.map(\.assetID).filter { $0 != old }
-        let originalMoment = try #require(original.direction?.moments.first { $0.photos.contains(old) })
+        // Authored pages may borrow a neighbour; a swap joins its surviving slide companions.
+        let companionMoment = try #require(original.direction?.moments.first { $0.photos.contains(where: companions.contains) })
         try session.apply(.swap(slide: grouped, photo: old, with: ids[8]), to: "c1")
         // A swapped-in cover shares no slide with an existing moment, so it needs a new opening moment.
         let beforeSingleSwap = try #require(session.plan("c1"))
@@ -234,7 +235,7 @@ struct SessionE2ETests {
         #expect(Set(direction.moments.flatMap(\.photos)) == Set(edited.photoAssetIDs))
         #expect(direction.coverCandidates.allSatisfy(edited.photoAssetIDs.contains))
         let joined = try #require(direction.moments.first { $0.photos.contains(ids[8]) })
-        #expect(joined.label == originalMoment.label && companions.allSatisfy(joined.photos.contains))
+        #expect(joined.label == companionMoment.label && companions.allSatisfy(joined.photos.contains))
         let newMoment = try #require(direction.moments.first { $0.photos.contains(ids[9]) })
         #expect(newMoment.photos == [ids[9]] && newMoment.size == "1")
         #expect(direction.moments.first == newMoment)

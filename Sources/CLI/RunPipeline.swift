@@ -15,6 +15,7 @@ struct RunPipeline: Sendable {
     /// nil = no API key; the Director stage is skipped.
     let client: ResponsesClient?
     let log: @Sendable (String) -> Void
+    var loadDesignedPages: @Sendable () throws -> DesignedSetLibrary = { try StylePackLoader.loadDesignedPages() }
 
     static func live(options: RunOptions, client: ResponsesClient? = nil,
                      log: @escaping @Sendable (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) })
@@ -340,7 +341,21 @@ struct RunPipeline: Sendable {
         let vocabulary: [DesignedSet] = (try? StylePackLoader.loadDesignedSets()).flatMap { library in
             library.validationError() == nil ? library.vocabulary(for: aspect) : nil
         } ?? []
-        let pages = (try? StylePackLoader.loadDesignedPages())?.vocabulary(for: aspect) ?? []
+        let pages: [DesignedSet]
+        do {
+            let library = try loadDesignedPages()
+            if let error = library.validationError() {
+                let warning = "invalid page library: \(error); using no pages"
+                warnings.append(warning)
+                log("warning: " + warning)
+                pages = []
+            } else { pages = library.vocabulary(for: aspect) }
+        } catch {
+            let warning = "page library unavailable: \(error); using no pages"
+            warnings.append(warning)
+            log("warning: " + warning)
+            pages = []
+        }
         let composition = CompositionContext(aspect: aspect, photos: photoByID, features: features, triage: [:], flagged: [],
                                              sequenceIntent: [:], stylePack: stylePack, maxSlides: options.slides,
                                              exactSet: options.exact, keepOrder: options.keepOrder, storyHint: options.story,
