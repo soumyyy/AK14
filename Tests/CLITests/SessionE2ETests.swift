@@ -245,7 +245,7 @@ struct SessionE2ETests {
     }
 
     @Test(arguments: [false, true])
-    func authoredRerollFallsBackWhenSearchViolatesCoverOrOrder(keepOrder: Bool) async throws {
+    func authoredRerollFindsALaterCoverButStillFallsBackForInvalidOrder(keepOrder: Bool) async throws {
         let tmp = try TempDirectory(); defer { tmp.remove() }
         let (store, folder, _) = try await authoredRun(tmp, exactSet: true, keepOrder: keepOrder)
         var report = try store.read(ConceptsReport.self, from: "plans/director.json")
@@ -275,12 +275,26 @@ struct SessionE2ETests {
         try session.setSource(folder)
         try session.reroll("c1")
         let rerolled = try #require(session.plan("c1"))
-        #expect(rerolled.slides.allSatisfy { $0.placement == nil })
         #expect(Set(rerolled.photoAssetIDs) == Set(current.photoAssetIDs))
-        if keepOrder { #expect(rerolled.photoAssetIDs == current.photoAssetIDs) }
         let event = try #require(session.log.read().last)
         #expect(event.event == "concept_rerolled")
-        #expect(event.after?.contains("c1: page search violated cover or order constraints; used the current engine") == true)
+        let fallback = "c1: page search violated cover or order constraints; used the current engine"
+        if keepOrder {
+            #expect(rerolled.slides.allSatisfy { $0.placement == nil })
+            #expect(rerolled.photoAssetIDs == current.photoAssetIDs)
+            #expect(event.after?.contains(fallback) == true)
+        } else {
+            // The taken first-moment candidate no longer forces legacy composition: later
+            // moments supply a fitting, distinct cover under the cover-fix policy.
+            #expect(rerolled.slides.allSatisfy { $0.placement != nil })
+            #expect(rerolled.coverAssetID != current.coverAssetID)
+            #expect(rerolled.coverAssetID != report.plans[0].coverAssetID)
+            #expect(rerolled.slides[0].placement?.pageID != "white-card")
+            #expect(event.after?.contains(fallback) != true)
+            let cover = try #require(rerolled.coverAssetID)
+            let candidate = try #require(current.coverAssetID)
+            #expect(event.after?.contains("c1: cover \(cover.rawValue) chosen because \(candidate.rawValue) fits no cover page") == true)
+        }
     }
 
     private func authoredRun(_ tmp: TempDirectory, exactSet: Bool, keepOrder: Bool) async throws -> (RunStore, URL, [AssetID]) {

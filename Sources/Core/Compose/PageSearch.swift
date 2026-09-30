@@ -212,19 +212,24 @@ public enum PageSearch {
                     && slots[$0.id]!.count <= shapePool.count + 1
             }
             let availableShapes = Set(shapePool.compactMap { shapes[$0] })
+            let pageLimit = first ? fitting.count : PageScore.pagesPerStep
             let ranked = fitting.map { page -> (DesignedSet, Int) in
                 let matches = slots[page.id]!.filter { availableShapes.contains(ShapeClass.of(aspect: $0.aspect)) }.count
                 let repeated = state.steps.contains { $0.geometry == geometry[page.id] } ? 10 : 0
                 return (page, matches - repeated)
             }.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id < $1.0.id }
-                .prefix(PageScore.pagesPerStep).map(\.0)
+                .prefix(pageLimit).map(\.0)
             // Paths with the same local selection have identical tuple feasibility. Earlier
             // moments and page history affect scoring/ranking, but never assignment constraints.
             let localPhotos = moments[state.moment].photos
                 + (state.moment + 1 < moments.count ? moments[state.moment + 1].photos : [])
             let localUsed = localPhotos.filter(state.used.contains)
             var results: [State] = []
+            var fittingCoverPages = 0
             for page in ranked {
+                // The opening cap applies to feasible pages: a shape match alone must not
+                // hide the only cover page whose crop and subject constraints pass.
+                if first, fittingCoverPages == PageScore.pagesPerStep { break }
                 let key = CandidateKey(pageID: page.id, moment: state.moment, used: localUsed, cover: state.cover, hero: hero)
                 let candidates: [Candidate]
                 if let cached = candidateCache[key] {
@@ -262,6 +267,8 @@ public enum PageSearch {
                     candidateCache[key] = computed
                     candidates = computed
                 }
+                guard !candidates.isEmpty else { continue }
+                if first { fittingCoverPages += 1 }
                 let repeated = state.steps.contains { $0.geometry == geometry[page.id] }
                 let previous = state.steps.suffix(2)
                 let monotonous = previous.count == 2 && (previous.allSatisfy { $0.role == (page.pageRole ?? "grid") }
@@ -298,7 +305,7 @@ public enum PageSearch {
             result.append(Step(pageID: nil, photos: [photo], placed: [], geometry: "white", role: "statement"))
             result.used.insert(photo)
             result.whiteCards += 1
-            result.score -= PageScore.whiteCard
+            result.score -= state.steps.isEmpty ? PageScore.whiteCardCover : PageScore.whiteCard
             return result
         }
 
@@ -312,27 +319,37 @@ public enum PageSearch {
             if beam.isEmpty { beam = [whiteCard(initial, photo: firstPhoto)] }
         } else {
             let candidates = direction.coverCandidates.isEmpty ? [direction.coverAssetID] : direction.coverCandidates
-            for cover in candidates where photos.contains(cover) && !excludedCovers.contains(cover) {
+            let allowed = photos.filter { !excludedCovers.contains($0) }
+            let available = allowed.isEmpty ? photos : allowed
+            let safe = available.filter { !context.flagged.contains($0) }
+            let choices = safe.isEmpty ? available : safe
+            let preferred = candidates.filter(choices.contains)
+            var cover = preferred.first ?? choices.first ?? firstPhoto
+            for candidate in preferred {
                 var opening = initial
-                opening.cover = cover
-                beam += expand(opening, hero: cover)
+                opening.cover = candidate
+                let fitting = expand(opening, hero: candidate)
+                if !fitting.isEmpty { cover = candidate; beam = fitting; break }
             }
             if beam.isEmpty {
-                let firstMoment = moments[initial.moment].photos
-                let allowed = firstMoment.filter { !excludedCovers.contains($0) }
-                let fallbacks = allowed.isEmpty ? firstMoment : allowed
-                var cover = fallbacks.first ?? firstPhoto
-                for candidate in fallbacks {
-                    initial.cover = candidate
-                    let opening = expand(initial, hero: candidate)
-                    if !opening.isEmpty { cover = candidate; beam = opening; break }
+                // Moment photos are ranked best first. A remote opener is consumed from its
+                // own moment, just like an explicit cover candidate, without a move penalty.
+                for candidate in choices where !preferred.contains(candidate) {
+                    var opening = initial
+                    opening.cover = candidate
+                    let fitting = expand(opening, hero: candidate)
+                    if !fitting.isEmpty { cover = candidate; beam = fitting; break }
                 }
-                initial.cover = cover
-                warnings.append(allowed.isEmpty
-                    ? "\(id): no non-excluded opening photo; ignoring cover exclusions for \(cover.rawValue)"
-                    : "\(id): cover candidates excluded or unusable; using \(cover.rawValue)")
-                if beam.isEmpty { beam = [whiteCard(initial, photo: cover)] }
+                warnings.append("\(id): cover candidates excluded or unusable; using \(cover.rawValue)")
             }
+            initial.cover = cover
+            if allowed.isEmpty {
+                warnings.append("\(id): no non-excluded opening photo; ignoring cover exclusions for \(cover.rawValue)")
+            }
+            if let candidate = candidates.first, cover != candidate {
+                warnings.append("\(id): cover \(cover.rawValue) chosen because \(candidate.rawValue) fits no cover page")
+            }
+            if beam.isEmpty { beam = [whiteCard(initial, photo: cover)] }
         }
         func prune(_ states: [State]) -> [State] {
             // Scores order the beam before tie-break keys. Only build/sort keys for score

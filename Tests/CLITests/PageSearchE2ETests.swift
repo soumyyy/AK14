@@ -284,6 +284,107 @@ import Testing
         #expect(result.warnings.contains { $0.contains("using p1") })
     }
 
+    @Test(arguments: [false, true])
+    func landscapeCoverFallsBackToALaterPortraitWithoutDroppingTheLandscape(legacy: Bool) throws {
+        let pool = [photo("landscape", aspect: 16.0 / 9.0)] + portraits(2)
+        let ctx = try context(pool: pool, pages: familyA)
+        var d = direction(momentsOf: [["landscape"], ["p0", "p1"]], cover: ["landscape"], title: nil)
+        d.moments[0].mustInclude = [pool[0].assetID]
+        if legacy {
+            d.moments = []
+            d.coverCandidates = []
+        }
+        let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: familyA, context: ctx, seed: 1))
+        let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+        #expect(result.plan.coverAssetID?.rawValue == "p0")
+        #expect(result.plan.slides[0].placement?.pageID == "A-cover")
+        #expect(resolved.slides[0].variant == "template.A-cover")
+        #expect(resolved.slides[0].elements.contains { $0.assetID?.rawValue == "p0" })
+        #expect(resolved.slides.dropFirst().contains { $0.elements.contains { $0.assetID == pool[0].assetID } })
+        #expect(result.warnings.contains("c1: cover p0 chosen because landscape fits no cover page"))
+        #expect(resolved.slides.flatMap(\.elements).filter { $0.kind == .photo }.allSatisfy {
+            ($0.crop?.width ?? 1) * ($0.crop?.height ?? 1) >= SlotAssignment.cropFloor
+        })
+    }
+
+    @Test func firstFittingCoverCandidateWinsEvenWhenTheNextCandidateCropsBetter() throws {
+        let pool = [photo("p0", aspect: 1.1), photo("p1", aspect: 0.75), photo("landscape", aspect: 16.0 / 9.0)]
+        let ctx = try context(pool: pool, pages: familyA, exactSet: true)
+        for candidates in [["p0", "p1"], ["landscape", "p0", "p1"]] {
+            let d = direction(momentsOf: [["landscape"], ["p1", "p0"]], cover: candidates, title: nil)
+            let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: familyA, context: ctx, seed: 1))
+            let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+            #expect(result.plan.coverAssetID?.rawValue == "p0")
+            #expect(resolved.slides[0].elements.contains { $0.assetID?.rawValue == "p0" })
+            if candidates[0] == "landscape" {
+                #expect(result.warnings.contains("c1: cover p0 chosen because landscape fits no cover page"))
+            } else {
+                #expect(!result.warnings.contains { $0.contains("chosen because") })
+            }
+        }
+    }
+
+    @Test func coverFallbackSearchesMomentsInRankOrderRespectingExclusionsAndFlags() throws {
+        let pool = [photo("landscape", aspect: 16.0 / 9.0)] + portraits(4)
+        var ctx = try context(pool: pool, pages: familyA, exactSet: true)
+        ctx.flagged = [AssetID(rawValue: "p0")]
+        let d = direction(momentsOf: [["landscape", "p0", "p1"], ["p2"], ["p3"]], cover: ["landscape", "p0"], title: nil)
+        let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: familyA, context: ctx, seed: 1,
+                                                  excludedCovers: [AssetID(rawValue: "p1")]))
+        let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+        #expect(result.plan.coverAssetID?.rawValue == "p2")
+        #expect(resolved.slides[0].variant == "template.A-cover")
+        #expect(resolved.slides[0].elements.contains { $0.assetID?.rawValue == "p2" })
+        #expect(Set(resolved.slides.flatMap(\.elements).compactMap(\.assetID)) == Set(pool.map(\.assetID)))
+        #expect(result.warnings.contains("c1: cover p2 chosen because landscape fits no cover page"))
+    }
+
+    @Test func openingCoverChecksFittingPagesBeforeThePageLimit() throws {
+        let decoys = (0..<12).map {
+            page("a-cover-\($0)", family: "A", slots: [slot(0, 0, 1, 1, 0.75)], role: "cover", cover: true)
+        }
+        let fitting = page("z-cover", family: "A", slots: [slot(0, 0, 1, 1, 0.8)], role: "cover", cover: true)
+        let pages = decoys + [fitting]
+        let ctx = try context(pool: [photo("preferred", aspect: 1.2)] + portraits(1), pages: pages, exactSet: true)
+        let d = direction(momentsOf: [["preferred", "p0"]], cover: ["preferred"], title: nil)
+        let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: pages, context: ctx, seed: 1))
+        let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+        #expect(result.plan.coverAssetID?.rawValue == "preferred")
+        #expect(result.plan.slides[0].placement?.pageID == fitting.id)
+        #expect(resolved.slides[0].elements.contains { $0.assetID?.rawValue == "preferred" })
+        #expect(result.warnings.isEmpty)
+    }
+
+    @Test func keepOrderRetainsALandscapeOpeningEvenWhenAPortraitCoverFits() throws {
+        let pool = [photo("landscape", aspect: 16.0 / 9.0)] + portraits(2)
+        let ctx = try context(pool: pool, pages: familyA, exactSet: true, keepOrder: true)
+        let d = direction(momentsOf: [["landscape"], ["p0"], ["p1"]], cover: ["p0"], title: nil)
+        let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: familyA, context: ctx, seed: 1,
+                                                  excludedCovers: [pool[0].assetID]))
+        let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+        #expect(result.plan.coverAssetID == pool[0].assetID)
+        #expect(result.plan.slides[0].placement?.pageID == "white-card")
+        #expect(resolved.slides[0].variant == "hero.clean")
+        #expect(resolved.slides.flatMap(\.elements).compactMap(\.assetID) == pool.map(\.assetID))
+        #expect(!result.warnings.contains { $0.contains("chosen because") })
+    }
+
+    @Test func panoramaOnlyPoolUsesThePreferredCandidateOnADoublyPenalizedWhiteCardCover() throws {
+        let pages = [familyA[0], familyA[1]]
+        let pool = [photo("first", aspect: 16.0 / 9.0), photo("preferred", aspect: 16.0 / 9.0)]
+        let ctx = try context(pool: pool, pages: pages, exactSet: true)
+        let d = direction(momentsOf: [["first"], ["preferred"]], cover: ["preferred"], title: nil)
+        let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: pages, context: ctx, seed: 1))
+        let resolved = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
+        #expect(result.plan.coverAssetID == pool[1].assetID)
+        #expect(result.plan.slides[0].placement?.pageID == "white-card")
+        #expect(resolved.slides.allSatisfy { $0.variant == "hero.clean" })
+        #expect(resolved.slides.flatMap(\.elements).compactMap(\.assetID) == [pool[1].assetID, pool[0].assetID])
+        #expect(result.whiteCards == 2)
+        #expect(result.score == -15.0) // Opening white card costs 10, the ordinary white card costs 5.
+        #expect(result.warnings.contains("c1: preferred fits no available page; white card"))
+    }
+
     @Test func familiesWithSinglePageCoversRankFirstAndStayCappedAtFour() throws {
         let pages = familyA.map { page -> DesignedSet in
             var copy = page; copy.coverCapable = false; return copy
@@ -400,7 +501,8 @@ import Testing
         d.moments[1].size = "1"
         let result = try #require(PageSearch.search(d, id: "c1", family: "A", pages: pages, context: ctx, seed: 1))
         let layout = LayoutResolver.resolve(result.plan, context: layoutContext(ctx))
-        #expect(layout.slides[0].elements.first?.assetID?.rawValue == "p0")
+        #expect(layout.slides[0].elements.first?.assetID?.rawValue == "p2")
+        #expect(result.plan.slides[0].placement?.pageID == "white-card")
         #expect(!Set(layout.slides.flatMap(\.elements).compactMap(\.assetID?.rawValue)).isSuperset(of: ["p1", "p2"]))
         #expect(!result.warnings.isEmpty)
     }

@@ -35,7 +35,7 @@ Direction rules:
 - coverAssetID: the photo that opens this direction. It must be in orderedAssetIDs and must not be a socially flagged photo of someone else when an alternative exists.
 - orderedAssetIDs: repeat the moments' photos flattened in order (the engine derives it anyway).
 - moments: the direction's story as 1-12 ordered moments. Each moment has a short label, its photos as ranked alternatives (best first; list 1-9, more alternatives than you would show), mustInclude (0-2 photos that must appear), and size: "1" (one photo carries it), "few" (2-3), or "many" (4-9). A photo belongs to at most one moment. The layout engine chooses how many alternatives to show and lays them out on authored pages; do not count slides.
-- coverCandidates: 1-3 photos that could open this direction, best first.
+- coverCandidates: 1-3 photos that could open this direction, best first. Prefer covers that read well full-bleed in a portrait frame (tall or square photos, subject not at the edges).
 - titleIdeas: 0-3 short titles (at most 40 characters) grounded in the owner's brief; empty when no honest title fits.
 - Every direction must tell a distinct story angle and have its own cover. Do not force photo overlap quotas.
 - keepTogether: optional groups of 2-4 photos that belong on the same slide (a sequence, a pair that answers each other). Use an empty list when none.
